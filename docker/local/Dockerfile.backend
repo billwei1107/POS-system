@@ -1,0 +1,18 @@
+# Stage 1: Build
+FROM maven:3.9-eclipse-temurin-21-alpine AS build
+WORKDIR /app
+# 將 pom 文件優先複製以利於依賴緩存
+COPY backend/pom.xml backend/
+COPY backend/module-common/pom.xml backend/module-common/
+COPY backend/app/pom.xml backend/app/
+
+# 複製主要代碼並編譯
+COPY backend/ backend/
+RUN mvn -f backend/pom.xml clean package -DskipTests
+
+# Stage 2: Runtime
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+COPY --from=build /app/backend/app/target/*.jar app.jar
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]
