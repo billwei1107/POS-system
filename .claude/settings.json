@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(diff -rq *)",
+      "Bash(nc -zv *)",
+      "Bash(docker compose ps *)",
+      "Bash(mvn dependency:tree *)",
+      "Bash(mvn -pl * dependency:tree *)"
+    ]
+  }
+}
