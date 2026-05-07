@@ -32,6 +32,7 @@
         <module>module-attendance</module>
         <module>module-pos-product</module>
         <module>module-pos-core</module>
+        <module>module-pos-payment</module>
         <module>app</module>
     </modules>
 
