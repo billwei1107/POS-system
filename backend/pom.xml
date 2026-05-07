@@ -31,6 +31,7 @@
         <module>module-notification</module>
         <module>module-attendance</module>
         <module>module-pos-product</module>
+        <module>module-pos-core</module>
         <module>app</module>
     </modules>
 
