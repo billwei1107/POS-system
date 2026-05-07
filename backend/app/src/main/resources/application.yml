@@ -20,7 +20,8 @@ spring:
       classpath:db/migration/attendance,
       classpath:db/migration/pos/product,
       classpath:db/migration/pos/core,
-      classpath:db/migration/pos/payment
+      classpath:db/migration/pos/payment,
+      classpath:db/migration/pos/tax
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -44,10 +45,14 @@ modules:
   product: true
   pos-core: true
   pos-payment: true
+  pos-tax: true
   leave: false
   finance: false
 
 pos:
+  invoice:
+    seller-id: ${POS_SELLER_ID:12345678}
+    seller-name: ${POS_SELLER_NAME:企業商店}
   auth:
     pin-login: true
     quick-switch: true

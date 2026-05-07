@@ -33,6 +33,7 @@
         <module>module-pos-product</module>
         <module>module-pos-core</module>
         <module>module-pos-payment</module>
+        <module>module-pos-tax</module>
         <module>app</module>
     </modules>
 
