@@ -1,0 +1,36 @@
+# =========================================================
+# 業態預設：咖啡廳 / Cafe Profile
+# 適用：咖啡、飲料、輕食，重視會員儲值與點數
+# =========================================================
+
+modules:
+  auth: true
+  organization: true
+  workflow: false
+  notification: true
+  attendance: false
+
+pos:
+  auth:
+    pin-login: true
+    quick-switch: false
+    auto-lock-minutes: 5
+    manager-override: true
+  organization:
+    multi-region: true
+    multi-store: true
+    terminal-monitor: true
+  features:
+    barcode-scan: false
+    quick-buttons: true
+    member-lookup: true
+    split-payment: false
+    hold-order: true
+    refund: true
+    void-with-approval: false
+    gift-card: true
+    receipt-print: true
+    kitchen-display: true
+    table-management: false
+    reservation: false
+    delivery: true

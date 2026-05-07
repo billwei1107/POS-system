@@ -1,0 +1,36 @@
+# =========================================================
+# 業態預設：速食餐飲 / Fast Food Profile
+# 適用：速食、小吃、自助點餐（麥當勞式）
+# =========================================================
+
+modules:
+  auth: true
+  organization: true
+  workflow: false
+  notification: true
+  attendance: false
+
+pos:
+  auth:
+    pin-login: true
+    quick-switch: true
+    auto-lock-minutes: 3
+    manager-override: true
+  organization:
+    multi-region: true
+    multi-store: true
+    terminal-monitor: true
+  features:
+    barcode-scan: false
+    quick-buttons: true
+    member-lookup: false
+    split-payment: false
+    hold-order: true
+    refund: true
+    void-with-approval: false
+    gift-card: false
+    receipt-print: true
+    kitchen-display: true
+    table-management: false
+    reservation: false
+    delivery: true

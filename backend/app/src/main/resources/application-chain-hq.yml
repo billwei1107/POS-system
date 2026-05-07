@@ -1,0 +1,36 @@
+# =========================================================
+# 業態預設：連鎖總部 / Chain HQ Profile
+# 適用：總部管理後台，負責多店報表、調撥、審批管理
+# =========================================================
+
+modules:
+  auth: true
+  organization: true
+  workflow: true
+  notification: true
+  attendance: true
+
+pos:
+  auth:
+    pin-login: false
+    quick-switch: false
+    auto-lock-minutes: 15
+    manager-override: false
+  organization:
+    multi-region: true
+    multi-store: true
+    terminal-monitor: true
+  features:
+    barcode-scan: false
+    quick-buttons: false
+    member-lookup: true
+    split-payment: false
+    hold-order: false
+    refund: true
+    void-with-approval: true
+    gift-card: true
+    receipt-print: false
+    kitchen-display: false
+    table-management: false
+    reservation: false
+    delivery: false
