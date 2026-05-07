@@ -12,6 +12,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 public class AuthServiceImpl implements AuthService {
@@ -59,9 +60,31 @@ public class AuthServiceImpl implements AuthService {
                 .build();
     }
 
+    // ========================================
+    // Token 刷新 / Refresh Token
+    // ========================================
     @Override
     public LoginResponse refreshToken(String refreshToken) {
-        throw new BusinessException(400, "Refresh Token flow not implemented yet");
+        if (!jwtTokenProvider.validateToken(refreshToken)) {
+            throw new BusinessException(401, "無效或已過期的 Refresh Token / Invalid or expired refresh token");
+        }
+
+        UUID userId = jwtTokenProvider.getUserIdFromJWT(refreshToken);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(404, "用戶不存在 / User not found"));
+
+        if (!"ACTIVE".equals(user.getStatus())) {
+            throw new BusinessException(403, "帳號已停用 / User account is suspended");
+        }
+
+        String newToken = jwtTokenProvider.generateToken(user.getId(), "USER");
+
+        return LoginResponse.builder()
+                .token(newToken)
+                .refreshToken(newToken)
+                .userId(user.getId().toString())
+                .username(user.getUsername())
+                .build();
     }
 
     @Override
