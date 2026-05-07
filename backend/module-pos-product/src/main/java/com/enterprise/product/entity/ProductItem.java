@@ -11,7 +11,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.Where;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -19,7 +19,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "pos_prod_items")
 @SQLDelete(sql = "UPDATE pos_prod_items SET deleted_at = NOW() WHERE id = ?")
-@Where(clause = "deleted_at IS NULL")
+@SQLRestriction("deleted_at IS NULL")
 @Getter
 @Setter
 public class ProductItem extends BaseEntity {
