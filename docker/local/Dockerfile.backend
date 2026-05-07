@@ -1,12 +1,17 @@
 # Stage 1: Build
 FROM maven:3.9-eclipse-temurin-21-alpine AS build
 WORKDIR /app
-# 將 pom 文件優先複製以利於依賴緩存
+# 將所有子模組的 pom 優先複製以利於依賴緩存 / Copy all module poms for dependency caching
 COPY backend/pom.xml backend/
 COPY backend/module-common/pom.xml backend/module-common/
+COPY backend/module-auth/pom.xml backend/module-auth/
+COPY backend/module-organization/pom.xml backend/module-organization/
+COPY backend/module-workflow/pom.xml backend/module-workflow/
+COPY backend/module-notification/pom.xml backend/module-notification/
+COPY backend/module-attendance/pom.xml backend/module-attendance/
 COPY backend/app/pom.xml backend/app/
 
-# 複製主要代碼並編譯
+# 複製主要代碼並編譯 / Copy source and build
 COPY backend/ backend/
 RUN mvn -f backend/pom.xml clean package -DskipTests
 
