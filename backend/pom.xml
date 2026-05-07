@@ -30,6 +30,7 @@
         <module>module-workflow</module>
         <module>module-notification</module>
         <module>module-attendance</module>
+        <module>module-pos-product</module>
         <module>app</module>
     </modules>
 
