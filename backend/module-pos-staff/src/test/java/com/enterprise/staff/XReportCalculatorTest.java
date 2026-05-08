@@ -1,0 +1,125 @@
+/**
+ * @file XReportCalculatorTest.java
+ * @description X Report 計算引擎單元測試 / X Report calculator unit tests
+ * @description_en Unit tests for X Report generation from shift aggregates
+ * @description_zh 驗證 X Report 從班次累計資料正確產生的單元測試
+ */
+package com.enterprise.staff;
+
+import com.enterprise.staff.entity.StaffShift;
+import com.enterprise.staff.entity.XReport;
+import com.enterprise.staff.repository.StaffShiftRepository;
+import com.enterprise.staff.repository.XReportRepository;
+import com.enterprise.staff.service.XReportCalculator;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class XReportCalculatorTest {
+
+    @Mock private StaffShiftRepository shiftRepository;
+    @Mock private XReportRepository xReportRepository;
+
+    @InjectMocks private XReportCalculator calculator;
+
+    private UUID shiftId;
+    private StaffShift shift;
+
+    @BeforeEach
+    void setUp() {
+        shiftId = UUID.randomUUID();
+
+        shift = new StaffShift();
+        shift.setStoreId(UUID.randomUUID());
+        shift.setEmployeeId(UUID.randomUUID());
+        shift.setShiftNo("SH20260508001");
+        shift.setOpenedAt(Instant.now());
+        shift.setOpeningCash(new BigDecimal("1000.00"));
+        shift.setStatus(StaffShift.ShiftStatus.OPEN);
+
+        // 模擬多筆銷售累計 / Simulate accumulated sales
+        shift.addSale(new BigDecimal("300.00"), new BigDecimal("15.00"), new BigDecimal("0"));
+        shift.addSale(new BigDecimal("200.00"), new BigDecimal("10.00"), new BigDecimal("20.00"));
+        shift.addRefund(new BigDecimal("50.00"));
+
+        when(shiftRepository.findById(shiftId)).thenReturn(Optional.of(shift));
+        when(xReportRepository.save(any(XReport.class))).thenAnswer(inv -> inv.getArgument(0));
+    }
+
+    // ========================================
+    // X Report 銷售金額正確 / Verify total sales
+    // ========================================
+    @Test
+    @DisplayName("X Report 的 totalSales 應等於班次累計銷售額 500")
+    void generate_totalSales_correct() {
+        XReport report = calculator.generate(shiftId);
+        assertThat(report.getTotalSales()).isEqualByComparingTo("500.00");
+    }
+
+    // ========================================
+    // X Report 退款金額正確 / Verify total refunds
+    // ========================================
+    @Test
+    @DisplayName("X Report 的 totalRefunds 應等於班次累計退款 50")
+    void generate_totalRefunds_correct() {
+        XReport report = calculator.generate(shiftId);
+        assertThat(report.getTotalRefunds()).isEqualByComparingTo("50.00");
+    }
+
+    // ========================================
+    // X Report 淨銷售計算正確 / Verify net sales calculation
+    // ========================================
+    @Test
+    @DisplayName("X Report 的 netSales 應為 totalSales - totalRefunds = 450")
+    void generate_netSales_correct() {
+        XReport report = calculator.generate(shiftId);
+        assertThat(report.getNetSales()).isEqualByComparingTo("450.00");
+    }
+
+    // ========================================
+    // X Report 交易筆數正確 / Verify transaction count
+    // ========================================
+    @Test
+    @DisplayName("X Report 的 transactionCount 應為 2")
+    void generate_transactionCount_correct() {
+        XReport report = calculator.generate(shiftId);
+        assertThat(report.getTransactionCount()).isEqualTo(2);
+    }
+
+    // ========================================
+    // X Report 稅額正確 / Verify total tax
+    // ========================================
+    @Test
+    @DisplayName("X Report 的 totalTax 應等於累計稅額 25")
+    void generate_totalTax_correct() {
+        XReport report = calculator.generate(shiftId);
+        assertThat(report.getTotalTax()).isEqualByComparingTo("25.00");
+    }
+
+    // ========================================
+    // X Report 報表資料存入 DB / Verify report saved to repository
+    // ========================================
+    @Test
+    @DisplayName("X Report 應呼叫 save 儲存至資料庫")
+    void generate_savedToRepository() {
+        calculator.generate(shiftId);
+        ArgumentCaptor<XReport> captor = ArgumentCaptor.forClass(XReport.class);
+        verify(xReportRepository).save(captor.capture());
+        assertThat(captor.getValue().getShiftId()).isEqualTo(shiftId);
+    }
+}

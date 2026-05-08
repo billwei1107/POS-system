@@ -22,7 +22,8 @@ spring:
       classpath:db/migration/pos/core,
       classpath:db/migration/pos/payment,
       classpath:db/migration/pos/tax,
-      classpath:db/migration/pos/inventory
+      classpath:db/migration/pos/inventory,
+      classpath:db/migration/pos/staff
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -48,6 +49,7 @@ modules:
   pos-payment: true
   pos-tax: true
   pos-inventory: true
+  pos-staff: true
   leave: false
   finance: false
 
@@ -71,3 +73,8 @@ pos:
     serial-tracking: false
     auto-reorder: true
     inter-store-transfer: true
+  staff:
+    blind-close-enabled: true
+    x-report-enabled: true
+    z-report-enabled: true
+    swap-request-enabled: true

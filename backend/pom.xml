@@ -35,6 +35,7 @@
         <module>module-pos-payment</module>
         <module>module-pos-tax</module>
         <module>module-pos-inventory</module>
+        <module>module-pos-staff</module>
         <module>app</module>
     </modules>
 
