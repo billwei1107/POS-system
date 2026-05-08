@@ -5,7 +5,7 @@ CREATE TABLE pos_invoices (
     store_id        UUID        NOT NULL,
     order_id        UUID        NOT NULL,
     -- 發票號碼 (8碼數字流水號，完整號碼 = track_prefix + invoice_no)
-    track_id        UUID        REFERENCES pos_invoice_tracks(id),
+    track_id        UUID,                                 -- FK to pos_invoice_tracks(id), enforced at application layer
     invoice_no      VARCHAR(8),                           -- e.g. 00000001
     full_invoice_no VARCHAR(12),                          -- e.g. AB-00000001
     -- 發票類型

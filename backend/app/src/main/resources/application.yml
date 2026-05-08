@@ -12,12 +12,14 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
+    out-of-order: true
     locations: >-
       classpath:db/migration,
       classpath:db/migration/organization,
       classpath:db/migration/workflow,
       classpath:db/migration/notification,
       classpath:db/migration/attendance,
+      classpath:db/migration/leave,
       classpath:db/migration/pos/product,
       classpath:db/migration/pos/core,
       classpath:db/migration/pos/payment,
@@ -50,7 +52,7 @@ modules:
   pos-tax: true
   pos-inventory: true
   pos-staff: true
-  leave: false
+  leave: true
   finance: false
 
 pos:

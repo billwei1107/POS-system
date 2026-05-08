@@ -44,7 +44,7 @@ public interface StoreStockRepository extends JpaRepository<StoreStock, UUID> {
     // Redis 同步輔助：批次更新數量 / Bulk quantity update for Redis sync
     // ========================================
     @Modifying
-    @Query("UPDATE StoreStock s SET s.quantity = :qty, s.updatedAt = NOW() WHERE s.storeId = :storeId AND s.itemId = :itemId")
+    @Query("UPDATE StoreStock s SET s.quantity = :qty WHERE s.storeId = :storeId AND s.itemId = :itemId")
     int updateQuantity(@Param("storeId") UUID storeId, @Param("itemId") UUID itemId,
                        @Param("qty") BigDecimal qty);
 }

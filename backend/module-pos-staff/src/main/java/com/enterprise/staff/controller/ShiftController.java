@@ -23,7 +23,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
-@RestController
+@RestController("posStaffShiftController")
 @RequestMapping("/api/v1/staff/shifts")
 @RequiredArgsConstructor
 public class ShiftController {

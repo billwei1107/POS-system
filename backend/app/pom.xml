@@ -50,6 +50,12 @@
 
         <dependency>
             <groupId>com.enterprise</groupId>
+            <artifactId>module-leave</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.enterprise</groupId>
             <artifactId>module-pos-product</artifactId>
             <version>${project.version}</version>
         </dependency>

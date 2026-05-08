@@ -17,6 +17,12 @@ import { DefinitionListPage } from './features/workflow/pages/DefinitionListPage
 import { MyTasksPage } from './features/workflow/pages/MyTasksPage';
 import { NotificationBell } from './features/notification/components/NotificationBell';
 
+// 引入 leave 頁面
+import LeaveTypePage from './features/leave/pages/LeaveTypePage';
+import LeaveBalancePage from './features/leave/pages/LeaveBalancePage';
+import LeaveRequestPage from './features/leave/pages/LeaveRequestPage';
+import LeaveCalendarPage from './features/leave/pages/LeaveCalendarPage';
+
 // 引入 POS 相關
 import PosLayout from './layouts/PosLayout';
 import RegisterPage from './features/pos-orders/pages/RegisterPage';
@@ -37,6 +43,8 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => (
         <Button color="inherit" component={Link} to="/employee">員工管理</Button>
         <Button color="inherit" component={Link} to="/workflow">發起簽核</Button>
         <Button color="inherit" component={Link} to="/my-tasks">我的待辦</Button>
+        <Button color="inherit" component={Link} to="/leave/request">請假申請</Button>
+        <Button color="inherit" component={Link} to="/leave/calendar">請假日曆</Button>
         <Button color="inherit" component={Link} to="/login">登出</Button>
       </Toolbar>
     </AppBar>
@@ -62,6 +70,10 @@ function App() {
           <Route path="/employee" element={<AppLayout><EmployeeListPage /></AppLayout>} />
           <Route path="/workflow" element={<AppLayout><DefinitionListPage /></AppLayout>} />
           <Route path="/my-tasks" element={<AppLayout><MyTasksPage /></AppLayout>} />
+          <Route path="/leave/types" element={<AppLayout><LeaveTypePage /></AppLayout>} />
+          <Route path="/leave/balances" element={<AppLayout><LeaveBalancePage /></AppLayout>} />
+          <Route path="/leave/request" element={<AppLayout><LeaveRequestPage /></AppLayout>} />
+          <Route path="/leave/calendar" element={<AppLayout><LeaveCalendarPage /></AppLayout>} />
 
           {/* 預設導向登入頁面 */}
           <Route path="/" element={<Navigate to="/pos/register" replace />} />
