@@ -40,11 +40,12 @@ module/
 
 1. 閱讀 `AGENTS.md`
 2. 閱讀 `README.md`
-3. 閱讀 `需求/README.md`
-4. 閱讀 `需求/AI協作交接規範.md`
-5. 執行或確認 `scripts/setup-module-reference.sh`
-6. 閱讀 `reference/模塊化組件/ai-handoff.md`
-7. 依目前角色執行：
+3. 閱讀 `docs/project-map.md`
+4. 閱讀 `需求/README.md`
+5. 閱讀 `需求/AI協作交接規範.md`
+6. 執行或確認 `scripts/setup-module-reference.sh`
+7. 閱讀 `reference/模塊化組件/ai-handoff.md`
+8. 依目前角色執行：
    - Claude：補齊需求、系統規格、開發流程規劃、功能檢驗流程書
    - Codex：檢查 Claude 文件後實作、測試、提交
 
@@ -70,11 +71,12 @@ Codex 接手前應確認：
 - `需求/開發流程規劃.md` 已描述優先級、依賴、階段與風險
 - `需求/功能檢驗流程書.md` 已描述驗收標準與測試案例
 - `reference/模塊化組件/ai-handoff.md` 已存在
+- `docs/project-map.md` 已反映目前實際資料夾結構
 
 ## 6. 給 AI 的最小提示詞
 
 ```text
-請先閱讀 AGENTS.md 與 ai-project-start.md。
+請先閱讀 AGENTS.md、ai-project-start.md 與 docs/project-map.md。
 如果 reference/模塊化組件/ai-handoff.md 不存在，請執行 bash scripts/setup-module-reference.sh 自動從遠端抓取模塊化組件母體。
 若你是 Claude，請先補齊 需求/需求文檔.md、需求/系統規格表.md、需求/開發流程規劃.md、需求/功能檢驗流程書.md。
 若你是 Codex，請先檢查 Claude 產物是否完整，再自行設計實作方案並執行。
