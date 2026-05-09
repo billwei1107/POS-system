@@ -18,7 +18,10 @@
 5. `需求/README.md`
 6. `需求/AI協作交接規範.md`
 7. `CLAUDE.md`（若由 Claude 接手）
-8. `reference/模塊化組件/ai-handoff.md`（若不存在，先執行初始化腳本）
+8. `.agent/workflows/rules.md` 與 `.cursor/rules/projectrule.mdc`（需要本地工作流或 Cursor 規則時）
+9. `reference/模塊化組件/ai-handoff.md`（若不存在，先執行初始化腳本）
+
+POS 專案根目錄固定為 `/Users/wei/Desktop/code/POS/`。舊模板資料夾 的有效內容已整理併入 POS 根目錄、`.agent/`、`.cursor/`、`需求/` 與 `devlog/`；後續不得再把模板資料夾當作根目錄或需求來源。
 
 ## 分支與 Git
 

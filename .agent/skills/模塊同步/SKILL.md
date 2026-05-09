@@ -9,7 +9,9 @@ description: 在專案與母體模塊化組件之間執行同步。包含：修�
 
 本 Skill 處理「企業模塊化組件系統」專案與母體倉庫之間的雙向同步流程。
 
-**母體倉庫位置**：`~/Desktop/code/POS/模塊化組件/module/`（Git remote: `billwei1107/module`）
+**正式母體倉庫位置**：`~/Desktop/code/模塊化組件/`（Git remote: `billwei1107/module`）
+
+**專案內參考位置**：`reference/模塊化組件/`。此資料夾只作為 AI 規劃參考與匯出工具來源，不可直接當作正式源碼修改。
 
 ---
 
@@ -19,9 +21,9 @@ description: 在專案與母體模塊化組件之間執行同步。包含：修�
 
 | ✓ 通用模組（需同步） | ✗ 專案專屬（不同步） |
 |-------------------|--------------------|
-| `module-common`, `module-auth`, `module-organization`, `module-workflow`, `module-notification`, `module-attendance` | `pos-auth`, `pos-orders`, `pos-inventory` 等 POS 專屬 feature |
-| 前端 `features/auth`, `organization`, `workflow`, `notification`, `attendance` | 前端 `features/pos-*` |
-| `shared/api`, `shared/store`, `shared/types` | `shared/theme`（POS 主題） |
+| `module-common`, `module-auth`, `module-organization`, `module-workflow`, `module-notification`, `module-attendance` | 客戶專屬 seeder、品牌文案、一次性整合設定 |
+| 可被多專案複用的 `module-pos-*` 業態模板模組 | 只服務單一 POS 客戶流程的客製化分支 |
+| 前端 `shared/api`, `shared/store`, `shared/types`, 通用元件與 hook | 前端品牌主題、客戶專屬頁面文案 |
 
 ---
 
@@ -48,29 +50,29 @@ description: 在專案與母體模塊化組件之間執行同步。包含：修�
    ```bash
    rsync -av --delete \
      ~/Desktop/code/[專案]/backend/[module-name]/ \
-     ~/Desktop/code/POS/模塊化組件/module/backend/[module-name]/
+     ~/Desktop/code/模塊化組件/module/backend/[module-name]/
    ```
 
    前端 feature：
    ```bash
    rsync -av --delete \
      ~/Desktop/code/[專案]/frontend-web/src/features/[feature-name]/ \
-     ~/Desktop/code/POS/模塊化組件/module/frontend-web/src/features/[feature-name]/
+     ~/Desktop/code/模塊化組件/module/frontend-web/src/features/[feature-name]/
    ```
 
    前端 shared：
    ```bash
    rsync -av --delete \
      ~/Desktop/code/[專案]/frontend-web/src/shared/[dir]/ \
-     ~/Desktop/code/POS/模塊化組件/module/frontend-web/src/shared/[dir]/
+     ~/Desktop/code/模塊化組件/module/frontend-web/src/shared/[dir]/
    ```
 
 3. **在母體 commit**：
    ```bash
-   cd ~/Desktop/code/POS/模塊化組件
+   cd ~/Desktop/code/模塊化組件
    git add .
    git commit -m "fix(module-[name]): [說明修復內容]"
-   git push origin main
+   git push origin feature/module-leave
    ```
 
 4. **回報完成**：告知用戶已回寫並 push 到 `billwei1107/module`
@@ -94,7 +96,7 @@ description: 在專案與母體模塊化組件之間執行同步。包含：修�
 4. **在母體 commit**：
    ```bash
    git commit -m "feat(module-[name]): [說明新增功能]"
-   git push origin main
+   git push origin feature/module-leave
    ```
 5. **更新母體文檔**（若需要）：更新 `企畫書.md` 或相關說明
 
@@ -111,7 +113,7 @@ description: 在專案與母體模塊化組件之間執行同步。包含：修�
 
    ```bash
    rsync -av --delete \
-     ~/Desktop/code/POS/模塊化組件/module/backend/[module-name]/ \
+     ~/Desktop/code/模塊化組件/module/backend/[module-name]/ \
      ~/Desktop/code/[專案]/backend/[module-name]/
    ```
 
@@ -132,7 +134,8 @@ description: 在專案與母體模塊化組件之間執行同步。包含：修�
 ## 注意事項
 
 > [!CAUTION]
-> - **禁止**同步 `pos-auth`、`pos-orders`、`pos-inventory` 等 POS 專屬 feature 到母體
-> - **禁止**同步 `shared/theme` 到母體（POS 專屬主題）
+> - **禁止**把 `reference/模塊化組件/` 當作正式母體直接修改
+> - **禁止**同步客戶專屬資料、品牌文案、一次性流程到母體
+> - `module-pos-*` 若是可重用的 POS 業態模板，應回寫母體；若是單一客戶客製化，留在 POS 專案
 > - 回寫前**必須**確認修復已在專案中驗證無誤
 > - 新功能抽離前**必須**清除所有硬編碼
