@@ -33,7 +33,7 @@ POS/
 ├── reference/                   # AI 參考資料，不進正式源碼
 ├── scripts/                     # 專案輔助腳本
 ├── 需求/                         # 需求、規格、規劃與驗收文件
-├── docs/                        # 專案導覽與長期維護文件
+├── docs/                        # 專案導覽、導入交接與長期維護文件
 └── devlog/                      # 開發日誌與 troubleshooting
 ```
 
@@ -112,8 +112,11 @@ frontend-web/src/
 cd frontend-web
 npm run build
 npm run lint
+npm test
 npm run dev
 ```
+
+前端測試基線位於 `frontend-web/test/`，使用 Vitest、jsdom 與 React Testing Library，覆蓋 cart store、auth persistence、held order API flow 與 CheckoutPage 現金付款核心邏輯。
 
 ## 5. Docker 與環境
 
@@ -140,6 +143,8 @@ docker/local/.env
 ```
 
 上述本地環境檔不應提交。
+
+本地 Docker 操作細節請看 `docker/local/README.md`。
 
 ## 6. 需求與規格文件
 
@@ -200,8 +205,11 @@ module-v2026.05.10.4
 ```bash
 bash -n scripts/setup-module-reference.sh
 git diff --check
-cd backend && mvn clean verify
-cd frontend-web && npm run build
+cd frontend-web && npm test && npm run lint && npm run build
+cd backend && mvn -pl module-pos-core,module-pos-payment,module-pos-tax,module-pos-inventory,module-pos-staff -am test
+cd backend && mvn -pl app -am test
 ```
 
 前端有 UI 修改時，除 build 外也應用瀏覽器實際操作驗證。
+
+正式導入交接請看 `docs/production-handoff.md`。

@@ -88,6 +88,57 @@ npm run dev
 | PostgreSQL | `localhost:5432` |
 | Redis | `localhost:6379` |
 
+POS demo 登入：
+
+| 項目 | 值 |
+|------|-----|
+| PIN | `1234` |
+| 門店 | `00000000-0000-0000-0000-000000000001` |
+| 終端 | `00000000-0000-0000-0000-000000000101` |
+| 員工 | `00000000-0000-0000-0000-000000000201` |
+
+## 目前完成狀態
+
+截至 2026-05-11，POS 主流程已完成到可驗證閉環：
+
+```text
+PIN 登入 → 商品載入 → 加入購物車 → 折扣/會員 MVP → 掛單/取回 →
+現金付款 → payment transaction → mock invoice/tax →
+inventory 扣庫存 → staff shift/cash drawer/reconciliation → 訂單查詢/退款
+```
+
+正式化狀態以 `需求/開發進度對照.md` 為準。仍屬 MVP 或待正式化的項目包括：CRM 會員後端、促銷引擎、正式電子發票字軌/Turnkey、完整盤點/調撥、硬體列印/錢箱、多支付方式與更完整日結情境。
+
+## 測試與驗證
+
+前端：
+
+```bash
+cd frontend-web
+npm test
+npm run lint
+npm run build
+```
+
+後端 POS 核心模組：
+
+```bash
+cd backend
+mvn -pl module-pos-core,module-pos-payment,module-pos-tax,module-pos-inventory,module-pos-staff -am test
+mvn -pl app -am test
+```
+
+Docker 本地環境：
+
+```bash
+docker compose -f docker/local/docker-compose.yml up -d --build backend frontend
+curl http://localhost:38080/actuator/health
+```
+
+資料庫驗證需使用 `env/local/.env` 的 `DB_USER` / `DB_NAME`，本地預設為 `pos_user` / `pos_db`。
+
+更多導入交接、測試清單與人工確認事項請看 `docs/production-handoff.md`。
+
 ## AI 協作流程
 
 使用 Claude 規劃、Codex 執行時，請先閱讀：

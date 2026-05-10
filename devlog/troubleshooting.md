@@ -476,3 +476,37 @@ waiting for locator('button').filter({ has: locator('svg[data-testid="ShoppingCa
 - `mvn -pl app -am test`：通過。
 - Playwright 完整 E2E 通過：PIN 登入、商品、現金付款、訂單列表、發票頁、對帳頁。
 - DB 驗證最新訂單、payment transaction、invoice、reconciliation 與 inventory 皆可查。
+
+---
+
+# 2026-05-11 POS Checkpoint 7 DB 驗證表名與欄位誤用
+
+## Issue
+
+- 場景：Checkpoint 7 最終 DB 驗證最新 E2E 訂單、付款、發票、庫存與對帳資料。
+- 問題：
+  - 初版查詢使用 `pos_inventory_stock`，DB 回 `relation "pos_inventory_stock" does not exist`。
+  - 初版查詢使用 `pos_payment_transactions.tendered_amount`，DB 回 `column pt.tendered_amount does not exist`。
+  - 初版查詢使用 `pos_reconciliation_records`，DB 回 `relation "pos_reconciliation_records" does not exist`。
+
+## Root Cause
+
+- POS inventory 實際門店庫存表為 `pos_inv_store_stock`。
+- payment transaction 現金實收欄位為 `tendered`。
+- 對帳表為 `pos_reconciliation`。
+
+## Solution
+
+- 查詢改用 `pos_inv_store_stock`、`pos_payment_transactions.tendered`、`pos_reconciliation`。
+- `docs/production-handoff.md` 補常用 POS 驗證表與欄位提示，避免新接手者沿用錯誤表名。
+
+## Verification
+
+- 最新 E2E 訂單 `000000-20260510194000-6886` 可查：
+  - `status=COMPLETED`
+  - `discount_total=12.00`
+  - `grand_total=113.00`
+  - payment `method_type=CASH`、`amount=113.00`、`tendered=130.00`、`change_given=17.00`
+  - invoice `status=ISSUED`、`tax_amount=5.40`、`total_amount=113.00`
+  - inventory `quantity=91.000`、`reserved_quantity=0.000`
+  - reconciliation `CASH`、`transaction_count=15`、`total_amount=1864.00`
