@@ -235,7 +235,7 @@ const CategoryListPage: React.FC = () => {
           severity="error"
           onClose={() => setError(null)}
           action={!isAuthenticated ? (
-            <Button color="inherit" size="small" onClick={() => navigate('/login')}>
+            <Button color="inherit" size="small" onClick={() => navigate('/login?redirect=/pos/categories')}>
               前往登入
             </Button>
           ) : undefined}
