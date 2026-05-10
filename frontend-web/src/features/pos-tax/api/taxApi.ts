@@ -11,7 +11,7 @@ import type {
   Invoice, IssueInvoiceRequest,
 } from '../types';
 
-const BASE = '/api/v1/pos';
+const BASE = '/v1/pos';
 
 // ========================================
 // 稅率類別 API / Tax class API

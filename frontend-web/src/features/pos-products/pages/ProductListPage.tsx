@@ -9,8 +9,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -19,17 +17,8 @@ import {
   IconButton,
   InputLabel,
   MenuItem,
-  Pagination,
-  Paper,
   Select,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
-  Typography,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -39,8 +28,29 @@ import {
 } from '@mui/icons-material';
 import { productApi } from '../api/productApi';
 import type { Category, ProductItem, ProductItemRequest, UnitType } from '../types';
+import { ConfirmDialog, DataTable, PageHeader, StatusChip, type Column } from '@shared/components';
+import { formatMoney } from '@shared/utils';
+import { useAuthStore } from '@shared/store/authStore';
 
 const UNIT_OPTIONS: UnitType[] = ['PCS', 'KG', 'LB', 'ML', 'L'];
+
+const createProductForm = (initial?: ProductItem | null): ProductItemRequest => {
+  if (!initial) return { sku: '', name: '', basePrice: 0, unit: 'PCS', active: true };
+
+  return {
+    sku: initial.sku,
+    name: initial.name,
+    description: initial.description ?? undefined,
+    categoryId: initial.categoryId ?? undefined,
+    basePrice: initial.basePrice,
+    costPrice: initial.costPrice ?? undefined,
+    unit: initial.unit,
+    barcodePrimary: initial.barcodePrimary ?? undefined,
+    trackInventory: initial.trackInventory,
+    sellable: initial.sellable,
+    active: initial.active,
+  };
+};
 
 // ========================================
 // 商品編輯彈窗 / Product edit dialog
@@ -54,29 +64,7 @@ interface ProductDialogProps {
 }
 
 const ProductDialog: React.FC<ProductDialogProps> = ({ open, initial, categories, onClose, onSave }) => {
-  const [form, setForm] = useState<ProductItemRequest>({
-    sku: '', name: '', basePrice: 0, unit: 'PCS', active: true,
-  });
-
-  useEffect(() => {
-    if (initial) {
-      setForm({
-        sku: initial.sku,
-        name: initial.name,
-        description: initial.description ?? undefined,
-        categoryId: initial.categoryId ?? undefined,
-        basePrice: initial.basePrice,
-        costPrice: initial.costPrice ?? undefined,
-        unit: initial.unit,
-        barcodePrimary: initial.barcodePrimary ?? undefined,
-        trackInventory: initial.trackInventory,
-        sellable: initial.sellable,
-        active: initial.active,
-      });
-    } else {
-      setForm({ sku: '', name: '', basePrice: 0, unit: 'PCS', active: true });
-    }
-  }, [initial, open]);
+  const [form, setForm] = useState<ProductItemRequest>(() => createProductForm(initial));
 
   const set = (key: keyof ProductItemRequest) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((prev) => ({ ...prev, [key]: e.target.value }));
@@ -146,6 +134,7 @@ const ProductDialog: React.FC<ProductDialogProps> = ({ open, initial, categories
 // 主頁面 / Main page
 // ========================================
 const ProductListPage: React.FC = () => {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [total, setTotal] = useState(0);
@@ -157,10 +146,19 @@ const ProductListPage: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ProductItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ProductItem | null>(null);
 
   const PAGE_SIZE = 20;
 
   const load = useCallback(async () => {
+    if (!isAuthenticated) {
+      setProducts([]);
+      setTotal(0);
+      setError('請先登入後台後再管理商品資料。');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -179,17 +177,23 @@ const ProductListPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, keyword, categoryFilter]);
+  }, [isAuthenticated, page, keyword, categoryFilter]);
 
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setCategories([]);
+      return;
+    }
     productApi.getCategories().then((res) => { if (res.success) setCategories(res.data); });
-  }, []);
+  }, [isAuthenticated]);
 
   const handleSearch = () => { setKeyword(searchInput); setPage(1); };
 
   const handleSave = async (data: ProductItemRequest) => {
+    if (!isAuthenticated) return;
+
     try {
       if (editTarget) {
         await productApi.updateProduct(editTarget.id, data);
@@ -204,10 +208,12 @@ const ProductListPage: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('確定要刪除此商品？')) return;
+  const handleDelete = async () => {
+    if (!isAuthenticated || !deleteTarget) return;
+
     try {
-      await productApi.deleteProduct(id);
+      await productApi.deleteProduct(deleteTarget.id);
+      setDeleteTarget(null);
       load();
     } catch {
       setError('刪除失敗，請重試');
@@ -217,35 +223,104 @@ const ProductListPage: React.FC = () => {
   const getCategoryName = (id: string | null) =>
     categories.find((c) => c.id === id)?.name ?? '-';
 
-  return (
-    <Box sx={{ p: 3 }}>
-      {/* ===== 頁面標頭 / Page header ===== */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h5" fontWeight="bold">商品管理</Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => { setEditTarget(null); setDialogOpen(true); }}
-        >
-          新增商品
-        </Button>
-      </Box>
+  const columns: Column<ProductItem>[] = [
+    {
+      key: 'sku',
+      label: 'SKU',
+      render: (product) => (
+        <Box component="span" sx={{ fontFamily: 'monospace', fontWeight: 800 }}>
+          {product.sku}
+        </Box>
+      ),
+    },
+    { key: 'name', label: '商品名稱' },
+    {
+      key: 'categoryId',
+      label: '分類',
+      render: (product) => getCategoryName(product.categoryId),
+    },
+    {
+      key: 'basePrice',
+      label: '售價',
+      align: 'right',
+      render: (product) => formatMoney(product.basePrice),
+    },
+    { key: 'unit', label: '單位', width: 90 },
+    {
+      key: 'active',
+      label: '狀態',
+      width: 110,
+      render: (product) => (
+        <StatusChip status={product.active ? 'ACTIVE' : 'INACTIVE'} labelMap={{ ACTIVE: '啟用', INACTIVE: '停用' }} />
+      ),
+    },
+    {
+      key: 'actions',
+      label: '操作',
+      align: 'right',
+      width: 120,
+      render: (product) => (
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
+          <IconButton
+            aria-label={`編輯 ${product.name}`}
+            size="small"
+            onClick={() => { setEditTarget(product); setDialogOpen(true); }}
+          >
+            <EditIcon fontSize="small" />
+          </IconButton>
+          <IconButton
+            aria-label={`刪除 ${product.name}`}
+            size="small"
+            color="error"
+            onClick={() => setDeleteTarget(product)}
+          >
+            <DeleteIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      ),
+    },
+  ];
 
-      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <PageHeader
+        title="商品管理"
+        subtitle="維護 POS 可銷售商品、SKU、售價、分類與啟用狀態。"
+        actions={(
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            disabled={!isAuthenticated}
+            onClick={() => { setEditTarget(null); setDialogOpen(true); }}
+          >
+            新增商品
+          </Button>
+        )}
+      />
+
+      {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
 
       {/* ===== 篩選列 / Filter bar ===== */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+      <Box sx={{
+        display: 'flex',
+        gap: 2,
+        flexWrap: 'wrap',
+        bgcolor: 'background.paper',
+        p: 2,
+        borderRadius: 3,
+        border: '1px solid rgba(255,255,255,0.06)',
+      }}>
         <TextField
           placeholder="搜尋商品名稱、SKU、條碼"
           size="small"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-          sx={{ minWidth: 260 }}
+          sx={{ flex: '1 1 260px' }}
         />
         <Button variant="outlined" startIcon={<SearchIcon />} onClick={handleSearch}>搜尋</Button>
 
-        <FormControl size="small" sx={{ minWidth: 160 }}>
+        <FormControl size="small" sx={{ minWidth: 180 }}>
           <InputLabel>篩選分類</InputLabel>
           <Select
             label="篩選分類"
@@ -258,85 +333,36 @@ const ProductListPage: React.FC = () => {
         </FormControl>
       </Box>
 
-      {/* ===== 商品列表 / Product table ===== */}
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-          <CircularProgress />
-        </Box>
-      ) : (
-        <>
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>SKU</TableCell>
-                  <TableCell>商品名稱</TableCell>
-                  <TableCell>分類</TableCell>
-                  <TableCell align="right">售價</TableCell>
-                  <TableCell>單位</TableCell>
-                  <TableCell>狀態</TableCell>
-                  <TableCell align="right">操作</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {products.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                      尚無商品資料
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  products.map((product) => (
-                    <TableRow key={product.id} hover>
-                      <TableCell sx={{ fontFamily: 'monospace' }}>{product.sku}</TableCell>
-                      <TableCell>{product.name}</TableCell>
-                      <TableCell>{getCategoryName(product.categoryId)}</TableCell>
-                      <TableCell align="right">
-                        {new Intl.NumberFormat('zh-TW', {
-                          style: 'currency', currency: 'TWD', minimumFractionDigits: 0,
-                        }).format(product.basePrice)}
-                      </TableCell>
-                      <TableCell>{product.unit}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={product.active ? '啟用' : '停用'}
-                          color={product.active ? 'success' : 'default'}
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell align="right">
-                        <IconButton
-                          size="small"
-                          onClick={() => { setEditTarget(product); setDialogOpen(true); }}
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton size="small" color="error" onClick={() => handleDelete(product.id)}>
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+      <DataTable
+        columns={columns}
+        rows={products}
+        loading={loading}
+        total={total * PAGE_SIZE}
+        page={page - 1}
+        pageSize={PAGE_SIZE}
+        onPageChange={(nextPage) => setPage(nextPage + 1)}
+        emptyMessage="尚無商品資料"
+        rowKey={(product) => product.id}
+      />
 
-          {total > 1 && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-              <Pagination count={total} page={page} onChange={(_, v) => setPage(v)} color="primary" />
-            </Box>
-          )}
-        </>
+      {dialogOpen && (
+        <ProductDialog
+          open={dialogOpen}
+          initial={editTarget}
+          categories={categories}
+          onClose={() => { setDialogOpen(false); setEditTarget(null); }}
+          onSave={handleSave}
+        />
       )}
 
-      {/* ===== 新增/編輯彈窗 ===== */}
-      <ProductDialog
-        open={dialogOpen}
-        initial={editTarget}
-        categories={categories}
-        onClose={() => { setDialogOpen(false); setEditTarget(null); }}
-        onSave={handleSave}
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="刪除商品"
+        message={`確定要刪除「${deleteTarget?.name ?? ''}」嗎？此操作會停用該商品。`}
+        confirmLabel="確認刪除"
+        severity="error"
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
       />
     </Box>
   );

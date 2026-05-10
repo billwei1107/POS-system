@@ -14,8 +14,8 @@ import type {
   CreateRefundRequest,
 } from '../types';
 
-const BASE = '/api/v1/pos/orders';
-const REFUND_BASE = '/api/v1/pos/refunds';
+const BASE = '/v1/pos/orders';
+const REFUND_BASE = '/v1/pos/refunds';
 
 // ========================================
 // 訂單 API / Order APIs

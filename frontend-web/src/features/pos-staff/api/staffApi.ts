@@ -14,8 +14,8 @@ import type {
   ZReport,
 } from '../types';
 
-const SHIFT_BASE = '/api/v1/staff/shifts';
-const REPORT_BASE = '/api/v1/staff/reports';
+const SHIFT_BASE = '/v1/staff/shifts';
+const REPORT_BASE = '/v1/staff/reports';
 
 // ========================================
 // 班次管理 API / Shift management API

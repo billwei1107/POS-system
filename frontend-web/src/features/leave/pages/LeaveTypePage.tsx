@@ -4,7 +4,7 @@
  * @description_en CRUD management for leave types (annual, sick, personal, etc.)
  * @description_zh 假別類型的新增、編輯、刪除管理頁面
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
   FormControlLabel, IconButton, Paper, Stack, Switch, Table, TableBody,
@@ -37,11 +37,11 @@ export default function LeaveTypePage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
 
-  const load = async () => {
-    try { setTypes(await fetchLeaveTypes()); } catch { /* handled by interceptor */ }
-  };
+  const load = useCallback(() => {
+    fetchLeaveTypes().then(setTypes).catch(() => { /* handled by interceptor */ });
+  }, []);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
   const handleOpen = (type?: LeaveType) => {
     if (type) {

@@ -103,6 +103,12 @@
             <artifactId>flyway-core</artifactId>
         </dependency>
 
+        <!-- Health Check / 健康檢查端點 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
         <!-- Testing -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

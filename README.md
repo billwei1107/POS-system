@@ -19,7 +19,7 @@ POS 專案根目錄固定為本資料夾：
 | 快取 | Redis 7 |
 | 前端 | React 19 / TypeScript 6 / Vite 8 / MUI 7 / Zustand |
 | 部署 | Docker Compose |
-| 模塊 reference | `billwei1107/module` tag `module-v2026.05.10.2` |
+| 模塊 reference | `billwei1107/module` tag `module-v2026.05.10.3` |
 
 ## 目錄結構
 

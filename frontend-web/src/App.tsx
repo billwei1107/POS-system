@@ -27,9 +27,12 @@ import LeaveCalendarPage from './features/leave/pages/LeaveCalendarPage';
 import PosLayout from './layouts/PosLayout';
 import RegisterPage from './features/pos-orders/pages/RegisterPage';
 import CheckoutPage from './features/pos-orders/pages/CheckoutPage';
+import OrderListPage from './features/pos-orders/pages/OrderListPage';
 
 import InventoryPage from './features/pos-inventory/pages/InventoryPage';
 import PosLoginPage from './features/pos-auth/pages/PosLoginPage';
+import ProductListPage from './features/pos-products/pages/ProductListPage';
+import CategoryListPage from './features/pos-products/pages/CategoryListPage';
 
 const AppLayout = ({ children }: { children: React.ReactNode }) => (
   <Box sx={{ flexGrow: 1, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -83,6 +86,9 @@ function App() {
 
           <Route path="/pos" element={<PosLayout />}>
               <Route path="register" element={<RegisterPage />} />
+              <Route path="orders" element={<OrderListPage />} />
+              <Route path="products" element={<ProductListPage />} />
+              <Route path="categories" element={<CategoryListPage />} />
               <Route path="checkout" element={<CheckoutPage />} />
               <Route path="inventory" element={<InventoryPage />} />
               <Route path="*" element={<Navigate to="/pos/register" replace />} />

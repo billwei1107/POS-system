@@ -12,58 +12,58 @@ import type { LeaveType, LeaveBalance, LeaveRequest, SubmitLeaveRequestPayload }
 // 假別類型 / Leave types
 // ========================================
 export const fetchLeaveTypes = async (): Promise<LeaveType[]> => {
-  const res = await axiosInstance.get('/api/v1/leave/types');
-  return res.data.data;
+  const res = await axiosInstance.get('/v1/leave/types');
+  return res.data;
 };
 
 export const createLeaveType = async (data: Partial<LeaveType>): Promise<LeaveType> => {
-  const res = await axiosInstance.post('/api/v1/leave/types', data);
-  return res.data.data;
+  const res = await axiosInstance.post('/v1/leave/types', data);
+  return res.data;
 };
 
 export const updateLeaveType = async (id: string, data: Partial<LeaveType>): Promise<LeaveType> => {
-  const res = await axiosInstance.put(`/api/v1/leave/types/${id}`, data);
-  return res.data.data;
+  const res = await axiosInstance.put(`/v1/leave/types/${id}`, data);
+  return res.data;
 };
 
 export const deleteLeaveType = async (id: string): Promise<void> => {
-  await axiosInstance.delete(`/api/v1/leave/types/${id}`);
+  await axiosInstance.delete(`/v1/leave/types/${id}`);
 };
 
 // ========================================
 // 員工餘假 / Leave balances
 // ========================================
 export const fetchLeaveBalances = async (employeeId: string, year?: number): Promise<LeaveBalance[]> => {
-  const res = await axiosInstance.get('/api/v1/leave/balances', {
+  const res = await axiosInstance.get('/v1/leave/balances', {
     params: { employeeId, year },
   });
-  return res.data.data;
+  return res.data;
 };
 
 // ========================================
 // 請假申請 / Leave requests
 // ========================================
 export const submitLeaveRequest = async (data: SubmitLeaveRequestPayload): Promise<LeaveRequest> => {
-  const res = await axiosInstance.post('/api/v1/leave/requests', data);
-  return res.data.data;
+  const res = await axiosInstance.post('/v1/leave/requests', data);
+  return res.data;
 };
 
 export const fetchLeaveRequests = async (employeeId: string): Promise<LeaveRequest[]> => {
-  const res = await axiosInstance.get('/api/v1/leave/requests', { params: { employeeId } });
-  return res.data.data;
+  const res = await axiosInstance.get('/v1/leave/requests', { params: { employeeId } });
+  return res.data;
 };
 
 export const cancelLeaveRequest = async (id: string): Promise<LeaveRequest> => {
-  const res = await axiosInstance.post(`/api/v1/leave/requests/${id}/cancel`);
-  return res.data.data;
+  const res = await axiosInstance.post(`/v1/leave/requests/${id}/cancel`);
+  return res.data;
 };
 
 // ========================================
 // 部門請假日曆 / Leave calendar
 // ========================================
 export const fetchLeaveCalendar = async (startDate: string, endDate: string): Promise<LeaveRequest[]> => {
-  const res = await axiosInstance.get('/api/v1/leave/requests/calendar', {
+  const res = await axiosInstance.get('/v1/leave/requests/calendar', {
     params: { startDate, endDate },
   });
-  return res.data.data;
+  return res.data;
 };

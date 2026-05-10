@@ -9,7 +9,7 @@ import {
   Box, Typography, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Paper, Chip, Select, MenuItem, FormControl,
   InputLabel, Pagination, Button, Dialog, DialogTitle, DialogContent,
-  DialogActions, TextField, CircularProgress, Alert,
+  DialogActions, TextField, CircularProgress, Alert, Card, CardContent,
 } from '@mui/material';
 import { orderApi } from '../api/orderApi';
 import type { Order, OrderStatus, OrderListParams } from '../types';
@@ -29,6 +29,12 @@ const STATUS_COLOR: Record<OrderStatus, 'default' | 'primary' | 'secondary' | 'e
 
 const STORE_ID = import.meta.env.VITE_DEFAULT_STORE_ID || '';
 
+const ORDER_METRICS = [
+  { label: '進行中訂單', value: '0', helper: '等待同步資料' },
+  { label: '今日營收', value: '$0.00', helper: '尚未選擇門店' },
+  { label: '平均客單', value: '$0.00', helper: '首筆訂單後開始計算' },
+];
+
 const OrderListPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [total, setTotal] = useState(0);
@@ -44,6 +50,13 @@ const OrderListPage: React.FC = () => {
   const [voidedBy] = useState('00000000-0000-0000-0000-000000000001');
 
   const fetchOrders = useCallback(async () => {
+    if (!STORE_ID) {
+      setOrders([]);
+      setTotal(0);
+      setError('尚未設定預設門店。請設定 VITE_DEFAULT_STORE_ID 後載入即時訂單。');
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
@@ -54,12 +67,12 @@ const OrderListPage: React.FC = () => {
         ...(status ? { status } : {}),
       };
       const res = await orderApi.list(params);
-      if (res.success && res.data) {
+      if (res.code === 200 && res.data) {
         setOrders(res.data.content);
         setTotal(res.data.totalPages);
       }
     } catch {
-      setError('載入訂單失敗，請重試');
+      setError('訂單載入失敗，請稍後再試。');
     } finally {
       setLoading(false);
     }
@@ -78,24 +91,57 @@ const OrderListPage: React.FC = () => {
       setVoidReason('');
       fetchOrders();
     } catch {
-      setError('作廢訂單失敗');
+      setError('訂單作廢失敗。');
     }
   };
 
   const formatMoney = (amount: number) =>
-    new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', maximumFractionDigits: 0 }).format(amount);
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
 
   const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleString('zh-TW', { dateStyle: 'short', timeStyle: 'short' });
+    new Date(dateStr).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h5" fontWeight="bold" mb={3}>訂單管理</Typography>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'stretch', md: 'flex-start' }, flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
+        <Box>
+          <Typography variant="h4" fontWeight={900} sx={{ mb: 0.5 }}>
+            訂單
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            檢視進行中訂單、已完成付款與可作廢票據。
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          color="secondary"
+          sx={{ minHeight: 44, px: 3, fontWeight: 900 }}
+        >
+          新增訂單
+        </Button>
+      </Box>
+
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 2 }}>
+        {ORDER_METRICS.map(metric => (
+          <Card key={metric.label} sx={{ bgcolor: 'background.paper', borderRadius: 3, boxShadow: 'none', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <CardContent sx={{ '&:last-child': { pb: 2 } }}>
+              <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                {metric.label}
+              </Typography>
+              <Typography variant="h4" fontWeight={900} sx={{ my: 0.75 }}>
+                {metric.value}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {metric.helper}
+              </Typography>
+            </CardContent>
+          </Card>
+        ))}
+      </Box>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      {/* 篩選列 / Filter row */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
+      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', bgcolor: 'background.paper', p: 2, borderRadius: 3, border: '1px solid rgba(255,255,255,0.06)' }}>
         <FormControl size="small" sx={{ minWidth: 160 }}>
           <InputLabel>訂單狀態</InputLabel>
           <Select value={status} label="訂單狀態" onChange={e => { setStatus(e.target.value as OrderStatus | ''); setPage(1); }}>
@@ -105,17 +151,21 @@ const OrderListPage: React.FC = () => {
             ))}
           </Select>
         </FormControl>
+        <TextField
+          size="small"
+          placeholder="依訂單編號搜尋"
+          sx={{ flex: '1 1 260px', '& fieldset': { borderColor: 'rgba(255,255,255,0.08)' } }}
+        />
       </Box>
 
-      {/* 訂單表格 / Order table */}
-      <TableContainer component={Paper}>
+      <TableContainer component={Paper} sx={{ flexGrow: 1, bgcolor: 'background.paper', borderRadius: 3, border: '1px solid rgba(255,255,255,0.06)', boxShadow: 'none' }}>
         <Table>
           <TableHead>
             <TableRow>
               <TableCell>訂單編號</TableCell>
               <TableCell>狀態</TableCell>
               <TableCell>類型</TableCell>
-              <TableCell>商品數</TableCell>
+              <TableCell>品項</TableCell>
               <TableCell align="right">合計</TableCell>
               <TableCell>建立時間</TableCell>
               <TableCell>操作</TableCell>
@@ -128,7 +178,12 @@ const OrderListPage: React.FC = () => {
               </TableRow>
             ) : orders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} align="center">尚無訂單資料</TableCell>
+                <TableCell colSpan={7} align="center" sx={{ py: 8 }}>
+                  <Typography variant="h6" fontWeight={800}>目前沒有訂單</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    選擇門店並建立銷售後，訂單會顯示在這裡。
+                  </Typography>
+                </TableCell>
               </TableRow>
             ) : orders.map(order => (
               <TableRow key={order.id} hover>
@@ -160,7 +215,6 @@ const OrderListPage: React.FC = () => {
         </Box>
       )}
 
-      {/* 作廢對話框 / Void dialog */}
       <Dialog open={voidDialog} onClose={() => setVoidDialog(false)}>
         <DialogTitle>作廢訂單 {voidTarget?.orderNo}</DialogTitle>
         <DialogContent>

@@ -4,7 +4,7 @@
  * @description_en List, create, update, and delete product categories
  * @description_zh 商品分類的列表、新增、修改、刪除頁面
  */
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Box,
   Button,
@@ -13,22 +13,20 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
-  Typography,
-  Chip,
-  CircularProgress,
   Alert,
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { productApi } from '../api/productApi';
 import type { Category, CategoryRequest } from '../types';
+import { ConfirmDialog, DataTable, PageHeader, StatusChip, type Column } from '@shared/components';
+import { useAuthStore } from '@shared/store/authStore';
+
+const getCategoryForm = (initial?: Category | null) => ({
+  name: initial?.name ?? '',
+  displayColor: initial?.displayColor ?? '',
+  sortOrder: initial?.sortOrder ?? 0,
+});
 
 // ========================================
 // 新增/編輯彈窗 / Create / Edit dialog
@@ -41,19 +39,16 @@ interface CategoryDialogProps {
 }
 
 const CategoryDialog: React.FC<CategoryDialogProps> = ({ open, initial, onClose, onSave }) => {
-  const [name, setName] = useState('');
-  const [displayColor, setDisplayColor] = useState('');
-  const [sortOrder, setSortOrder] = useState(0);
-
-  useEffect(() => {
-    setName(initial?.name ?? '');
-    setDisplayColor(initial?.displayColor ?? '');
-    setSortOrder(initial?.sortOrder ?? 0);
-  }, [initial, open]);
+  const [form, setForm] = useState(() => getCategoryForm(initial));
 
   const handleSubmit = () => {
-    if (!name.trim()) return;
-    onSave({ name: name.trim(), displayColor: displayColor || null, sortOrder, active: true });
+    if (!form.name.trim()) return;
+    onSave({
+      name: form.name.trim(),
+      displayColor: form.displayColor || null,
+      sortOrder: form.sortOrder,
+      active: true,
+    });
   };
 
   return (
@@ -65,8 +60,8 @@ const CategoryDialog: React.FC<CategoryDialogProps> = ({ open, initial, onClose,
           label="分類名稱"
           fullWidth
           margin="normal"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          value={form.name}
+          onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
           required
         />
         <TextField
@@ -74,8 +69,8 @@ const CategoryDialog: React.FC<CategoryDialogProps> = ({ open, initial, onClose,
           fullWidth
           margin="normal"
           placeholder="#1A237E"
-          value={displayColor}
-          onChange={(e) => setDisplayColor(e.target.value)}
+          value={form.displayColor}
+          onChange={(e) => setForm((prev) => ({ ...prev, displayColor: e.target.value }))}
           inputProps={{ maxLength: 20 }}
         />
         <TextField
@@ -83,13 +78,13 @@ const CategoryDialog: React.FC<CategoryDialogProps> = ({ open, initial, onClose,
           type="number"
           fullWidth
           margin="normal"
-          value={sortOrder}
-          onChange={(e) => setSortOrder(Number(e.target.value))}
+          value={form.sortOrder}
+          onChange={(e) => setForm((prev) => ({ ...prev, sortOrder: Number(e.target.value) }))}
         />
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>取消</Button>
-        <Button variant="contained" onClick={handleSubmit} disabled={!name.trim()}>
+        <Button variant="contained" onClick={handleSubmit} disabled={!form.name.trim()}>
           儲存
         </Button>
       </DialogActions>
@@ -101,13 +96,22 @@ const CategoryDialog: React.FC<CategoryDialogProps> = ({ open, initial, onClose,
 // 主頁面 / Main page
 // ========================================
 const CategoryListPage: React.FC = () => {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Category | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
+    if (!isAuthenticated) {
+      setCategories([]);
+      setError('請先登入後台後再管理商品分類。');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -118,11 +122,13 @@ const CategoryListPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAuthenticated]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
   const handleSave = async (data: CategoryRequest) => {
+    if (!isAuthenticated) return;
+
     try {
       if (editTarget) {
         await productApi.updateCategory(editTarget.id, data);
@@ -137,104 +143,118 @@ const CategoryListPage: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('確定要刪除此分類？')) return;
+  const handleDelete = async () => {
+    if (!isAuthenticated || !deleteTarget) return;
+
     try {
-      await productApi.deleteCategory(id);
+      await productApi.deleteCategory(deleteTarget.id);
+      setDeleteTarget(null);
       load();
     } catch {
       setError('刪除失敗，請重試');
     }
   };
 
-  return (
-    <Box sx={{ p: 3 }}>
-      {/* ===== 頁面標頭 / Page header ===== */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h5" fontWeight="bold">商品分類管理</Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => { setEditTarget(null); setDialogOpen(true); }}
-        >
-          新增分類
-        </Button>
-      </Box>
-
-      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
-
-      {/* ===== 分類列表 / Category table ===== */}
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-          <CircularProgress />
+  const columns: Column<Category>[] = [
+    { key: 'name', label: '分類名稱' },
+    {
+      key: 'displayColor',
+      label: '顏色',
+      render: (category) => category.displayColor ? (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box
+            sx={{
+              width: 16,
+              height: 16,
+              borderRadius: '50%',
+              bgcolor: category.displayColor,
+              border: '1px solid rgba(255,255,255,0.24)',
+            }}
+          />
+          {category.displayColor}
         </Box>
-      ) : (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>分類名稱</TableCell>
-                <TableCell>顏色</TableCell>
-                <TableCell>排序</TableCell>
-                <TableCell>狀態</TableCell>
-                <TableCell align="right">操作</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {categories.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                    尚無分類資料
-                  </TableCell>
-                </TableRow>
-              ) : (
-                categories.map((cat) => (
-                  <TableRow key={cat.id} hover>
-                    <TableCell>{cat.name}</TableCell>
-                    <TableCell>
-                      {cat.displayColor ? (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Box
-                            sx={{ width: 16, height: 16, borderRadius: '50%',
-                                  bgcolor: cat.displayColor, border: '1px solid #ccc' }}
-                          />
-                          {cat.displayColor}
-                        </Box>
-                      ) : '-'}
-                    </TableCell>
-                    <TableCell>{cat.sortOrder}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={cat.active ? '啟用' : '停用'}
-                        color={cat.active ? 'success' : 'default'}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell align="right">
-                      <IconButton
-                        size="small"
-                        onClick={() => { setEditTarget(cat); setDialogOpen(true); }}
-                      >
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton size="small" color="error" onClick={() => handleDelete(cat.id)}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+      ) : '-',
+    },
+    { key: 'sortOrder', label: '排序', width: 100 },
+    {
+      key: 'active',
+      label: '狀態',
+      width: 110,
+      render: (category) => (
+        <StatusChip status={category.active ? 'ACTIVE' : 'INACTIVE'} labelMap={{ ACTIVE: '啟用', INACTIVE: '停用' }} />
+      ),
+    },
+    {
+      key: 'actions',
+      label: '操作',
+      align: 'right',
+      width: 120,
+      render: (category) => (
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
+          <IconButton
+            aria-label={`編輯 ${category.name}`}
+            size="small"
+            onClick={() => { setEditTarget(category); setDialogOpen(true); }}
+          >
+            <EditIcon fontSize="small" />
+          </IconButton>
+          <IconButton
+            aria-label={`刪除 ${category.name}`}
+            size="small"
+            color="error"
+            onClick={() => setDeleteTarget(category)}
+          >
+            <DeleteIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      ),
+    },
+  ];
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <PageHeader
+        title="商品分類管理"
+        subtitle="維護前台點單分類、排序、顯示色與啟用狀態。"
+        actions={(
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            disabled={!isAuthenticated}
+            onClick={() => { setEditTarget(null); setDialogOpen(true); }}
+          >
+            新增分類
+          </Button>
+        )}
+      />
+
+      {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
+
+      <DataTable
+        columns={columns}
+        rows={categories}
+        loading={loading}
+        emptyMessage="尚無分類資料"
+        rowKey={(category) => category.id}
+      />
+
+      {dialogOpen && (
+        <CategoryDialog
+          open={dialogOpen}
+          initial={editTarget}
+          onClose={() => { setDialogOpen(false); setEditTarget(null); }}
+          onSave={handleSave}
+        />
       )}
 
-      {/* ===== 新增/編輯彈窗 ===== */}
-      <CategoryDialog
-        open={dialogOpen}
-        initial={editTarget}
-        onClose={() => { setDialogOpen(false); setEditTarget(null); }}
-        onSave={handleSave}
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="刪除分類"
+        message={`確定要刪除「${deleteTarget?.name ?? ''}」嗎？此操作會停用該分類。`}
+        confirmLabel="確認刪除"
+        severity="error"
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
       />
     </Box>
   );

@@ -17,9 +17,9 @@ import type {
   Reconciliation,
 } from '../types';
 
-const BASE = '/api/v1/pos/payments';
-const DRAWER_BASE = '/api/v1/pos/cash-drawers';
-const RECON_BASE = '/api/v1/pos/reconciliation';
+const BASE = '/v1/pos/payments';
+const DRAWER_BASE = '/v1/pos/cash-drawers';
+const RECON_BASE = '/v1/pos/reconciliation';
 
 // ========================================
 // 支付方式 API / Pay method API

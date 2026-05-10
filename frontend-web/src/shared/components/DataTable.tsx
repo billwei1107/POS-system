@@ -29,7 +29,7 @@ interface DataTableProps<T> {
   rowKey?: (row: T) => string | number;
 }
 
-export function DataTable<T extends Record<string, unknown>>({
+export function DataTable<T extends object>({
   columns,
   rows,
   loading = false,

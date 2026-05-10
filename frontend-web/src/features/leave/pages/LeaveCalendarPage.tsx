@@ -4,7 +4,7 @@
  * @description_en Monthly view of approved leave requests across the organization
  * @description_zh 月曆視圖，顯示部門內已核准的請假記錄
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Box, Button, Chip, Paper, Stack, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Typography,
@@ -28,14 +28,14 @@ export default function LeaveCalendarPage() {
     }).catch(() => {});
   }, []);
 
-  const load = () => {
+  const load = useCallback(() => {
     const start = `${year}-${String(month).padStart(2, '0')}-01`;
     const lastDay = new Date(year, month, 0).getDate();
     const end = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;
     fetchLeaveCalendar(start, end).then(setRequests).catch(() => setRequests([]));
-  };
+  }, [year, month]);
 
-  useEffect(() => { load(); }, [year, month]);
+  useEffect(() => { load(); }, [load]);
 
   const prevMonth = () => { if (month === 1) { setYear(y => y - 1); setMonth(12); } else setMonth(m => m - 1); };
   const nextMonth = () => { if (month === 12) { setYear(y => y + 1); setMonth(1); } else setMonth(m => m + 1); };

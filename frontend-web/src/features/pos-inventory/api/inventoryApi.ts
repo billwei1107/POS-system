@@ -15,7 +15,7 @@ import type {
   TransferRequest,
 } from '../types';
 
-const BASE = '/api/v1/inventory';
+const BASE = '/v1/inventory';
 
 // ========================================
 // 庫存查詢與調整 API / Stock query and adjustment API

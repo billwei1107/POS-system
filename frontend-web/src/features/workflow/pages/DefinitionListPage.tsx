@@ -1,17 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Box, Typography, Card, CardContent, CircularProgress, Button, Stack, Chip } from '@mui/material';
 import { workflowApi } from '../api/workflowApi';
 import type { WorkflowDefinition } from '../types';
 
 export const DefinitionListPage = () => {
     const [definitions, setDefinitions] = useState<WorkflowDefinition[]>([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const businessSequence = useRef(0);
 
     // 假定目前的登入者 ID
     const currentUserId = 'd290f1ee-6c54-4b01-90e6-d701748f0851';
 
     useEffect(() => {
-        setLoading(true);
         workflowApi.getDefinitions()
             .then(res => setDefinitions(res.data.data || []))
             .catch(console.error)
@@ -19,10 +19,13 @@ export const DefinitionListPage = () => {
     }, []);
 
     const handleStartWorkflow = (code: string) => {
+        businessSequence.current += 1;
+        const businessId = `BIZ-${businessSequence.current}`;
+
         workflowApi.startWorkflow({
             definitionCode: code,
             businessType: 'GENERAL',
-            businessId: `BIZ-${Date.now()}`,
+            businessId,
             initiatorId: currentUserId
         })
             .then(res => alert('表單已成功發起！流程實例 ID: ' + res.data))
