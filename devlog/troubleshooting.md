@@ -438,3 +438,41 @@ waiting for locator('button').filter({ has: locator('svg[data-testid="ShoppingCa
 - `npm run lint`：通過。
 - `npm run build`：通過，僅保留 Vite chunk size warning。
 - Docker frontend 重建後，`/pos/shifts` 與 `/pos/reconciliation` 可正常開啟與查詢。
+
+---
+
+# 2026-05-11 POS Checkpoint 6 測試基線環境問題
+
+## Issue
+
+- 場景：建立前端 Vitest/RTL 與後端 controller 測試基線。
+- 問題：
+  - Vitest/jsdom 執行 auth store 測試時出現 `window.localStorage.clear is not a function`。
+  - `InvoiceControllerTest` 初版使用 `Invoice.CarrierType.NONE`，編譯失敗。
+  - Playwright POS 登入腳本以通用 button selector 送出 PIN 時等待 `/pos/register` 逾時。
+  - 發票頁與對帳頁 E2E 初版只進頁面未點擊「查詢」或「產生對帳」，導致驗證不到資料。
+  - Docker PostgreSQL 驗證初版使用 `psql -U pos -d pos`，回傳 `role "pos" does not exist`。
+
+## Root Cause
+
+- 測試 runtime 的 `localStorage` 與瀏覽器實作不完全一致，需要測試 setup 明確 mock。
+- `CarrierType` enum 只有專案實際支援的載具值，不存在 `NONE`。
+- POS PIN 頁面多個圖示按鈕缺少穩定語意 selector，自動化測試用最後一個 button 容易點錯。
+- 發票與對帳頁設計為手動查詢，E2E 必須符合使用者實際操作。
+- local Docker DB 帳密以 `env/local/.env` 為準，實際為 `DB_USER=pos_user`、`DB_NAME=pos_db`。
+
+## Solution
+
+- 在 `frontend-web/test/setup.ts` 建立可用的 `localStorage` mock，並於每個測試後 cleanup。
+- `InvoiceControllerTest` 的 `carrierType` 使用 `null`，符合無載具情境。
+- Playwright 測試腳本先定位 PIN keypad 送出鍵；後續建議補 aria-label 提升測試穩定性。
+- 發票頁 E2E 加入點擊「查詢」，對帳頁 E2E 加入點擊「產生對帳」。
+- DB 驗證改依 `env/local/.env` 使用 `pos_user` / `pos_db`。
+
+## Verification
+
+- `npm test`：通過，4 files / 8 tests passed。
+- `mvn -pl module-pos-core,module-pos-payment,module-pos-tax,module-pos-inventory,module-pos-staff -am test`：通過。
+- `mvn -pl app -am test`：通過。
+- Playwright 完整 E2E 通過：PIN 登入、商品、現金付款、訂單列表、發票頁、對帳頁。
+- DB 驗證最新訂單、payment transaction、invoice、reconciliation 與 inventory 皆可查。
