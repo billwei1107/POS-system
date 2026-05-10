@@ -170,3 +170,134 @@ waiting for locator('button').filter({ has: locator('svg[data-testid="ShoppingCa
 - `docker compose up -d --build backend`：通過。
 - `curl http://localhost:38080/actuator/health`：通過，回傳 `{"status":"UP"}`。
 - Playwright checkout payment smoke：通過，建立訂單、完成付款、清空購物車、跳轉訂單列表並看到 `COMPLETED` 訂單。
+
+---
+
+# 2026-05-10 POS PIN 登入 demo seed 與瀏覽器驗證問題
+
+## Issue
+
+- 場景：將 POS PIN 登入從前端模擬改為真實 `/api/v1/pos/auth/pin-login`，並以 Docker + Playwright 測試。
+- 問題：
+  - `backend/app` 新增 demo seeder 時使用 Lombok 註解，但 app 模組沒有 Lombok dependency，導致編譯失敗。
+  - `Terminal.hardwareProfileJson` 對應 PostgreSQL `jsonb` 欄位，Docker 實啟時用 String 寫入造成 `column "hardware_profile_json" is of type jsonb but expression is of type character varying`。
+  - Demo seed 重啟時遇到 `org_companies_code_key`、`org_employees_employee_no_key` 等唯一鍵衝突。
+  - `BaseEntity` 使用 `@GeneratedValue(strategy = GenerationType.UUID)`，手動指定 demo terminal UUID 不可靠，落庫後仍可能是自動產生 UUID。
+  - 錯誤 PIN 回 401 時，全域 axios interceptor 直接導向 `/login`，POS PIN 頁無法顯示自己的錯誤提示。
+
+## Solution
+
+- `PosDemoDataSeeder` 改用手寫 constructor 與 `LoggerFactory`，不在 app 模組依賴 Lombok。
+- `Terminal.hardwareProfileJson` 補上 `@JdbcTypeCode(SqlTypes.JSON)`。
+- Demo seed 改用唯一代碼冪等查找：company code、store code、terminal code、employee no、username、active PIN 與 active terminal token。
+- `PinLoginRequest` 支援 `terminalCode`；`PosAuthServiceImpl` 先解析 `terminalCode` 成實際 terminal UUID，再檢查 terminal token。
+- `PosLoginPage` 預設送 `terminalCode=DEMO-T-001`，成功後保存後端回傳的實際 `terminalId` 與 `terminalCode`。
+- `axiosInstance` 將 `/v1/pos/auth/**` 從全域 401 導頁排除，讓 POS PIN 頁自行處理 `Invalid PIN`。
+
+## Verification
+
+- `mvn -pl app -am test -DskipTests`：通過。
+- `mvn -pl module-auth -am test`：通過。
+- `npm run build`：通過。
+- `docker compose up -d --build backend frontend`：通過。
+- `curl` 正確 PIN 回 200，錯誤 PIN 回 401。
+- Playwright 驗證正確 PIN 進入 `/pos/register` 並看到「收銀台」，錯誤 PIN 停留 `/pos/login` 並顯示 `Invalid PIN`。
+
+---
+
+# 2026-05-10 收銀台 demo 商品不可見與商品卡擁擠
+
+## Issue
+
+- 場景：POS PIN 登入後進入 `/pos/register`，資料庫已有 demo 商品，但畫面首屏仍主要顯示舊 smoke/test 商品。
+- 問題：
+  - 商品 API 未指定前端顯示排序，舊測試資料容易排在 demo 商品之前，導致使用者以為「沒看到商品」。
+  - 原商品卡以大面積 SKU 占位圖為主，品名、價格與條碼被擠在下方；在大量測試資料下看起來像商品都擠成一團。
+
+## Solution
+
+- 在 `RegisterPage.tsx` 新增收銀台排序規則：
+  - `DEMO-` SKU 商品優先。
+  - 「咖啡飲品」「烘焙點心」分類優先。
+  - 其餘商品再依中文品名排序。
+- 將商品卡改為固定高度資訊卡，移除無圖片時的大 SKU 占位圖，改成分類、Demo 標籤、SKU、品名、價格、條碼與加入購物車圖示的穩定區塊。
+- 調整商品 grid 最小欄寬與卡片 `minHeight`，避免內容因卡片高度不足被壓縮。
+
+## Verification
+
+- `npm run build`：通過。
+- `docker compose up -d --build frontend`：通過。
+- Playwright 驗證 PIN `1234` 登入後商品/分類 API 均回 200。
+- `/pos/register` 首排顯示 demo 商品「奶油可頌」「美式咖啡 12oz」「拿鐵 12oz」「燕麥拿鐵 12oz」，首排卡片約 `267x232`，內容完整可見。
+
+---
+
+# 2026-05-10 Docker 重啟後 POS 頁面停留但登入狀態不一致
+
+## Issue
+
+- 場景：開發時重建或重啟 Docker frontend 後，瀏覽器仍停留在原本的 `/pos/register` 頁面。
+- 問題：
+  - 未登入時 POS 路由沒有被路由守衛強制導向 PIN 登入頁，使用者會留在收銀頁看到空狀態或載入不到商品。
+  - 已登入狀態雖有 Zustand persist，但路由與登入頁沒有統一 redirect 邏輯，重整或重新進入登入頁時體驗不一致。
+  - 後台「登出」若只是導到 `/login`，在登入頁自動避開已登入使用者後會無法真正登出。
+
+## Solution
+
+- 使用 `ProtectedRoute` 包住後台與 `/pos/*` 路由，POS 未登入時導向 `/pos/login?redirect=<原路徑>`。
+- `ProtectedRoute` 改為透過 query string 保存 redirect，與既有登入流程一致。
+- `PosLoginPage` 登入成功後讀取 redirect，回到原本要進入的 POS 頁面；若已登入再進 `/pos/login`，自動返回 POS 頁面。
+- `LoginPage` 已登入時自動導回 redirect 或預設 `/pos/register`。
+- `authStore.logout` 同步清除 `pos-session`，並修正 persisted state merge，確保有 user/token 時才視為已登入。
+- 後台「登出」與 POS「鎖定終端」改為先清除登入狀態，再導向登入頁。
+
+## Verification
+
+- `npm run build`：通過。
+- `docker compose up -d --build frontend`：通過。
+- Playwright 驗證：
+  - 未登入 `/pos/register` 會導向 `/pos/login?redirect=%2Fpos%2Fregister`。
+  - PIN `1234` 登入後 localStorage 同時存在 `auth-storage` 與 `pos-session`。
+  - frontend 容器重啟後 reload 仍停留 `/pos/register` 且商品可見。
+  - 清除登入資料後再進 `/pos/register` 會重新導向 POS PIN 登入頁。
+
+## Update 2026-05-10 23:37
+
+- 追加修正：`authStore` 新增 `hasHydrated`，`ProtectedRoute`、`LoginPage`、`PosLoginPage` 在 localStorage 還原完成前不做導頁判斷，避免刷新或 frontend rebuild 後先被誤判未登入。
+- 追加修正：local Docker `JWT_EXPIRATION` 從 15 分鐘調整為 24 小時，避免開發中 token 過短造成反覆登入。
+- 追加驗證：
+  - `npm run build`：通過。
+  - `docker compose up -d --build backend frontend`：通過。
+  - Playwright 保持同一頁面登入後執行 `docker compose restart backend frontend`，服務回來後 reload 仍停留 `/pos/register` 且商品可見。
+  - 新簽發 token 剩餘時間約 24 小時。
+
+---
+
+# 2026-05-11 POS 折扣結帳找零出現 0.40
+
+## Issue
+
+- 場景：收銀台加入「拿鐵 12oz」後套用 10% 折扣，畫面顯示應收 `$113`。
+- 瀏覽器自測付款完成後，資料庫最新訂單顯示 `discount_total=12.00`、`tax_total=5.40`、`rounding_adj=-0.40`、`grand_total=113.00`，但 `change_given=0.40`。
+- 同時發現 `docker compose -f docker/local/docker-compose.yml up -d --build frontend` 會因 `frontend.depends_on=backend` 一併 build backend，後端 Docker build 又因 Maven DNS 暫時解析不到 `repo.maven.apache.org` 失敗，導致 frontend 沒有成功套用新版 bundle。
+
+## Root Cause
+
+- 原始碼已將前端 `calculateCartTotals` 的 `total` 改成 TWD 整數金額，但 Docker frontend 容器仍跑舊 bundle。
+- 舊 bundle 雖然 `formatMoney` 顯示 `$113`，但付款 API 實際送出的現金金額仍是未四捨五入的 `113.40`。
+- 後端訂單 `grand_total` 是四捨五入後的 `113.00`，因此計算出 `change_given=113.40-113.00=0.40`。
+
+## Solution
+
+- 只 build frontend image：
+  - `docker compose -f docker/local/docker-compose.yml build frontend`
+- 不帶依賴重啟 frontend：
+  - `docker compose -f docker/local/docker-compose.yml up -d --no-deps frontend`
+- 重新執行 Playwright 端到端流程，確認前端付款送出的金額與畫面 `$113` 一致。
+
+## Verification
+
+- `docker compose -f docker/local/docker-compose.yml build frontend`：通過。
+- `docker compose -f docker/local/docker-compose.yml up -d --no-deps frontend`：通過。
+- Playwright 實測登入、加入商品、套用 10% 折扣、進入結帳、確認付款：通過。
+- 資料庫最新訂單：`discount_total=12.00`、`tax_total=5.40`、`rounding_adj=-0.40`、`grand_total=113.00`、`paid_total=113.00`、`change_given=0.00`。

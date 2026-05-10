@@ -2,8 +2,8 @@
  * @file CheckoutPage.tsx
  * @description POS 結帳與付款選擇頁面 / POS Checkout and Payment Selection
  */
-import React, { useMemo, useState } from 'react';
-import { Box, Typography, Button, Avatar, Divider, Chip } from '@mui/material';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Box, Typography, Button, Avatar, Divider, Chip, TextField } from '@mui/material';
 import { 
     Payments, CreditCard, AccountBalanceWallet, QrCode, 
     Nfc, MoreHoriz, ArrowBack, ReceiptLong
@@ -36,10 +36,20 @@ const CheckoutPage: React.FC = () => {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
+    const [cashTendered, setCashTendered] = useState('');
     const orderItems = useCartStore((state) => state.lines);
     const taxRate = useCartStore((state) => state.taxRate);
+    const discountAmount = useCartStore((state) => state.discountAmount);
+    const selectedMember = useCartStore((state) => state.selectedMember);
     const clearCart = useCartStore((state) => state.clear);
-    const totals = useMemo(() => calculateCartTotals(orderItems, taxRate), [orderItems, taxRate]);
+    const totals = useMemo(() => calculateCartTotals(orderItems, taxRate, discountAmount), [discountAmount, orderItems, taxRate]);
+    const cashTenderedAmount = useMemo(() => {
+        const value = Number(cashTendered);
+        return Number.isFinite(value) ? value : 0;
+    }, [cashTendered]);
+    const cashShortfall = Math.max(0, totals.total - cashTenderedAmount);
+    const changeDue = Math.max(0, cashTenderedAmount - totals.total);
+    const cashPaymentInvalid = selectedMethod === 'cash' && cashShortfall > 0;
 
     const paymentMethods = [
         { id: 'cash', label: '現金', icon: <Payments sx={{ fontSize: 32 }} />, color: '#4CAF50', bg: 'rgba(76, 175, 80, 0.15)' },
@@ -50,11 +60,27 @@ const CheckoutPage: React.FC = () => {
         { id: 'others', label: '其他', icon: <MoreHoriz sx={{ fontSize: 32 }} />, color: '#9CA3AF', bg: 'rgba(156, 163, 175, 0.15)' },
     ];
 
+    useEffect(() => {
+        if (completedOrder) return;
+        setCashTendered(totals.total > 0 ? String(totals.total) : '');
+    }, [completedOrder, totals.total]);
+
+    // ========================================
+    // 現金收款 / Cash Tendering
+    // ========================================
+    const addCashTendered = (amount: number) => {
+        setCashTendered(String(Math.max(0, cashTenderedAmount + amount)));
+    };
+
     // ========================================
     // 確認付款 / Confirm Payment
     // ========================================
     const handleConfirmPayment = async () => {
         if (orderItems.length === 0 || submitting) return;
+        if (cashPaymentInvalid) {
+            setError('現金收款金額不足，請確認收款金額。');
+            return;
+        }
 
         setSubmitting(true);
         setError(null);
@@ -69,6 +95,7 @@ const CheckoutPage: React.FC = () => {
                 guestCount: DEFAULT_GUEST_COUNT,
                 taxIncluded: false,
                 discountAmount: totals.discount,
+                memberId: selectedMember?.id,
                 items: orderItems.map((item) => ({
                     itemId: item.itemId,
                     itemNameSnapshot: item.name,
@@ -87,7 +114,7 @@ const CheckoutPage: React.FC = () => {
             const completeResponse = await orderApi.complete(
                 createResponse.data.id,
                 PAYMENT_METHOD_LABEL[selectedMethod] ?? selectedMethod.toUpperCase(),
-                selectedMethod === 'cash' ? totals.total : undefined
+                selectedMethod === 'cash' ? cashTenderedAmount : undefined
             );
 
             if (!completeResponse.success || !completeResponse.data) {
@@ -125,12 +152,28 @@ const CheckoutPage: React.FC = () => {
                 borderBottom: { xs: '1px solid rgba(255,255,255,0.05)', md: 'none' }
             }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 5 }}>
-                    <Typography variant="h6" fontWeight="bold">訂單摘要</Typography>
-                    <Chip
-                        label={completedOrder ? completedOrder.orderNo : '尚未送出'}
-                        size="small"
-                        sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: 'text.secondary', fontFamily: 'monospace', fontWeight: 800 }}
-                    />
+                    <Box>
+                        <Typography variant="h6" fontWeight="bold">訂單摘要</Typography>
+                        {selectedMember && (
+                            <Typography variant="caption" color="text.secondary">
+                                {selectedMember.tier} · {selectedMember.name} · {selectedMember.points.toLocaleString()} 點
+                            </Typography>
+                        )}
+                    </Box>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+                        <Chip
+                            label={completedOrder ? completedOrder.orderNo : '尚未送出'}
+                            size="small"
+                            sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: 'text.secondary', fontFamily: 'monospace', fontWeight: 800 }}
+                        />
+                        {selectedMember && (
+                            <Chip
+                                label={`${selectedMember.discountPercent}% 會員折扣`}
+                                size="small"
+                                sx={{ bgcolor: 'rgba(255,138,101,0.12)', color: '#FFAB91', fontWeight: 800 }}
+                            />
+                        )}
+                    </Box>
                 </Box>
 
                 {error && (
@@ -259,6 +302,62 @@ const CheckoutPage: React.FC = () => {
                     ))}
                 </Box>
 
+                {selectedMethod === 'cash' && (
+                    <Box
+                        sx={{
+                            mt: 4,
+                            p: 2.5,
+                            borderRadius: 2,
+                            bgcolor: 'rgba(255,255,255,0.03)',
+                            border: '1px solid rgba(255,255,255,0.06)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 2
+                        }}
+                    >
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
+                            <Typography fontWeight={900}>現金收款</Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                應收 {formatMoney(totals.total)}
+                            </Typography>
+                        </Box>
+                        <TextField
+                            label="收款金額"
+                            type="number"
+                            value={cashTendered}
+                            onChange={(event) => setCashTendered(event.target.value)}
+                            inputProps={{ min: 0, step: 1 }}
+                            fullWidth
+                        />
+                        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1 }}>
+                            <Button
+                                variant="outlined"
+                                onClick={() => setCashTendered(String(totals.total))}
+                                sx={{ minHeight: 42, color: 'text.primary', borderColor: 'rgba(255,255,255,0.12)' }}
+                            >
+                                剛好
+                            </Button>
+                            {[10, 20, 50].map((amount) => (
+                                <Button
+                                    key={amount}
+                                    variant="outlined"
+                                    onClick={() => addCashTendered(amount)}
+                                    sx={{ minHeight: 42, color: 'text.primary', borderColor: 'rgba(255,255,255,0.12)' }}
+                                >
+                                    +{formatMoney(amount)}
+                                </Button>
+                            ))}
+                        </Box>
+                        <Divider sx={{ borderColor: 'rgba(255,255,255,0.06)' }} />
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', color: cashPaymentInvalid ? 'error.main' : 'success.main' }}>
+                            <Typography fontWeight={900}>{cashPaymentInvalid ? '不足' : '找零'}</Typography>
+                            <Typography fontWeight={900}>
+                                {formatMoney(cashPaymentInvalid ? cashShortfall : changeDue)}
+                            </Typography>
+                        </Box>
+                    </Box>
+                )}
+
                 {/* 底部操作 / Bottom actions */}
                 <Box sx={{ display: 'flex', gap: 2, mt: 4 }}>
                     <Button 
@@ -279,7 +378,7 @@ const CheckoutPage: React.FC = () => {
                     </Button>
                     <Button 
                         variant="contained" 
-                        disabled={orderItems.length === 0 || submitting}
+                        disabled={orderItems.length === 0 || submitting || cashPaymentInvalid}
                         onClick={handleConfirmPayment}
                         sx={{ 
                             flex: 2, 

@@ -10,6 +10,8 @@ const axiosInstance = axios.create({
     timeout: 10000,
 });
 
+const isPosAuthRequest = (url?: string) => url?.includes('/v1/pos/auth/') ?? false;
+
 axiosInstance.interceptors.request.use(
     (config) => {
         const token = useAuthStore.getState().token;
@@ -36,9 +38,10 @@ axiosInstance.interceptors.response.use(
         return body;
     },
     (error) => {
-        if (error.response && error.response.status === 401) {
+        const requestUrl = typeof error.config?.url === 'string' ? error.config.url : undefined;
+        if (error.response && error.response.status === 401 && !isPosAuthRequest(requestUrl)) {
             useAuthStore.getState().logout();
-            window.location.href = '/login';
+            window.location.href = window.location.pathname.startsWith('/pos') ? '/pos/login' : '/login';
         }
         return Promise.reject(error);
     }

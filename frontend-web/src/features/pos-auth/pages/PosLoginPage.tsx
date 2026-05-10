@@ -5,13 +5,33 @@
  * @description_zh 實體 POS 機專用的全螢幕 PIN 碼登入介面
  */
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Avatar, IconButton, Button, AvatarGroup } from '@mui/material';
+import { Alert, Box, Typography, Avatar, IconButton, Button, AvatarGroup, CircularProgress } from '@mui/material';
 import { ArrowForward, Backspace, PointOfSale, Add } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { useAuthStore } from '../../../shared/store/authStore';
+import { pinLoginApi } from '../api/posAuthApi';
+
+const DEFAULT_TERMINAL_CODE = import.meta.env.VITE_DEFAULT_TERMINAL_CODE || 'DEMO-T-001';
+const DEFAULT_REDIRECT_PATH = '/pos/register';
+
+const resolvePosRedirectPath = (search: string) => {
+    const redirect = new URLSearchParams(search).get('redirect');
+    if (!redirect || !redirect.startsWith('/pos') || redirect.startsWith('//') || redirect === '/pos/login') {
+        return DEFAULT_REDIRECT_PATH;
+    }
+    return redirect;
+};
 
 const PosLoginPage: React.FC = () => {
     const [pin, setPin] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
     const navigate = useNavigate();
+    const location = useLocation();
+    const setAuth = useAuthStore((state) => state.setAuth);
+    const hasHydrated = useAuthStore((state) => state.hasHydrated);
+    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
     // 更新當前時間
     const [currentTime, setCurrentTime] = useState(new Date());
@@ -19,6 +39,12 @@ const PosLoginPage: React.FC = () => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
         return () => clearInterval(timer);
     }, []);
+
+    useEffect(() => {
+        if (hasHydrated && isAuthenticated) {
+            navigate(resolvePosRedirectPath(location.search), { replace: true });
+        }
+    }, [hasHydrated, isAuthenticated, location.search, navigate]);
 
     const handleNumberClick = (num: string) => {
         if (pin.length < 6) {
@@ -30,16 +56,48 @@ const PosLoginPage: React.FC = () => {
         setPin(prev => prev.slice(0, -1));
     };
 
-    const handleSubmit = () => {
-        if (pin.length > 0) {
-            // 模擬登入成功，導向收銀首頁
-            navigate('/pos/register');
+    const handleSubmit = async () => {
+        if (pin.length < 4 || loading) return;
+
+        setLoading(true);
+        setError('');
+        try {
+            const response = await pinLoginApi({
+                pin,
+                terminalCode: DEFAULT_TERMINAL_CODE,
+            });
+
+            setAuth(
+                { id: response.userId, username: response.username, role: response.role },
+                response.token
+            );
+            localStorage.setItem('pos-session', JSON.stringify({
+                storeId: response.storeId,
+                terminalId: response.terminalId,
+                terminalCode: DEFAULT_TERMINAL_CODE,
+                userId: response.userId,
+                username: response.username,
+                role: response.role,
+            }));
+            navigate(resolvePosRedirectPath(location.search), { replace: true });
+        } catch (err: unknown) {
+            const message = axios.isAxiosError<{ message?: string }>(err)
+                ? err.response?.data?.message
+                : undefined;
+            setError(message || 'PIN 登入失敗，請確認 PIN 碼或終端設定');
+            setPin('');
+        } finally {
+            setLoading(false);
         }
     };
 
     const formatDate = (date: Date) => {
         return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) + ' • ' + date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
+
+    if (!hasHydrated) {
+        return null;
+    }
 
     return (
         <Box sx={{ 
@@ -93,6 +151,11 @@ const PosLoginPage: React.FC = () => {
                 <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
                     Please enter PIN
                 </Typography>
+                {error && (
+                    <Alert severity="error" sx={{ mb: 3, width: 320 }}>
+                        {error}
+                    </Alert>
+                )}
 
                 {/* PIN Dots */}
                 <Box sx={{ display: 'flex', gap: 2, mb: 6 }}>
@@ -180,23 +243,27 @@ const PosLoginPage: React.FC = () => {
                     <Button
                         variant="contained"
                         onClick={handleSubmit}
-                        disabled={pin.length === 0}
+                        disabled={pin.length < 4 || loading}
                         sx={{
                             width: 80,
                             height: 80,
                             borderRadius: 3,
-                            background: pin.length > 0 ? 'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)' : 'rgba(255,255,255,0.05)',
-                            ...(pin.length > 0 && { background: 'linear-gradient(90deg, #7048E8 0%, #4D329A 100%)' }),
+                            background: pin.length >= 4 ? 'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)' : 'rgba(255,255,255,0.05)',
+                            ...(pin.length >= 4 && { background: 'linear-gradient(90deg, #7048E8 0%, #4D329A 100%)' }),
                             color: 'white',
-                            boxShadow: pin.length > 0 ? '0 4px 15px rgba(112, 72, 232, 0.4)' : 'none',
+                            boxShadow: pin.length >= 4 ? '0 4px 15px rgba(112, 72, 232, 0.4)' : 'none',
                             '&:hover': { 
                                 filter: 'brightness(1.1)',
-                                transform: pin.length > 0 ? 'scale(1.05)' : 'none'
+                                transform: pin.length >= 4 ? 'scale(1.05)' : 'none'
                              },
                             '&.Mui-disabled': { background: 'rgba(255,255,255,0.05)' }
                         }}
                     >
-                        <ArrowForward fontSize="large" sx={{ color: pin.length > 0 ? 'white' : 'rgba(255,255,255,0.2)' }} />
+                        {loading ? (
+                            <CircularProgress size={28} color="inherit" />
+                        ) : (
+                            <ArrowForward fontSize="large" sx={{ color: pin.length >= 4 ? 'white' : 'rgba(255,255,255,0.2)' }} />
+                        )}
                     </Button>
                 </Box>
             </Box>

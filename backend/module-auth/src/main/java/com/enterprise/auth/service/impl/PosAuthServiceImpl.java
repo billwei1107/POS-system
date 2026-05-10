@@ -13,6 +13,7 @@ import com.enterprise.auth.repository.UserRepository;
 import com.enterprise.auth.service.PosAuthService;
 import com.enterprise.common.exception.BusinessException;
 import com.enterprise.common.security.JwtTokenProvider;
+import com.enterprise.organization.repository.TerminalRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationEventPublisher;
@@ -36,6 +37,7 @@ public class PosAuthServiceImpl implements PosAuthService {
     private final TerminalTokenRepository terminalTokenRepository;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final TerminalRepository terminalRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final ApplicationEventPublisher eventPublisher;
@@ -52,6 +54,10 @@ public class PosAuthServiceImpl implements PosAuthService {
     @Override
     @Transactional
     public PinLoginResponse pinLogin(PinLoginRequest request) {
+        UUID terminalId = resolveTerminalId(request);
+        TerminalToken terminalToken = terminalTokenRepository.findByTerminalIdAndActiveTrue(terminalId)
+                .orElseThrow(() -> new BusinessException(403, "Terminal is not registered"));
+
         // 取得所有啟用中的 PIN 碼 / Get all active PIN codes
         List<PinCode> activePins = pinCodeRepository.findAll().stream()
                 .filter(p -> p.getActive() && p.getDeletedAt() == null)
@@ -86,13 +92,33 @@ public class PosAuthServiceImpl implements PosAuthService {
                         .refreshToken(token)
                         .userId(user.getId().toString())
                         .username(user.getUsername())
-                        .terminalId(request.getTerminalId().toString())
+                        .storeId(terminalToken.getStoreId().toString())
+                        .terminalId(terminalId.toString())
+                        .role("CASHIER")
                         .build();
             }
         }
 
         // 所有 PIN 都不匹配，記錄失敗 / No PIN matched
         throw new BusinessException(401, "Invalid PIN");
+    }
+
+    /**
+     * 解析終端識別 / Resolve terminal identifier
+     */
+    private UUID resolveTerminalId(PinLoginRequest request) {
+        if (request.getTerminalId() != null) {
+            return request.getTerminalId();
+        }
+
+        String terminalCode = request.getTerminalCode();
+        if (terminalCode == null || terminalCode.isBlank()) {
+            throw new BusinessException(400, "Terminal ID or terminal code is required");
+        }
+
+        return terminalRepository.findByTerminalCode(terminalCode.trim())
+                .orElseThrow(() -> new BusinessException(404, "Terminal not found"))
+                .getId();
     }
 
     @Override
@@ -125,7 +151,7 @@ public class PosAuthServiceImpl implements PosAuthService {
 
         // 發布切換事件 / Publish user switched event
         eventPublisher.publishEvent(new UserSwitchedEvent(
-                this, null, UUID.fromString(response.getUserId()), request.getTerminalId()));
+                this, null, UUID.fromString(response.getUserId()), UUID.fromString(response.getTerminalId())));
 
         return response;
     }

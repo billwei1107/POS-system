@@ -12,10 +12,13 @@ import type {
   CreateOrderRequest,
   OrderRefund,
   CreateRefundRequest,
+  HeldOrderResponse,
+  CreateHeldOrderRequest,
 } from '../types';
 
 const BASE = '/v1/pos/orders';
 const REFUND_BASE = '/v1/pos/refunds';
+const HELD_ORDER_BASE = '/v1/pos/held-orders';
 
 // ========================================
 // 訂單 API / Order APIs
@@ -50,4 +53,20 @@ export const refundApi = {
 
   complete: (id: string) =>
     axiosInstance.post<unknown, ApiResponse<OrderRefund>>(`${REFUND_BASE}/${id}/complete`),
+};
+
+// ========================================
+// 掛單 API / Held order APIs
+// ========================================
+export const heldOrderApi = {
+  create: (req: CreateHeldOrderRequest) =>
+    axiosInstance.post<unknown, ApiResponse<HeldOrderResponse>, CreateHeldOrderRequest>(HELD_ORDER_BASE, req),
+
+  list: (storeId: string, terminalId?: string) =>
+    axiosInstance.get<unknown, ApiResponse<HeldOrderResponse[]>>(HELD_ORDER_BASE, {
+      params: { storeId, terminalId },
+    }),
+
+  remove: (id: string) =>
+    axiosInstance.delete<unknown, ApiResponse<void>>(`${HELD_ORDER_BASE}/${id}`),
 };

@@ -15,6 +15,7 @@ import {
   LockOutlined, Menu as MenuIcon, ShoppingCart, Wifi, Circle
 } from '@mui/icons-material';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { useAuthStore } from '@shared/store/authStore';
 
 const SIDEBAR_EXPANDED_WIDTH = 240;
 const CART_WIDTH = 340;
@@ -32,6 +33,7 @@ const PosLayout: React.FC = () => {
   const [cartOpen, setCartOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const logout = useAuthStore((state) => state.logout);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -39,6 +41,11 @@ const PosLayout: React.FC = () => {
 
   const handleCartToggle = () => {
     setCartOpen(!cartOpen);
+  };
+
+  const handleLockTerminal = () => {
+    logout();
+    navigate('/pos/login', { replace: true });
   };
 
   const menuItems = [
@@ -123,6 +130,7 @@ const PosLayout: React.FC = () => {
             variant="outlined"
             fullWidth
             startIcon={<LockOutlined />}
+            onClick={handleLockTerminal}
             sx={{ 
                 mt: 2, 
                 minHeight: 48,

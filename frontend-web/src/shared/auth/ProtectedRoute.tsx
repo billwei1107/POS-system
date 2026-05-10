@@ -12,16 +12,26 @@ interface ProtectedRouteProps {
   redirectTo?: string;
 }
 
+const buildRedirectTarget = (redirectTo: string, location: ReturnType<typeof useLocation>) => {
+  const currentPath = `${location.pathname}${location.search}${location.hash}`;
+  const separator = redirectTo.includes('?') ? '&' : '?';
+  return `${redirectTo}${separator}redirect=${encodeURIComponent(currentPath)}`;
+};
+
 export function ProtectedRoute({
   children,
   requiredRole,
   redirectTo = '/login',
 }: ProtectedRouteProps) {
-  const { isAuthenticated, user } = useAuthStore();
+  const { hasHydrated, isAuthenticated, user } = useAuthStore();
   const location = useLocation();
 
+  if (!hasHydrated) {
+    return null;
+  }
+
   if (!isAuthenticated) {
-    return <Navigate to={redirectTo} state={{ from: location }} replace />;
+    return <Navigate to={buildRedirectTarget(redirectTo, location)} state={{ from: location }} replace />;
   }
 
   if (requiredRole && user?.role !== requiredRole) {

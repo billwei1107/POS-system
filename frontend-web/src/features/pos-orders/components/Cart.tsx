@@ -4,12 +4,18 @@
  * @description_en Displays active order items, totals and checkout actions
  * @description_zh 顯示目前訂單品項、金額彙總與結帳操作
  */
-import React, { useMemo } from 'react';
-import { Box, Typography, Button, IconButton, Divider, Chip } from '@mui/material';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+    Box, Typography, Button, IconButton, Divider, Chip, Dialog, DialogActions,
+    DialogContent, DialogTitle, TextField
+} from '@mui/material';
 import { DeleteOutline, Add, Remove, PersonAdd, LocalOffer, PauseCircleOutline } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { calculateCartTotals, calculateItemCount, useCartStore } from '../store/cartStore';
+import { calculateCartTotals, calculateItemCount, useCartStore, type HeldOrder } from '../store/cartStore';
 import { formatMoney } from '@shared/utils';
+import { DEFAULT_STORE_ID, DEFAULT_TERMINAL_ID, DEMO_POS_MEMBERS } from '../config';
+import { heldOrderApi } from '../api/orderApi';
+import type { HeldOrderResponse } from '../types';
 
 const Cart: React.FC = () => {
     const navigate = useNavigate();
@@ -19,8 +25,160 @@ const Cart: React.FC = () => {
     const remove = useCartStore((state) => state.remove);
     const clear = useCartStore((state) => state.clear);
     const taxRate = useCartStore((state) => state.taxRate);
-    const totals = useMemo(() => calculateCartTotals(lines, taxRate), [lines, taxRate]);
+    const discountAmount = useCartStore((state) => state.discountAmount);
+    const selectedMember = useCartStore((state) => state.selectedMember);
+    const heldOrders = useCartStore((state) => state.heldOrders);
+    const setDiscountAmount = useCartStore((state) => state.setDiscountAmount);
+    const clearDiscount = useCartStore((state) => state.clearDiscount);
+    const setMember = useCartStore((state) => state.setMember);
+    const clearMember = useCartStore((state) => state.clearMember);
+    const holdCurrentOrder = useCartStore((state) => state.holdCurrentOrder);
+    const replaceHeldOrders = useCartStore((state) => state.replaceHeldOrders);
+    const replaceHeldOrder = useCartStore((state) => state.replaceHeldOrder);
+    const restoreHeldOrder = useCartStore((state) => state.restoreHeldOrder);
+    const removeHeldOrder = useCartStore((state) => state.removeHeldOrder);
+    const [discountOpen, setDiscountOpen] = useState(false);
+    const [memberOpen, setMemberOpen] = useState(false);
+    const [holdOpen, setHoldOpen] = useState(false);
+    const [discountInput, setDiscountInput] = useState('');
+    const [memberQuery, setMemberQuery] = useState('');
+    const totals = useMemo(() => calculateCartTotals(lines, taxRate, discountAmount), [discountAmount, lines, taxRate]);
     const itemCount = useMemo(() => calculateItemCount(lines), [lines]);
+    const memberCandidates = useMemo(() => {
+        const query = memberQuery.trim().toLowerCase();
+        if (!query) return DEMO_POS_MEMBERS;
+        return DEMO_POS_MEMBERS.filter((member) =>
+            [member.name, member.memberNo, member.phoneMasked, member.tier]
+                .some((value) => value.toLowerCase().includes(query))
+        );
+    }, [memberQuery]);
+
+    // ========================================
+    // 折扣設定 / Discount Controls
+    // ========================================
+    const openDiscountDialog = () => {
+        setDiscountInput(totals.discount > 0 ? String(totals.discount) : '');
+        setDiscountOpen(true);
+    };
+
+    const applyDiscountAmount = (amount: number) => {
+        setDiscountAmount(amount);
+        setDiscountInput(String(Math.min(totals.subtotal, Math.max(0, amount))));
+    };
+
+    const applyDiscountPercent = (percent: number) => {
+        applyDiscountAmount(Math.round(totals.subtotal * percent) / 100);
+    };
+
+    const confirmDiscount = () => {
+        const value = Number(discountInput);
+        setDiscountAmount(Number.isFinite(value) ? value : 0);
+        setDiscountOpen(false);
+    };
+
+    const handleClearDiscount = () => {
+        clearDiscount();
+        setDiscountInput('');
+        setDiscountOpen(false);
+    };
+
+    // ========================================
+    // 會員綁定 / Member Binding
+    // ========================================
+    const handleSelectMember = (member: typeof DEMO_POS_MEMBERS[number]) => {
+        setMember(member);
+        setMemberOpen(false);
+    };
+
+    const handleClearMember = () => {
+        clearMember();
+        setMemberOpen(false);
+    };
+
+    const mapHeldOrderResponse = (response: HeldOrderResponse): HeldOrder | null => {
+        try {
+            const payload = JSON.parse(response.payload) as HeldOrder;
+            return {
+                ...payload,
+                id: response.id,
+                displayNo: response.label || payload.displayNo,
+                createdAt: response.heldAt || payload.createdAt,
+            };
+        } catch {
+            return null;
+        }
+    };
+
+    useEffect(() => {
+        if (!holdOpen) return;
+        let cancelled = false;
+
+        heldOrderApi.list(DEFAULT_STORE_ID, DEFAULT_TERMINAL_ID)
+            .then((response) => {
+                if (cancelled || !response.success || !response.data) return;
+                const mapped = response.data
+                    .map(mapHeldOrderResponse)
+                    .filter((order): order is HeldOrder => order !== null);
+                replaceHeldOrders(mapped);
+            })
+            .catch(() => {
+                // localStorage 掛單保留作為 API 暫時不可用時的備援。
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [holdOpen, replaceHeldOrders]);
+
+    // ========================================
+    // 掛單與取單 / Hold And Restore Orders
+    // ========================================
+    const handleHoldCurrentOrder = async () => {
+        const heldOrder = holdCurrentOrder();
+        if (!heldOrder) return;
+
+        try {
+            const response = await heldOrderApi.create({
+                storeId: DEFAULT_STORE_ID,
+                terminalId: DEFAULT_TERMINAL_ID,
+                label: heldOrder.displayNo,
+                payload: JSON.stringify(heldOrder),
+            });
+            if (response.success && response.data) {
+                const mapped = mapHeldOrderResponse(response.data);
+                if (mapped) replaceHeldOrder(heldOrder.id, mapped);
+            }
+        } catch {
+            // API 失敗時保留本地掛單，避免收銀現場丟失目前訂單。
+        }
+        setHoldOpen(false);
+    };
+
+    const handleRestoreHeldOrder = async (heldOrderId: string) => {
+        restoreHeldOrder(heldOrderId);
+        if (!heldOrderId.startsWith('hold-')) {
+            try {
+                await heldOrderApi.remove(heldOrderId);
+            } catch {
+                // 取回後若刪除 API 暫時失敗，本地狀態仍以已取回為準。
+            }
+        }
+        setHoldOpen(false);
+    };
+
+    const handleRemoveHeldOrder = async (heldOrderId: string) => {
+        removeHeldOrder(heldOrderId);
+        if (!heldOrderId.startsWith('hold-')) {
+            try {
+                await heldOrderApi.remove(heldOrderId);
+            } catch {
+                // 本地先移除，後端失敗時下次開啟 Dialog 會重新同步可見資料。
+            }
+        }
+    };
+
+    const formatHeldTime = (createdAt: string) =>
+        new Intl.DateTimeFormat('zh-TW', { hour: '2-digit', minute: '2-digit' }).format(new Date(createdAt));
     
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', p: 2.5, minHeight: 0 }}>
@@ -34,7 +192,12 @@ const Cart: React.FC = () => {
                     </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1 }}>
-                    <IconButton size="small" sx={{ color: 'text.secondary', bgcolor: 'rgba(255,255,255,0.04)', borderRadius: 1.5 }}>
+                    <IconButton
+                        aria-label="掛單與取單"
+                        size="small"
+                        onClick={() => setHoldOpen(true)}
+                        sx={{ color: heldOrders.length > 0 ? 'secondary.main' : 'text.secondary', bgcolor: 'rgba(255,255,255,0.04)', borderRadius: 1.5 }}
+                    >
                         <PauseCircleOutline fontSize="small" />
                     </IconButton>
                     <IconButton
@@ -147,11 +310,32 @@ const Cart: React.FC = () => {
             </Box>
 
             <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-                <Button variant="outlined" fullWidth startIcon={<LocalOffer />} sx={{ color: 'text.primary', borderColor: 'rgba(255,255,255,0.1)', bgcolor: 'rgba(255,255,255,0.05)' }}>
-                    折扣
+                <Button
+                    variant="outlined"
+                    fullWidth
+                    startIcon={<LocalOffer />}
+                    disabled={itemCount === 0}
+                    onClick={openDiscountDialog}
+                    sx={{
+                        color: 'text.primary',
+                        borderColor: totals.discount > 0 ? 'rgba(0,230,118,0.42)' : 'rgba(255,255,255,0.1)',
+                        bgcolor: totals.discount > 0 ? 'rgba(0,230,118,0.08)' : 'rgba(255,255,255,0.05)'
+                    }}
+                >
+                    {totals.discount > 0 ? `折扣 ${formatMoney(totals.discount)}` : '折扣'}
                 </Button>
-                <Button variant="outlined" fullWidth startIcon={<PersonAdd />} sx={{ color: 'text.primary', borderColor: 'rgba(255,255,255,0.1)', bgcolor: 'rgba(255,255,255,0.05)' }}>
-                    會員
+                <Button
+                    variant="outlined"
+                    fullWidth
+                    startIcon={<PersonAdd />}
+                    onClick={() => setMemberOpen(true)}
+                    sx={{
+                        color: 'text.primary',
+                        borderColor: selectedMember ? 'rgba(255,138,101,0.45)' : 'rgba(255,255,255,0.1)',
+                        bgcolor: selectedMember ? 'rgba(255,138,101,0.08)' : 'rgba(255,255,255,0.05)'
+                    }}
+                >
+                    {selectedMember ? `${selectedMember.tier} ${selectedMember.name}` : '會員'}
                 </Button>
             </Box>
 
@@ -180,6 +364,237 @@ const Cart: React.FC = () => {
                 <Button variant="outlined" fullWidth sx={{ color: 'text.primary', borderColor: 'rgba(255,255,255,0.1)', bgcolor: 'rgba(255,255,255,0.02)' }}>$20</Button>
                 <Button variant="outlined" fullWidth sx={{ color: 'text.primary', borderColor: 'rgba(255,255,255,0.1)', bgcolor: 'rgba(255,255,255,0.02)' }}>$50</Button>
             </Box>
+
+            <Dialog
+                open={discountOpen}
+                onClose={() => setDiscountOpen(false)}
+                fullWidth
+                maxWidth="xs"
+                PaperProps={{
+                    sx: {
+                        bgcolor: 'background.paper',
+                        color: 'text.primary',
+                        border: '1px solid rgba(255,255,255,0.08)'
+                    }
+                }}
+            >
+                <DialogTitle sx={{ fontWeight: 900 }}>套用折扣</DialogTitle>
+                <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1 }}>
+                        {[5, 10, 20].map((percent) => (
+                            <Button
+                                key={percent}
+                                variant="outlined"
+                                onClick={() => applyDiscountPercent(percent)}
+                                sx={{ minHeight: 44, color: 'text.primary', borderColor: 'rgba(255,255,255,0.12)' }}
+                            >
+                                {percent}%
+                            </Button>
+                        ))}
+                    </Box>
+                    <TextField
+                        label="折扣金額"
+                        type="number"
+                        value={discountInput}
+                        onChange={(event) => setDiscountInput(event.target.value)}
+                        inputProps={{ min: 0, max: totals.subtotal, step: 1 }}
+                        helperText={`最多可折 ${formatMoney(totals.subtotal)}`}
+                        fullWidth
+                    />
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', color: 'text.secondary' }}>
+                        <Typography variant="body2">折扣後小計</Typography>
+                        <Typography variant="body2">{formatMoney(Math.max(0, totals.subtotal - (Number(discountInput) || 0)))}</Typography>
+                    </Box>
+                </DialogContent>
+                <DialogActions sx={{ px: 3, pb: 3 }}>
+                    <Button onClick={handleClearDiscount} sx={{ color: 'text.secondary' }}>
+                        清除
+                    </Button>
+                    <Box sx={{ flexGrow: 1 }} />
+                    <Button onClick={() => setDiscountOpen(false)} sx={{ color: 'text.secondary' }}>
+                        取消
+                    </Button>
+                    <Button variant="contained" color="secondary" onClick={confirmDiscount}>
+                        套用
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog
+                open={holdOpen}
+                onClose={() => setHoldOpen(false)}
+                fullWidth
+                maxWidth="sm"
+                PaperProps={{
+                    sx: {
+                        bgcolor: 'background.paper',
+                        color: 'text.primary',
+                        border: '1px solid rgba(255,255,255,0.08)'
+                    }
+                }}
+            >
+                <DialogTitle sx={{ fontWeight: 900 }}>掛單與取單</DialogTitle>
+                <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+                    {itemCount > 0 && (
+                        <Box
+                            sx={{
+                                p: 2,
+                                borderRadius: 2,
+                                bgcolor: 'rgba(255,109,0,0.08)',
+                                border: '1px solid rgba(255,109,0,0.22)',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                gap: 2
+                            }}
+                        >
+                            <Box>
+                                <Typography fontWeight={900}>目前訂單</Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                    {itemCount} 項 · {formatMoney(totals.total)}
+                                    {selectedMember ? ` · ${selectedMember.name}` : ''}
+                                </Typography>
+                            </Box>
+                            <Button variant="contained" color="secondary" onClick={handleHoldCurrentOrder}>
+                                掛起
+                            </Button>
+                        </Box>
+                    )}
+
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {heldOrders.map((order) => (
+                            <Box
+                                key={order.id}
+                                sx={{
+                                    p: 1.5,
+                                    borderRadius: 2,
+                                    bgcolor: 'rgba(255,255,255,0.03)',
+                                    border: '1px solid rgba(255,255,255,0.08)',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    gap: 1.5
+                                }}
+                            >
+                                <Box sx={{ minWidth: 0 }}>
+                                    <Typography fontWeight={900}>{order.displayNo}</Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        {formatHeldTime(order.createdAt)} · {order.itemCount} 項 · {formatMoney(order.total)}
+                                        {order.selectedMember ? ` · ${order.selectedMember.name}` : ''}
+                                    </Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+                                    <Button
+                                        variant="outlined"
+                                        disabled={itemCount > 0}
+                                        onClick={() => handleRestoreHeldOrder(order.id)}
+                                        sx={{ color: 'text.primary', borderColor: 'rgba(255,255,255,0.12)' }}
+                                    >
+                                        取回
+                                    </Button>
+                                    <IconButton
+                                        aria-label={`刪除掛單 ${order.displayNo}`}
+                                        size="small"
+                                        onClick={() => handleRemoveHeldOrder(order.id)}
+                                        sx={{ color: 'error.main' }}
+                                    >
+                                        <DeleteOutline fontSize="small" />
+                                    </IconButton>
+                                </Box>
+                            </Box>
+                        ))}
+                    </Box>
+
+                    {heldOrders.length === 0 && (
+                        <Box sx={{ py: 4, textAlign: 'center', color: 'text.secondary' }}>
+                            <Typography fontWeight={900} color="text.primary">目前沒有掛單</Typography>
+                            <Typography variant="body2">有品項的訂單可先掛起，稍後再取回結帳。</Typography>
+                        </Box>
+                    )}
+                </DialogContent>
+                <DialogActions sx={{ px: 3, pb: 3 }}>
+                    <Button onClick={() => setHoldOpen(false)} sx={{ color: 'text.secondary' }}>
+                        關閉
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog
+                open={memberOpen}
+                onClose={() => setMemberOpen(false)}
+                fullWidth
+                maxWidth="sm"
+                PaperProps={{
+                    sx: {
+                        bgcolor: 'background.paper',
+                        color: 'text.primary',
+                        border: '1px solid rgba(255,255,255,0.08)'
+                    }
+                }}
+            >
+                <DialogTitle sx={{ fontWeight: 900 }}>綁定會員</DialogTitle>
+                <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+                    <TextField
+                        label="手機、姓名或會員編號"
+                        value={memberQuery}
+                        onChange={(event) => setMemberQuery(event.target.value)}
+                        fullWidth
+                    />
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {memberCandidates.map((member) => (
+                            <Button
+                                key={member.id}
+                                variant="outlined"
+                                onClick={() => handleSelectMember(member)}
+                                sx={{
+                                    p: 1.5,
+                                    justifyContent: 'space-between',
+                                    textAlign: 'left',
+                                    color: 'text.primary',
+                                    borderColor: selectedMember?.id === member.id ? 'rgba(255,138,101,0.72)' : 'rgba(255,255,255,0.1)',
+                                    bgcolor: selectedMember?.id === member.id ? 'rgba(255,138,101,0.1)' : 'rgba(255,255,255,0.03)'
+                                }}
+                            >
+                                <Box sx={{ minWidth: 0 }}>
+                                    <Typography fontWeight={900}>{member.name}</Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        {member.memberNo} · {member.phoneMasked}
+                                    </Typography>
+                                </Box>
+                                <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
+                                    <Typography fontWeight={900} color="secondary.main">
+                                        {member.discountPercent > 0 ? `${member.discountPercent}%` : '無折扣'}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        {member.tier} · {member.points.toLocaleString()} 點
+                                    </Typography>
+                                </Box>
+                            </Button>
+                        ))}
+                    </Box>
+                    {memberCandidates.length === 0 && (
+                        <Box sx={{ py: 4, textAlign: 'center', color: 'text.secondary' }}>
+                            <Typography fontWeight={900} color="text.primary">找不到會員</Typography>
+                            <Typography variant="body2">請確認手機、姓名或會員編號。</Typography>
+                        </Box>
+                    )}
+                    {selectedMember && (
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', color: 'text.secondary' }}>
+                            <Typography variant="body2">目前會員折扣</Typography>
+                            <Typography variant="body2">-{formatMoney(totals.discount)}</Typography>
+                        </Box>
+                    )}
+                </DialogContent>
+                <DialogActions sx={{ px: 3, pb: 3 }}>
+                    <Button onClick={handleClearMember} disabled={!selectedMember} sx={{ color: 'text.secondary' }}>
+                        解除
+                    </Button>
+                    <Box sx={{ flexGrow: 1 }} />
+                    <Button onClick={() => setMemberOpen(false)} sx={{ color: 'text.secondary' }}>
+                        關閉
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 };

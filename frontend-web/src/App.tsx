@@ -1,6 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { Box, AppBar, Toolbar, Typography, Button, Container, CssBaseline, ThemeProvider } from '@mui/material';
 import { posTheme } from './shared/theme';
+import { ProtectedRoute } from './shared/auth';
+import { useAuthStore } from './shared/store/authStore';
 
 // 引入 auth 頁面
 import { LoginPage } from './features/auth/pages/LoginPage';
@@ -35,28 +37,32 @@ import PosLoginPage from './features/pos-auth/pages/PosLoginPage';
 import ProductListPage from './features/pos-products/pages/ProductListPage';
 import CategoryListPage from './features/pos-products/pages/CategoryListPage';
 
-const AppLayout = ({ children }: { children: React.ReactNode }) => (
-  <Box sx={{ flexGrow: 1, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-    <AppBar position="static">
-      <Toolbar>
-        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-          模塊化企業系統
-        </Typography>
-        <NotificationBell />
-        <Button color="inherit" component={Link} to="/department">組織管理</Button>
-        <Button color="inherit" component={Link} to="/employee">員工管理</Button>
-        <Button color="inherit" component={Link} to="/workflow">發起簽核</Button>
-        <Button color="inherit" component={Link} to="/my-tasks">我的待辦</Button>
-        <Button color="inherit" component={Link} to="/leave/request">請假申請</Button>
-        <Button color="inherit" component={Link} to="/leave/calendar">請假日曆</Button>
-        <Button color="inherit" component={Link} to="/login">登出</Button>
-      </Toolbar>
-    </AppBar>
-    <Container sx={{ mt: 4, flexGrow: 1 }}>
-      {children}
-    </Container>
-  </Box>
-);
+const AppLayout = ({ children }: { children: React.ReactNode }) => {
+  const logout = useAuthStore((state) => state.logout);
+
+  return (
+    <Box sx={{ flexGrow: 1, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <AppBar position="static">
+        <Toolbar>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            模塊化企業系統
+          </Typography>
+          <NotificationBell />
+          <Button color="inherit" component={Link} to="/department">組織管理</Button>
+          <Button color="inherit" component={Link} to="/employee">員工管理</Button>
+          <Button color="inherit" component={Link} to="/workflow">發起簽核</Button>
+          <Button color="inherit" component={Link} to="/my-tasks">我的待辦</Button>
+          <Button color="inherit" component={Link} to="/leave/request">請假申請</Button>
+          <Button color="inherit" component={Link} to="/leave/calendar">請假日曆</Button>
+          <Button color="inherit" component={Link} to="/login" onClick={logout}>登出</Button>
+        </Toolbar>
+      </AppBar>
+      <Container sx={{ mt: 4, flexGrow: 1 }}>
+        {children}
+      </Container>
+    </Box>
+  );
+};
 
 function App() {
   return (
@@ -67,17 +73,17 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
 
           {/* 受保護的後台區域 */}
-          <Route path="/role" element={<AppLayout><RoleListPage /></AppLayout>} />
-          <Route path="/company" element={<AppLayout><CompanyPage /></AppLayout>} />
-          <Route path="/department" element={<AppLayout><DepartmentPage /></AppLayout>} />
-          <Route path="/position" element={<AppLayout><PositionPage /></AppLayout>} />
-          <Route path="/employee" element={<AppLayout><EmployeeListPage /></AppLayout>} />
-          <Route path="/workflow" element={<AppLayout><DefinitionListPage /></AppLayout>} />
-          <Route path="/my-tasks" element={<AppLayout><MyTasksPage /></AppLayout>} />
-          <Route path="/leave/types" element={<AppLayout><LeaveTypePage /></AppLayout>} />
-          <Route path="/leave/balances" element={<AppLayout><LeaveBalancePage /></AppLayout>} />
-          <Route path="/leave/request" element={<AppLayout><LeaveRequestPage /></AppLayout>} />
-          <Route path="/leave/calendar" element={<AppLayout><LeaveCalendarPage /></AppLayout>} />
+          <Route path="/role" element={<ProtectedRoute><AppLayout><RoleListPage /></AppLayout></ProtectedRoute>} />
+          <Route path="/company" element={<ProtectedRoute><AppLayout><CompanyPage /></AppLayout></ProtectedRoute>} />
+          <Route path="/department" element={<ProtectedRoute><AppLayout><DepartmentPage /></AppLayout></ProtectedRoute>} />
+          <Route path="/position" element={<ProtectedRoute><AppLayout><PositionPage /></AppLayout></ProtectedRoute>} />
+          <Route path="/employee" element={<ProtectedRoute><AppLayout><EmployeeListPage /></AppLayout></ProtectedRoute>} />
+          <Route path="/workflow" element={<ProtectedRoute><AppLayout><DefinitionListPage /></AppLayout></ProtectedRoute>} />
+          <Route path="/my-tasks" element={<ProtectedRoute><AppLayout><MyTasksPage /></AppLayout></ProtectedRoute>} />
+          <Route path="/leave/types" element={<ProtectedRoute><AppLayout><LeaveTypePage /></AppLayout></ProtectedRoute>} />
+          <Route path="/leave/balances" element={<ProtectedRoute><AppLayout><LeaveBalancePage /></AppLayout></ProtectedRoute>} />
+          <Route path="/leave/request" element={<ProtectedRoute><AppLayout><LeaveRequestPage /></AppLayout></ProtectedRoute>} />
+          <Route path="/leave/calendar" element={<ProtectedRoute><AppLayout><LeaveCalendarPage /></AppLayout></ProtectedRoute>} />
 
           {/* 預設導向登入頁面 */}
           <Route path="/" element={<Navigate to="/pos/register" replace />} />
@@ -85,7 +91,7 @@ function App() {
           {/* POS 登入畫面 */}
           <Route path="/pos/login" element={<PosLoginPage />} />
 
-          <Route path="/pos" element={<PosLayout />}>
+          <Route path="/pos" element={<ProtectedRoute redirectTo="/pos/login"><PosLayout /></ProtectedRoute>}>
               <Route path="register" element={<RegisterPage />} />
               <Route path="orders" element={<OrderListPage />} />
               <Route path="refunds" element={<RefundPage />} />

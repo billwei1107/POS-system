@@ -25,7 +25,10 @@ public class PricingEngine {
     // ========================================
     public PricingResult calculate(List<OrderItemRequest> items, BigDecimal discountAmount, boolean taxIncluded) {
         BigDecimal subtotal = computeSubtotal(items);
-        BigDecimal discount = discountAmount != null ? discountAmount.setScale(SCALE, RoundingMode.HALF_UP) : BigDecimal.ZERO;
+        BigDecimal requestedDiscount = discountAmount != null
+                ? discountAmount.max(BigDecimal.ZERO).setScale(SCALE, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+        BigDecimal discount = requestedDiscount.min(subtotal);
         BigDecimal afterDiscount = subtotal.subtract(discount).max(BigDecimal.ZERO);
 
         BigDecimal taxTotal;

@@ -99,6 +99,36 @@ class PricingEngineTest {
         assertThat(result.grandTotal()).isEqualByComparingTo("189.00");
     }
 
+    @Test
+    void calculate_withDiscountOverSubtotal_capsAtSubtotal() {
+        var item = new OrderItemRequest(
+            null, null, "Item", "SKU006",
+            new BigDecimal("80.00"), BigDecimal.ONE,
+            BigDecimal.ZERO, null, null
+        );
+
+        PricingResult result = pricingEngine.calculate(List.of(item), new BigDecimal("100.00"), false);
+
+        assertThat(result.discountTotal()).isEqualByComparingTo("80.00");
+        assertThat(result.taxTotal()).isEqualByComparingTo("0.00");
+        assertThat(result.grandTotal()).isEqualByComparingTo("0.00");
+    }
+
+    @Test
+    void calculate_withNegativeDiscount_treatsAsZero() {
+        var item = new OrderItemRequest(
+            null, null, "Item", "SKU007",
+            new BigDecimal("80.00"), BigDecimal.ONE,
+            BigDecimal.ZERO, null, null
+        );
+
+        PricingResult result = pricingEngine.calculate(List.of(item), new BigDecimal("-10.00"), false);
+
+        assertThat(result.discountTotal()).isEqualByComparingTo("0.00");
+        assertThat(result.taxTotal()).isEqualByComparingTo("4.00");
+        assertThat(result.grandTotal()).isEqualByComparingTo("84.00");
+    }
+
     // ========================================
     // 找零計算 / Change calculation
     // ========================================

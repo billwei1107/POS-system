@@ -119,3 +119,20 @@ export interface CreateRefundRequest {
   reason?: string;
   approvedBy?: string;
 }
+
+export interface HeldOrderResponse {
+  id: string;
+  storeId: string;
+  terminalId?: string;
+  label?: string;
+  payload: string;
+  heldAt: string;
+  createdAt?: string;
+}
+
+export interface CreateHeldOrderRequest {
+  storeId: string;
+  terminalId?: string;
+  label?: string;
+  payload: string;
+}

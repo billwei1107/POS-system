@@ -6,10 +6,10 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    Alert, Box, TextField, InputAdornment, Button, Card, CardMedia, CardContent,
+    Alert, Box, TextField, InputAdornment, Button, Card, CardContent,
     Typography, Chip, IconButton, Tooltip, CircularProgress
 } from '@mui/material';
-import { AccessTime, Bolt, GridView, LocalOffer, QrCodeScanner, Search } from '@mui/icons-material';
+import { AddShoppingCart, Bolt, GridView, LocalOffer, QrCodeScanner, Search } from '@mui/icons-material';
 import { createPortal } from 'react-dom';
 import Cart from '../components/Cart';
 import { productApi } from '../../pos-products/api/productApi';
@@ -23,6 +23,45 @@ const QUICK_ACTIONS = [
     { label: '急單', icon: <Bolt fontSize="small" /> },
     { label: '格狀', icon: <GridView fontSize="small" /> },
 ];
+
+const FEATURED_CATEGORY_NAMES = ['咖啡飲品', '烘焙點心'];
+
+// ========================================
+// 收銀排序規則 / Register Sort Rules
+// ========================================
+const isFeaturedCategory = (category: Category) => FEATURED_CATEGORY_NAMES.includes(category.name);
+
+const isFeaturedProduct = (product: ProductItem) => product.sku.startsWith('DEMO-');
+
+const getCategoryName = (categories: Category[], categoryId: string | null) => (
+    categories.find((category) => category.id === categoryId)?.name ?? '未分類'
+);
+
+const sortCategoriesForRegister = (items: Category[]) => (
+    [...items].sort((a, b) => {
+        const featuredOrder = Number(isFeaturedCategory(b)) - Number(isFeaturedCategory(a));
+        if (featuredOrder !== 0) return featuredOrder;
+
+        const sortOrder = a.sortOrder - b.sortOrder;
+        if (sortOrder !== 0) return sortOrder;
+
+        return a.name.localeCompare(b.name, 'zh-Hant');
+    })
+);
+
+const sortProductsForRegister = (items: ProductItem[], categories: Category[]) => (
+    [...items].sort((a, b) => {
+        const featuredProductOrder = Number(isFeaturedProduct(b)) - Number(isFeaturedProduct(a));
+        if (featuredProductOrder !== 0) return featuredProductOrder;
+
+        const aFeaturedCategory = FEATURED_CATEGORY_NAMES.includes(getCategoryName(categories, a.categoryId));
+        const bFeaturedCategory = FEATURED_CATEGORY_NAMES.includes(getCategoryName(categories, b.categoryId));
+        const featuredCategoryOrder = Number(bFeaturedCategory) - Number(aFeaturedCategory);
+        if (featuredCategoryOrder !== 0) return featuredCategoryOrder;
+
+        return a.name.localeCompare(b.name, 'zh-Hant');
+    })
+);
 
 const RegisterPage: React.FC = () => {
     const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -62,7 +101,7 @@ const RegisterPage: React.FC = () => {
         if (!isAuthenticated) {
             setProducts([]);
             setCategories([]);
-            setError('請先登入後台後再使用收銀台商品資料。');
+            setError('請先完成 POS PIN 登入後再載入收銀台商品資料。');
             setLoading(false);
             return;
         }
@@ -80,15 +119,22 @@ const RegisterPage: React.FC = () => {
                 productApi.getCategories(),
             ]);
 
+            const nextCategories = categoryResponse.success
+                ? sortCategoriesForRegister(categoryResponse.data.filter((category) => category.active))
+                : [];
+
+            setCategories(nextCategories);
+
             if (productResponse.success) {
-                setProducts(productResponse.data.content.filter((product) => product.sellable && product.active));
-            }
-            if (categoryResponse.success) {
-                setCategories(categoryResponse.data.filter((category) => category.active));
+                setProducts(sortProductsForRegister(
+                    productResponse.data.content.filter((product) => product.sellable && product.active),
+                    nextCategories
+                ));
             }
         } catch {
             setError('載入商品資料失敗，請稍後重試。');
             setProducts([]);
+            setCategories([]);
         } finally {
             setLoading(false);
         }
@@ -218,8 +264,13 @@ const RegisterPage: React.FC = () => {
 
             <Box sx={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
-                gap: 2.5,
+                gridTemplateColumns: {
+                    xs: '1fr',
+                    sm: 'repeat(auto-fill, minmax(240px, 1fr))',
+                    xl: 'repeat(auto-fill, minmax(260px, 1fr))'
+                },
+                gap: 2,
+                alignItems: 'stretch',
                 overflowY: 'auto',
                 pr: { xs: 0, md: 0.5 },
                 pb: 2,
@@ -258,12 +309,15 @@ const RegisterPage: React.FC = () => {
                 {!loading && products.map((item) => (
                     <Card key={item.id} onClick={() => addProduct(item)} sx={{
                         bgcolor: 'background.paper',
-                        borderRadius: 3,
+                        borderRadius: 2,
                         cursor: 'pointer',
                         transition: 'transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease',
                         border: '1px solid rgba(255,255,255,0.06)',
                         boxShadow: 'none',
                         overflow: 'hidden',
+                        minHeight: 232,
+                        display: 'flex',
+                        flexDirection: 'column',
                         '&:active': { transform: 'scale(0.98)' },
                         '&:hover': {
                             transform: 'translateY(-2px)',
@@ -271,60 +325,119 @@ const RegisterPage: React.FC = () => {
                             boxShadow: '0 18px 40px rgba(0,0,0,0.22)'
                         }
                     }}>
-                        <Box sx={{ position: 'relative', p: 1.5, pb: 0 }}>
-                            {item.imageUrl ? (
-                                <CardMedia
-                                    component="img"
-                                    height="148"
-                                    image={item.imageUrl}
-                                    alt={item.name}
-                                    sx={{ borderRadius: 2, objectFit: 'cover' }}
-                                />
-                            ) : (
-                                <Box sx={{
-                                    height: 148,
-                                    borderRadius: 2,
-                                    bgcolor: 'rgba(178,198,255,0.12)',
-                                    border: '1px solid rgba(178,198,255,0.12)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
-                                }}>
-                                    <Typography fontWeight={900} sx={{ color: '#B2C6FF' }}>
-                                        {item.sku}
-                                    </Typography>
-                                </Box>
-                            )}
+                        <Box sx={{
+                            p: 2,
+                            pb: 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 1
+                        }}>
                             <Chip
                                 size="small"
-                                label={categories.find((category) => category.id === item.categoryId)?.name ?? '未分類'}
+                                label={getCategoryName(categories, item.categoryId)}
                                 sx={{
-                                    position: 'absolute',
-                                    left: 24,
-                                    top: 24,
                                     bgcolor: 'rgba(15,18,27,0.82)',
                                     color: 'white',
                                     fontWeight: 700,
-                                    backdropFilter: 'blur(8px)'
+                                    maxWidth: '70%',
+                                    '& .MuiChip-label': {
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis'
+                                    }
                                 }}
                             />
+                            {isFeaturedProduct(item) && (
+                                <Chip
+                                    size="small"
+                                    label="Demo"
+                                    sx={{
+                                        bgcolor: 'rgba(178,198,255,0.16)',
+                                        color: '#B2C6FF',
+                                        fontWeight: 800
+                                    }}
+                                />
+                            )}
                         </Box>
-                        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1.5, mb: 1 }}>
-                                <Typography variant="h6" fontWeight={800} sx={{ fontSize: '1rem', lineHeight: 1.25 }}>
-                                    {item.name}
-                                </Typography>
-                                <Typography color="secondary.main" fontWeight={900} sx={{ fontVariantNumeric: 'tabular-nums' }}>
-                                    {formatMoney(item.basePrice)}
-                                </Typography>
-                            </Box>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Typography variant="caption" color="text.secondary">
-                                    {item.barcodePrimary ?? item.unit}
-                                </Typography>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
-                                    <AccessTime sx={{ fontSize: 14 }} />
-                                    <Typography variant="caption">即時加入</Typography>
+                        <CardContent sx={{
+                            p: 2,
+                            pt: 0.5,
+                            flexGrow: 1,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            '&:last-child': { pb: 2 }
+                        }}>
+                            <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{
+                                    display: 'block',
+                                    mb: 0.75,
+                                    fontWeight: 700,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap'
+                                }}
+                            >
+                                {item.sku}
+                            </Typography>
+                            <Typography
+                                variant="h6"
+                                fontWeight={900}
+                                sx={{
+                                    fontSize: '1.08rem',
+                                    lineHeight: 1.25,
+                                    minHeight: 54,
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: 'vertical',
+                                    overflow: 'hidden'
+                                }}
+                            >
+                                {item.name}
+                            </Typography>
+                            <Box sx={{
+                                mt: 'auto',
+                                pt: 2,
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'flex-end',
+                                gap: 1.5
+                            }}>
+                                <Box sx={{ minWidth: 0 }}>
+                                    <Typography color="secondary.main" fontWeight={950} sx={{
+                                        fontSize: '1.45rem',
+                                        lineHeight: 1,
+                                        fontVariantNumeric: 'tabular-nums',
+                                        letterSpacing: 0
+                                    }}>
+                                        {formatMoney(item.basePrice)}
+                                    </Typography>
+                                    <Typography
+                                        variant="caption"
+                                        color="text.secondary"
+                                        sx={{
+                                            display: 'block',
+                                            mt: 0.75,
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap'
+                                        }}
+                                    >
+                                        {item.barcodePrimary ?? item.unit}
+                                    </Typography>
+                                </Box>
+                                <Box sx={{
+                                    width: 44,
+                                    height: 44,
+                                    flexShrink: 0,
+                                    borderRadius: 2,
+                                    display: 'grid',
+                                    placeItems: 'center',
+                                    bgcolor: 'rgba(255,109,0,0.14)',
+                                    color: 'secondary.main'
+                                }}>
+                                    <AddShoppingCart fontSize="small" />
                                 </Box>
                             </Box>
                         </CardContent>
