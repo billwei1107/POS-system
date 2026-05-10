@@ -114,3 +114,33 @@ waiting for locator('button').filter({ has: locator('svg[data-testid="ShoppingCa
 - Health check：`curl -fsS http://localhost:38080/actuator/health` 回傳 `{"status":"UP"}`。
 - 瀏覽器：商品/分類管理頁未登入時顯示提示、停用新增按鈕，且未再自動打出商品/分類 API 403。
 - 母體：frontend lint/build、`module-common` test、`app` compile 均通過。
+
+---
+
+# 2026-05-10 收銀台 API 回應層與 Zustand selector 問題
+
+## Issue
+
+- 場景：將 `/pos/register` 從 mock 商品改成讀取 `pos-products` API，並用本地 cart store 串起購物車與 checkout。
+- 問題：
+  - 後端 `ApiResponse` 實際格式為 `code/message/data`，前端型別與頁面以 `success` 判斷，導致 API 200 但 UI 仍顯示「目前沒有可銷售商品」。
+  - `productApi` / `orderApi` 在 axios interceptor 已回傳 body 後又 `.then(res => res.data)`，造成資料層被多取一次。
+  - `useCartStore((state) => state.totals())` 每次 selector 都回傳新物件，在 Zustand v5 + React production build 觸發最大更新深度錯誤。
+
+## Solution
+
+- 在 `axiosInstance` response interceptor 中，對含 `code` 的後端回應補上 `success` 布林值。
+- 將 `loginApi` 改為讀取 `ApiResponse<LoginResponse>.data`。
+- 將 `productApi` 與 `orderApi` 改為使用 axios generic overload 回傳完整 `ApiResponse<T>`，不再多取一次 `.data`。
+- 將 cart totals 與 item count 抽成純函式，元件內用 `useMemo` 基於 `lines/taxRate` 計算，避免 selector 回傳不穩定物件。
+
+## Verification
+
+- `npm run lint`：通過。
+- `npm run build`：通過。
+- `docker compose up -d --build frontend`：通過。
+- Playwright smoke：
+  - 登入狀態 `/pos/register` 可載入 API 建立的測試商品。
+  - 點選商品後購物車加減數量正常。
+  - `/pos/checkout` 顯示同一筆商品與正確 `$126` 應收金額。
+  - 未登入狀態 `/pos/register` 顯示登入提示，未再打出商品 API 403。

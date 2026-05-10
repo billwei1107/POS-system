@@ -4,25 +4,23 @@
  * @description_en Displays active order items, totals and checkout actions
  * @description_zh 顯示目前訂單品項、金額彙總與結帳操作
  */
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Box, Typography, Button, IconButton, Divider, Chip } from '@mui/material';
 import { DeleteOutline, Add, Remove, PersonAdd, LocalOffer, PauseCircleOutline } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-
-const ORDER_ITEMS = [
-    { name: '冰燕麥拿鐵', price: 6.50, qty: 1, note: '多冰' },
-    { name: '奶油可頌', price: 9.50, qty: 2, note: '加熱' },
-];
-
-const ORDER_TOTALS = {
-    subtotal: 16.00,
-    tax: 1.28,
-    discount: 0,
-    total: 17.28,
-};
+import { calculateCartTotals, calculateItemCount, useCartStore } from '../store/cartStore';
+import { formatMoney } from '@shared/utils';
 
 const Cart: React.FC = () => {
     const navigate = useNavigate();
+    const lines = useCartStore((state) => state.lines);
+    const increase = useCartStore((state) => state.increase);
+    const decrease = useCartStore((state) => state.decrease);
+    const remove = useCartStore((state) => state.remove);
+    const clear = useCartStore((state) => state.clear);
+    const taxRate = useCartStore((state) => state.taxRate);
+    const totals = useMemo(() => calculateCartTotals(lines, taxRate), [lines, taxRate]);
+    const itemCount = useMemo(() => calculateItemCount(lines), [lines]);
     
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', p: 2.5, minHeight: 0 }}>
@@ -39,7 +37,13 @@ const Cart: React.FC = () => {
                     <IconButton size="small" sx={{ color: 'text.secondary', bgcolor: 'rgba(255,255,255,0.04)', borderRadius: 1.5 }}>
                         <PauseCircleOutline fontSize="small" />
                     </IconButton>
-                    <IconButton size="small" sx={{ color: 'error.main', bgcolor: 'rgba(255,82,82,0.1)', borderRadius: 1.5 }}>
+                    <IconButton
+                        aria-label="清空購物車"
+                        size="small"
+                        disabled={lines.length === 0}
+                        onClick={clear}
+                        sx={{ color: 'error.main', bgcolor: 'rgba(255,82,82,0.1)', borderRadius: 1.5 }}
+                    >
                         <DeleteOutline fontSize="small" />
                     </IconButton>
                 </Box>
@@ -51,9 +55,25 @@ const Cart: React.FC = () => {
             </Box>
 
             <Box sx={{ flexGrow: 1, overflowY: 'auto', mb: 2, pr: 0.5, minHeight: 0 }}>
-                {ORDER_ITEMS.map((item) => (
+                {lines.length === 0 && (
+                    <Box sx={{
+                        minHeight: 220,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        textAlign: 'center',
+                        gap: 1,
+                        color: 'text.secondary'
+                    }}>
+                        <Typography fontWeight={900} color="text.primary">尚未加入商品</Typography>
+                        <Typography variant="body2">從左側商品清單點選商品即可加入目前訂單。</Typography>
+                    </Box>
+                )}
+
+                {lines.map((item) => (
                     <Box
-                        key={item.name}
+                        key={item.itemId}
                         sx={{
                             mb: 1.5,
                             p: 1.5,
@@ -67,26 +87,37 @@ const Cart: React.FC = () => {
                                 {item.name}
                             </Typography>
                             <Typography variant="body1" fontWeight={900} sx={{ fontVariantNumeric: 'tabular-nums' }}>
-                                ${item.price.toFixed(2)}
+                                {formatMoney(item.unitPrice)}
                             </Typography>
                         </Box>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1.5 }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <IconButton size="small" sx={{ bgcolor: 'rgba(255,255,255,0.06)', borderRadius: 1.5, width: 32, height: 32 }}><Remove fontSize="small" /></IconButton>
-                                <Typography sx={{ minWidth: 20, textAlign: 'center', fontWeight: 'bold' }}>{item.qty}</Typography>
-                                <IconButton size="small" sx={{ bgcolor: 'rgba(255,255,255,0.06)', borderRadius: 1.5, width: 32, height: 32 }}><Add fontSize="small" /></IconButton>
+                                <IconButton
+                                    aria-label={`減少 ${item.name}`}
+                                    size="small"
+                                    onClick={() => decrease(item.itemId)}
+                                    sx={{ bgcolor: 'rgba(255,255,255,0.06)', borderRadius: 1.5, width: 32, height: 32 }}
+                                >
+                                    <Remove fontSize="small" />
+                                </IconButton>
+                                <Typography sx={{ minWidth: 20, textAlign: 'center', fontWeight: 'bold' }}>{item.quantity}</Typography>
+                                <IconButton
+                                    aria-label={`增加 ${item.name}`}
+                                    size="small"
+                                    onClick={() => increase(item.itemId)}
+                                    sx={{ bgcolor: 'rgba(255,255,255,0.06)', borderRadius: 1.5, width: 32, height: 32 }}
+                                >
+                                    <Add fontSize="small" />
+                                </IconButton>
                             </Box>
-                            <Chip
-                                label={item.note}
+                            <IconButton
+                                aria-label={`移除 ${item.name}`}
                                 size="small"
-                                sx={{
-                                    height: 22,
-                                    color: '#B2C6FF',
-                                    bgcolor: 'rgba(178,198,255,0.1)',
-                                    fontSize: 11,
-                                    fontWeight: 800
-                                }}
-                            />
+                                onClick={() => remove(item.itemId)}
+                                sx={{ color: 'error.main' }}
+                            >
+                                <DeleteOutline fontSize="small" />
+                            </IconButton>
                         </Box>
                     </Box>
                 ))}
@@ -97,20 +128,20 @@ const Cart: React.FC = () => {
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 3 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', color: 'text.secondary' }}>
                     <Typography>小計</Typography>
-                    <Typography>${ORDER_TOTALS.subtotal.toFixed(2)}</Typography>
+                    <Typography>{formatMoney(totals.subtotal)}</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', color: 'text.secondary' }}>
-                    <Typography>稅額 (8%)</Typography>
-                    <Typography>${ORDER_TOTALS.tax.toFixed(2)}</Typography>
+                    <Typography>稅額 (5%)</Typography>
+                    <Typography>{formatMoney(totals.tax)}</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', color: 'success.main' }}>
                     <Typography>折扣</Typography>
-                    <Typography>-${ORDER_TOTALS.discount.toFixed(2)}</Typography>
+                    <Typography>-{formatMoney(totals.discount)}</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1, alignItems: 'center' }}>
                     <Typography variant="h5" fontWeight={900}>總計</Typography>
                     <Typography variant="h4" fontWeight={900} color="secondary.main" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-                        ${ORDER_TOTALS.total.toFixed(2)}
+                        {formatMoney(totals.total)}
                     </Typography>
                 </Box>
             </Box>
@@ -129,6 +160,7 @@ const Cart: React.FC = () => {
                 color="secondary" 
                 fullWidth 
                 onClick={() => navigate('/pos/checkout')}
+                disabled={itemCount === 0}
                 sx={{
                     py: 2,
                     mb: 2,
@@ -140,7 +172,7 @@ const Cart: React.FC = () => {
                 }}
             >
                 <Typography variant="h6" fontWeight="bold">立即結帳</Typography>
-                <Typography variant="h6" fontWeight="bold">${ORDER_TOTALS.total.toFixed(2)}</Typography>
+                <Typography variant="h6" fontWeight="bold">{formatMoney(totals.total)}</Typography>
             </Button>
 
             <Box sx={{ display: 'flex', gap: 1 }}>

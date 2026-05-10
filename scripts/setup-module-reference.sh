@@ -6,7 +6,7 @@ set -euo pipefail
 # ========================================
 
 MODULE_REPO="${MODULE_REPO:-https://github.com/billwei1107/module.git}"
-MODULE_TAG="${MODULE_TAG:-module-v2026.05.10.3}"
+MODULE_TAG="${MODULE_TAG:-module-v2026.05.10.4}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 REFERENCE_ROOT="$PROJECT_ROOT/reference"

@@ -2,22 +2,22 @@
  * @file CheckoutPage.tsx
  * @description POS 結帳與付款選擇頁面 / POS Checkout and Payment Selection
  */
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Box, Typography, Button, Avatar, Divider, Chip } from '@mui/material';
 import { 
     Payments, CreditCard, AccountBalanceWallet, QrCode, 
     Nfc, MoreHoriz, ArrowBack 
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { calculateCartTotals, useCartStore } from '../store/cartStore';
+import { formatMoney } from '@shared/utils';
 
 const CheckoutPage: React.FC = () => {
     const navigate = useNavigate();
     const [selectedMethod, setSelectedMethod] = useState('cash');
-
-    const orderItems = [
-        { name: '味噌鮭魚穀物碗', qty: 2, price: 760, img: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=100&q=80' },
-        { name: '職人咖啡拿鐵', qty: 2, price: 320, img: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=100&q=80' }
-    ];
+    const orderItems = useCartStore((state) => state.lines);
+    const taxRate = useCartStore((state) => state.taxRate);
+    const totals = useMemo(() => calculateCartTotals(orderItems, taxRate), [orderItems, taxRate]);
 
     const paymentMethods = [
         { id: 'cash', label: '現金', icon: <Payments sx={{ fontSize: 32 }} />, color: '#4CAF50', bg: 'rgba(76, 175, 80, 0.15)' },
@@ -56,16 +56,27 @@ const CheckoutPage: React.FC = () => {
 
                 {/* 品項列表 / Items list */}
                 <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
-                    {orderItems.map((item, idx) => (
-                        <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+                    {orderItems.length === 0 && (
+                        <Box sx={{ py: 8, textAlign: 'center', color: 'text.secondary' }}>
+                            <Typography fontWeight={900} color="text.primary">購物車是空的</Typography>
+                            <Typography variant="body2">返回收銀台加入商品後再選擇付款方式。</Typography>
+                        </Box>
+                    )}
+
+                    {orderItems.map((item) => (
+                        <Box key={item.itemId} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                <Avatar variant="rounded" src={item.img} sx={{ width: 56, height: 56, borderRadius: 2 }} />
+                                <Avatar variant="rounded" src={item.imageUrl ?? undefined} sx={{ width: 56, height: 56, borderRadius: 2 }}>
+                                    {item.sku.slice(0, 2)}
+                                </Avatar>
                                 <Box>
                                     <Typography variant="body1" fontWeight="bold" sx={{ mb: 0.5 }}>{item.name}</Typography>
-                                    <Typography variant="body2" color="text.secondary">數量：{item.qty}</Typography>
+                                    <Typography variant="body2" color="text.secondary">數量：{item.quantity}</Typography>
                                 </Box>
                             </Box>
-                            <Typography variant="body1" fontWeight="bold" color="text.secondary">NT${item.price}</Typography>
+                            <Typography variant="body1" fontWeight="bold" color="text.secondary">
+                                {formatMoney(item.unitPrice * item.quantity)}
+                            </Typography>
                         </Box>
                     ))}
                 </Box>
@@ -74,26 +85,22 @@ const CheckoutPage: React.FC = () => {
                 <Box sx={{ mt: 2 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, color: 'text.secondary' }}>
                         <Typography variant="body2" letterSpacing={1} fontWeight="bold">小計</Typography>
-                        <Typography variant="body2">NT$1080</Typography>
+                        <Typography variant="body2">{formatMoney(totals.subtotal)}</Typography>
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, color: 'text.secondary' }}>
                         <Typography variant="body2" letterSpacing={1} fontWeight="bold">稅額 (5%)</Typography>
-                        <Typography variant="body2">NT$54</Typography>
+                        <Typography variant="body2">{formatMoney(totals.tax)}</Typography>
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, color: '#FF8A65' }}>
                         <Typography variant="body2" letterSpacing={1} fontWeight="bold">會員折扣</Typography>
-                        <Typography variant="body2">-NT$100</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 4, color: '#64B5F6' }}>
-                        <Typography variant="body2" letterSpacing={1} fontWeight="bold">優惠碼：WELCOME24</Typography>
-                        <Typography variant="body2">-NT$50</Typography>
+                        <Typography variant="body2">-{formatMoney(totals.discount)}</Typography>
                     </Box>
                     
                     <Divider sx={{ borderColor: 'rgba(255,255,255,0.05)', mb: 3 }} />
                     
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                         <Typography variant="subtitle1" fontWeight="bold" letterSpacing={1} sx={{ color: 'text.secondary', mb: 1 }}>應收金額</Typography>
-                        <Typography variant="h2" fontWeight="bold" sx={{ color: '#E0E7FF' }}>NT$984</Typography>
+                        <Typography variant="h2" fontWeight="bold" sx={{ color: '#E0E7FF' }}>{formatMoney(totals.total)}</Typography>
                     </Box>
                 </Box>
             </Box>
@@ -177,6 +184,7 @@ const CheckoutPage: React.FC = () => {
                     </Button>
                     <Button 
                         variant="contained" 
+                        disabled={orderItems.length === 0}
                         sx={{ 
                             flex: 2, 
                             py: 2, 

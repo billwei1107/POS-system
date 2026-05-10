@@ -174,7 +174,7 @@ bash scripts/setup-module-reference.sh
 預設 reference tag：
 
 ```text
-module-v2026.05.10.3
+module-v2026.05.10.4
 ```
 
 同步原則：

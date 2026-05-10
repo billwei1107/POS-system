@@ -3,6 +3,7 @@ export interface ApiResponse<T = unknown> {
     message: string;
     data: T;
     code: number;
+    timestamp?: string;
 }
 
 export interface PaginatedData<T> {

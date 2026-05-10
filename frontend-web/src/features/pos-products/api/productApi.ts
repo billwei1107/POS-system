@@ -21,33 +21,27 @@ export const productApi = {
 
   getCategories: () =>
     axiosInstance
-      .get<ApiResponse<Category[]>>('/v1/pos/categories')
-      .then((res) => res.data),
+      .get<unknown, ApiResponse<Category[]>>('/v1/pos/categories'),
 
   getRootCategories: () =>
     axiosInstance
-      .get<ApiResponse<Category[]>>('/v1/pos/categories/roots')
-      .then((res) => res.data),
+      .get<unknown, ApiResponse<Category[]>>('/v1/pos/categories/roots'),
 
   getCategoryChildren: (id: string) =>
     axiosInstance
-      .get<ApiResponse<Category[]>>(`/v1/pos/categories/${id}/children`)
-      .then((res) => res.data),
+      .get<unknown, ApiResponse<Category[]>>(`/v1/pos/categories/${id}/children`),
 
   createCategory: (data: CategoryRequest) =>
     axiosInstance
-      .post<ApiResponse<Category>>('/v1/pos/categories', data)
-      .then((res) => res.data),
+      .post<unknown, ApiResponse<Category>, CategoryRequest>('/v1/pos/categories', data),
 
   updateCategory: (id: string, data: CategoryRequest) =>
     axiosInstance
-      .put<ApiResponse<Category>>(`/v1/pos/categories/${id}`, data)
-      .then((res) => res.data),
+      .put<unknown, ApiResponse<Category>, CategoryRequest>(`/v1/pos/categories/${id}`, data),
 
   deleteCategory: (id: string) =>
     axiosInstance
-      .delete<ApiResponse<void>>(`/v1/pos/categories/${id}`)
-      .then((res) => res.data),
+      .delete<unknown, ApiResponse<void>>(`/v1/pos/categories/${id}`),
 
   // ========================================
   // 商品 / Products
@@ -55,31 +49,25 @@ export const productApi = {
 
   getProducts: (params: ProductListParams = {}) =>
     axiosInstance
-      .get<ApiResponse<PaginatedData<ProductItem>>>('/v1/pos/products', { params })
-      .then((res) => res.data),
+      .get<unknown, ApiResponse<PaginatedData<ProductItem>>>('/v1/pos/products', { params }),
 
   getProductById: (id: string) =>
     axiosInstance
-      .get<ApiResponse<ProductItem>>(`/v1/pos/products/${id}`)
-      .then((res) => res.data),
+      .get<unknown, ApiResponse<ProductItem>>(`/v1/pos/products/${id}`),
 
   getProductBySku: (sku: string) =>
     axiosInstance
-      .get<ApiResponse<ProductItem>>(`/v1/pos/products/by-sku/${sku}`)
-      .then((res) => res.data),
+      .get<unknown, ApiResponse<ProductItem>>(`/v1/pos/products/by-sku/${sku}`),
 
   createProduct: (data: ProductItemRequest) =>
     axiosInstance
-      .post<ApiResponse<ProductItem>>('/v1/pos/products', data)
-      .then((res) => res.data),
+      .post<unknown, ApiResponse<ProductItem>, ProductItemRequest>('/v1/pos/products', data),
 
   updateProduct: (id: string, data: ProductItemRequest) =>
     axiosInstance
-      .put<ApiResponse<ProductItem>>(`/v1/pos/products/${id}`, data)
-      .then((res) => res.data),
+      .put<unknown, ApiResponse<ProductItem>, ProductItemRequest>(`/v1/pos/products/${id}`, data),
 
   deleteProduct: (id: string) =>
     axiosInstance
-      .delete<ApiResponse<void>>(`/v1/pos/products/${id}`)
-      .then((res) => res.data),
+      .delete<unknown, ApiResponse<void>>(`/v1/pos/products/${id}`),
 };

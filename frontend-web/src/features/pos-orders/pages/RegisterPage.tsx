@@ -1,28 +1,22 @@
 /**
  * @file RegisterPage.tsx
  * @description POS 收銀點單頁面 / POS register ordering page
- * @description_en Provides product browsing, category filtering and cart portal mounting
- * @description_zh 提供商品瀏覽、分類篩選與購物車掛載功能
+ * @description_en Provides API-backed product browsing, category filtering and cart portal mounting
+ * @description_zh 提供串接 API 的商品瀏覽、分類篩選與購物車掛載功能
  */
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    Box, TextField, InputAdornment, Button, Card, CardMedia, CardContent,
-    Typography, Chip, IconButton, Tooltip
+    Alert, Box, TextField, InputAdornment, Button, Card, CardMedia, CardContent,
+    Typography, Chip, IconButton, Tooltip, CircularProgress
 } from '@mui/material';
 import { AccessTime, Bolt, GridView, LocalOffer, QrCodeScanner, Search } from '@mui/icons-material';
 import { createPortal } from 'react-dom';
 import Cart from '../components/Cart';
-
-const MOCK_ITEMS = [
-    { title: '冰燕麥拿鐵', price: 6.50, category: '咖啡', tags: '12oz', prepTime: '3 分鐘', image: 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?auto=format&fit=crop&q=80&w=400' },
-    { title: '奶油可頌', price: 4.75, category: '烘焙', tags: '現烤', prepTime: '1 分鐘', image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&q=80&w=400' },
-    { title: '雙份濃縮', price: 3.50, category: '咖啡', tags: '2oz', prepTime: '2 分鐘', image: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&q=80&w=400' },
-    { title: '酪梨吐司', price: 12.00, category: '廚房', tags: '全天供應', prepTime: '8 分鐘', image: 'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?auto=format&fit=crop&q=80&w=400' },
-    { title: '單品手沖', price: 7.00, category: '咖啡', tags: 'V60', prepTime: '5 分鐘', image: 'https://images.unsplash.com/photo-1444418776041-9c7e33cc5a9c?auto=format&fit=crop&q=80&w=400' },
-    { title: '蜜桃冰茶', price: 5.25, category: '茶飲', tags: '16oz', prepTime: '3 分鐘', image: 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?auto=format&fit=crop&q=80&w=400' },
-];
-
-const CATEGORIES = ['全部商品', '咖啡', '烘焙', '廚房', '茶飲'];
+import { productApi } from '../../pos-products/api/productApi';
+import type { Category, ProductItem } from '../../pos-products/types';
+import { useCartStore } from '../store/cartStore';
+import { formatMoney } from '@shared/utils';
+import { useAuthStore } from '@shared/store/authStore';
 
 const QUICK_ACTIONS = [
     { label: '折扣', icon: <LocalOffer fontSize="small" /> },
@@ -31,7 +25,15 @@ const QUICK_ACTIONS = [
 ];
 
 const RegisterPage: React.FC = () => {
-    const [activeCategory, setActiveCategory] = useState('全部商品');
+    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+    const addProduct = useCartStore((state) => state.addProduct);
+    const [activeCategory, setActiveCategory] = useState('');
+    const [searchInput, setSearchInput] = useState('');
+    const [keyword, setKeyword] = useState('');
+    const [products, setProducts] = useState<ProductItem[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     // ========================================
     // 購物車掛載 / Cart Portal Mounting
@@ -53,9 +55,53 @@ const RegisterPage: React.FC = () => {
         return () => observer.disconnect();
     }, []);
 
-    const filteredItems = activeCategory === '全部商品'
-        ? MOCK_ITEMS
-        : MOCK_ITEMS.filter(item => item.category === activeCategory);
+    // ========================================
+    // 商品資料載入 / Product Loading
+    // ========================================
+    const loadRegisterProducts = useCallback(async () => {
+        if (!isAuthenticated) {
+            setProducts([]);
+            setCategories([]);
+            setError('請先登入後台後再使用收銀台商品資料。');
+            setLoading(false);
+            return;
+        }
+
+        try {
+            setLoading(true);
+            setError(null);
+            const [productResponse, categoryResponse] = await Promise.all([
+                productApi.getProducts({
+                    page: 0,
+                    size: 60,
+                    keyword: keyword || undefined,
+                    categoryId: activeCategory || undefined,
+                }),
+                productApi.getCategories(),
+            ]);
+
+            if (productResponse.success) {
+                setProducts(productResponse.data.content.filter((product) => product.sellable && product.active));
+            }
+            if (categoryResponse.success) {
+                setCategories(categoryResponse.data.filter((category) => category.active));
+            }
+        } catch {
+            setError('載入商品資料失敗，請稍後重試。');
+            setProducts([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [activeCategory, isAuthenticated, keyword]);
+
+    useEffect(() => { loadRegisterProducts(); }, [loadRegisterProducts]);
+
+    const activeCategoryName = useMemo(
+        () => categories.find((category) => category.id === activeCategory)?.name,
+        [activeCategory, categories]
+    );
+
+    const handleSearch = () => setKeyword(searchInput.trim());
 
     return (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -104,6 +150,9 @@ const RegisterPage: React.FC = () => {
                     placeholder="搜尋商品、SKU 或條碼"
                     variant="outlined"
                     size="small"
+                    value={searchInput}
+                    onChange={(event) => setSearchInput(event.target.value)}
+                    onKeyDown={(event) => event.key === 'Enter' && handleSearch()}
                     sx={{
                         bgcolor: 'background.paper',
                         borderRadius: 2,
@@ -121,12 +170,12 @@ const RegisterPage: React.FC = () => {
                     pb: 0.5,
                     '&::-webkit-scrollbar': { display: 'none' }
                 }}>
-                    {CATEGORIES.map(cat => {
-                        const isActive = activeCategory === cat;
+                    {[{ id: '', name: '全部商品' }, ...categories].map(cat => {
+                        const isActive = activeCategory === cat.id;
                         return (
                             <Button
-                                key={cat}
-                                onClick={() => setActiveCategory(cat)}
+                                key={cat.id || 'all'}
+                                onClick={() => setActiveCategory(cat.id)}
                                 variant="contained"
                                 sx={{
                                     borderRadius: 2,
@@ -145,7 +194,7 @@ const RegisterPage: React.FC = () => {
                                     }
                                 }}
                             >
-                                {cat}
+                                {cat.name}
                             </Button>
                         );
                     })}
@@ -165,6 +214,8 @@ const RegisterPage: React.FC = () => {
                 </Tooltip>
             </Box>
 
+            {error && <Alert severity="warning" sx={{ mb: 2 }}>{error}</Alert>}
+
             <Box sx={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
@@ -174,8 +225,38 @@ const RegisterPage: React.FC = () => {
                 pb: 2,
                 minHeight: 0
             }}>
-                {filteredItems.map((item) => (
-                    <Card key={item.title} sx={{
+                {loading && (
+                    <Box sx={{ gridColumn: '1 / -1', py: 8, display: 'flex', justifyContent: 'center' }}>
+                        <CircularProgress color="secondary" />
+                    </Box>
+                )}
+
+                {!loading && products.length === 0 && (
+                    <Box sx={{
+                        gridColumn: '1 / -1',
+                        minHeight: 260,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 1,
+                        bgcolor: 'background.paper',
+                        border: '1px solid rgba(255,255,255,0.06)',
+                        borderRadius: 3,
+                        textAlign: 'center',
+                        px: 3
+                    }}>
+                        <Typography variant="h6" fontWeight={900}>
+                            目前沒有可銷售商品
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            {activeCategoryName ? `${activeCategoryName} 分類下沒有商品。` : '請先在商品管理建立商品，或調整搜尋條件。'}
+                        </Typography>
+                    </Box>
+                )}
+
+                {!loading && products.map((item) => (
+                    <Card key={item.id} onClick={() => addProduct(item)} sx={{
                         bgcolor: 'background.paper',
                         borderRadius: 3,
                         cursor: 'pointer',
@@ -191,16 +272,32 @@ const RegisterPage: React.FC = () => {
                         }
                     }}>
                         <Box sx={{ position: 'relative', p: 1.5, pb: 0 }}>
-                            <CardMedia
-                                component="img"
-                                height="148"
-                                image={item.image}
-                                alt={item.title}
-                                sx={{ borderRadius: 2, objectFit: 'cover' }}
-                            />
+                            {item.imageUrl ? (
+                                <CardMedia
+                                    component="img"
+                                    height="148"
+                                    image={item.imageUrl}
+                                    alt={item.name}
+                                    sx={{ borderRadius: 2, objectFit: 'cover' }}
+                                />
+                            ) : (
+                                <Box sx={{
+                                    height: 148,
+                                    borderRadius: 2,
+                                    bgcolor: 'rgba(178,198,255,0.12)',
+                                    border: '1px solid rgba(178,198,255,0.12)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}>
+                                    <Typography fontWeight={900} sx={{ color: '#B2C6FF' }}>
+                                        {item.sku}
+                                    </Typography>
+                                </Box>
+                            )}
                             <Chip
                                 size="small"
-                                label={item.category}
+                                label={categories.find((category) => category.id === item.categoryId)?.name ?? '未分類'}
                                 sx={{
                                     position: 'absolute',
                                     left: 24,
@@ -215,19 +312,19 @@ const RegisterPage: React.FC = () => {
                         <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1.5, mb: 1 }}>
                                 <Typography variant="h6" fontWeight={800} sx={{ fontSize: '1rem', lineHeight: 1.25 }}>
-                                    {item.title}
+                                    {item.name}
                                 </Typography>
                                 <Typography color="secondary.main" fontWeight={900} sx={{ fontVariantNumeric: 'tabular-nums' }}>
-                                    ${item.price.toFixed(2)}
+                                    {formatMoney(item.basePrice)}
                                 </Typography>
                             </Box>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <Typography variant="caption" color="text.secondary">
-                                    {item.tags}
+                                    {item.barcodePrimary ?? item.unit}
                                 </Typography>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
                                     <AccessTime sx={{ fontSize: 14 }} />
-                                    <Typography variant="caption">{item.prepTime}</Typography>
+                                    <Typography variant="caption">即時加入</Typography>
                                 </Box>
                             </Box>
                         </CardContent>

@@ -22,23 +22,23 @@ const REFUND_BASE = '/v1/pos/refunds';
 // ========================================
 export const orderApi = {
   create: (req: CreateOrderRequest) =>
-    axiosInstance.post<ApiResponse<Order>>(BASE, req).then(r => r.data),
+    axiosInstance.post<unknown, ApiResponse<Order>, CreateOrderRequest>(BASE, req),
 
   getById: (id: string) =>
-    axiosInstance.get<ApiResponse<Order>>(`${BASE}/${id}`).then(r => r.data),
+    axiosInstance.get<unknown, ApiResponse<Order>>(`${BASE}/${id}`),
 
   list: (params: OrderListParams) =>
-    axiosInstance.get<ApiResponse<PaginatedData<Order>>>(BASE, { params }).then(r => r.data),
+    axiosInstance.get<unknown, ApiResponse<PaginatedData<Order>>>(BASE, { params }),
 
   complete: (id: string, payMethod: string, tendered?: number) =>
-    axiosInstance.post<ApiResponse<Order>>(`${BASE}/${id}/complete`, null, {
+    axiosInstance.post<unknown, ApiResponse<Order>>(`${BASE}/${id}/complete`, null, {
       params: { payMethod, tendered },
-    }).then(r => r.data),
+    }),
 
   void: (id: string, voidedBy: string, reason?: string) =>
-    axiosInstance.post<ApiResponse<Order>>(`${BASE}/${id}/void`, null, {
+    axiosInstance.post<unknown, ApiResponse<Order>>(`${BASE}/${id}/void`, null, {
       params: { voidedBy, reason },
-    }).then(r => r.data),
+    }),
 };
 
 // ========================================
@@ -46,8 +46,8 @@ export const orderApi = {
 // ========================================
 export const refundApi = {
   create: (req: CreateRefundRequest) =>
-    axiosInstance.post<ApiResponse<OrderRefund>>(REFUND_BASE, req).then(r => r.data),
+    axiosInstance.post<unknown, ApiResponse<OrderRefund>, CreateRefundRequest>(REFUND_BASE, req),
 
   complete: (id: string) =>
-    axiosInstance.post<ApiResponse<OrderRefund>>(`${REFUND_BASE}/${id}/complete`).then(r => r.data),
+    axiosInstance.post<unknown, ApiResponse<OrderRefund>>(`${REFUND_BASE}/${id}/complete`),
 };

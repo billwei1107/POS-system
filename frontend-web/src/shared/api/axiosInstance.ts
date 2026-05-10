@@ -25,7 +25,15 @@ axiosInstance.interceptors.request.use(
 
 axiosInstance.interceptors.response.use(
     (response) => {
-        return response.data;
+        const body = response.data;
+        if (body && typeof body === 'object' && 'code' in body && !('success' in body)) {
+            const code = Number((body as { code: number }).code);
+            return {
+                ...body,
+                success: code >= 200 && code < 300,
+            };
+        }
+        return body;
     },
     (error) => {
         if (error.response && error.response.status === 401) {
