@@ -5,6 +5,37 @@
 
 ---
 
+# 2026-05-11 POS inventory 訂單完成未扣庫存與超賣問題
+
+## Issue
+
+- 場景：Checkpoint 3 驗證「訂單完成後扣庫存」時，檢查既有 `module-pos-inventory`。
+- 問題：
+  - `InventoryEventListener` 雖監聽 `OrderCompletedEvent`，但只在 after-commit log，沒有查詢 `pos_order_items` 並扣減 `pos_inv_store_stock`。
+  - `StockDeductionService.deductForSale` 在庫存不足時只記錄 warn，仍允許扣到負數。
+  - 銷售扣庫找不到庫存紀錄時會自動建立 0 庫存再扣成負數。
+  - `/pos/inventory` route 使用靜態 placeholder 頁，不會顯示真實庫存。
+
+## Solution
+
+- `InventoryEventListener` 改用同步 `@EventListener` 在訂單完成交易內扣庫，庫存不足會讓 complete order rollback，避免 payment transaction / invoice 落地。
+- 事件監聽器查詢 order items，並只扣 `ProductItem.trackInventory=true` 的商品。
+- `StockDeductionService` 銷售扣庫改為要求既有庫存，並以 available quantity 攔截不足庫存，回傳 HTTP 409 業務錯誤。
+- Demo seeder 將 demo 商品設為追蹤庫存，並建立本地初始庫存。
+- `/pos/inventory` 改接 `StockOverviewPage`，修正 inventory API response 取值與預設門店 fallback。
+
+## Verification
+
+- `mvn -pl module-pos-inventory,module-pos-core,module-pos-product -am test`：通過。
+- `mvn -pl app -am test`：通過。
+- `npm run lint`、`npm run build`：通過。
+- Docker backend/frontend 重建後 health 為 UP。
+- Playwright：
+  - 拿鐵現金收款 130 結帳成功，庫存頁顯示 99.00。
+  - 美式咖啡庫存設為 0 後結帳，前端顯示「庫存不足」，payment transaction 與 completed order 數未增加。
+
+---
+
 <!--
   紀錄格式範例：
 

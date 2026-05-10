@@ -29,6 +29,12 @@
         </dependency>
 
         <dependency>
+            <groupId>com.enterprise</groupId>
+            <artifactId>module-pos-product</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>

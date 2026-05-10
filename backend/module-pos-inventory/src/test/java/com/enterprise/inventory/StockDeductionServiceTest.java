@@ -2,10 +2,11 @@
  * @file StockDeductionServiceTest.java
  * @description 庫存扣減服務單元測試 / Stock deduction service unit tests
  * @description_en Unit tests verifying concurrent-safe stock deduction logic and edge cases
- * @description_zh 驗證庫存扣減邏輯的單元測試，涵蓋正常扣減、回補、不足庫存記錄等場景
+ * @description_zh 驗證庫存扣減邏輯的單元測試，涵蓋正常扣減、回補、不足庫存攔截等場景
  */
 package com.enterprise.inventory;
 
+import com.enterprise.common.exception.BusinessException;
 import com.enterprise.inventory.entity.StockMovement;
 import com.enterprise.inventory.entity.StoreStock;
 import com.enterprise.inventory.repository.StockMovementRepository;
@@ -26,6 +27,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -111,33 +113,43 @@ class StockDeductionServiceTest {
         assertThat(m.getQuantityChange()).isEqualByComparingTo("2");
     }
 
-    // ========================================
-    // 庫存不足時仍可扣減（記錄日誌，不拋例外）/ Oversell warning (no exception)
-    // ========================================
     @Test
-    @DisplayName("庫存不足時扣減至負數，記錄日誌但不拋例外")
-    void deductForSale_insufficientStock_doesNotThrow() {
-        service.deductForSale(storeId, itemId, new BigDecimal("200"), orderId);
-        assertThat(existingStock.getQuantity()).isEqualByComparingTo("-100");
+    @DisplayName("庫存不足時應阻止付款完成，不得扣成負數")
+    void deductForSale_insufficientStock_throwsBusinessException() {
+        assertThatThrownBy(() -> service.deductForSale(storeId, itemId, new BigDecimal("200"), orderId))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("庫存不足");
+
+        assertThat(existingStock.getQuantity()).isEqualByComparingTo("100");
+        verify(stockRepository, never()).save(existingStock);
+        verify(movementRepository, never()).save(any(StockMovement.class));
     }
 
-    // ========================================
-    // 庫存記錄不存在時自動建立 / Auto-create stock record
-    // ========================================
     @Test
-    @DisplayName("庫存記錄不存在時自動建立並扣減")
-    void deductForSale_noExistingRecord_createsNewAndDeducts() {
-        StoreStock newStock = new StoreStock();
-        newStock.setStoreId(storeId);
-        newStock.setItemId(itemId);
-        newStock.setQuantity(BigDecimal.ZERO);
-        newStock.setReorderPoint(BigDecimal.ZERO);
+    @DisplayName("銷售扣庫找不到庫存記錄時應阻止付款完成")
+    void deductForSale_noExistingRecord_throwsBusinessException() {
         lenient().when(stockRepository.findByStoreIdAndItemIdForUpdate(storeId, itemId))
                 .thenReturn(Optional.empty());
-        lenient().when(stockRepository.save(any(StoreStock.class))).thenReturn(newStock);
 
-        service.deductForSale(storeId, itemId, new BigDecimal("1"), orderId);
-        verify(stockRepository, times(2)).save(any(StoreStock.class));
+        assertThatThrownBy(() -> service.deductForSale(storeId, itemId, new BigDecimal("1"), orderId))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("尚未建立庫存");
+
+        verify(stockRepository, never()).save(any(StoreStock.class));
+        verify(movementRepository, never()).save(any(StockMovement.class));
+    }
+
+    @Test
+    @DisplayName("可用庫存不足時應以 quantity - reserved_quantity 攔截")
+    void deductForSale_availableQuantityInsufficient_throwsBusinessException() {
+        existingStock.setReservedQuantity(new BigDecimal("98"));
+
+        assertThatThrownBy(() -> service.deductForSale(storeId, itemId, new BigDecimal("3"), orderId))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("庫存不足");
+
+        assertThat(existingStock.getQuantity()).isEqualByComparingTo("100");
+        verify(movementRepository, never()).save(any(StockMovement.class));
     }
 
     // ========================================

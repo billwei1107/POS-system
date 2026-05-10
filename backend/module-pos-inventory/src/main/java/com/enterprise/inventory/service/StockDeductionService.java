@@ -1,11 +1,12 @@
 /**
  * @file StockDeductionService.java
  * @description 庫存扣減服務 / Stock deduction service
- * @description_en Handles concurrent-safe stock deduction using pessimistic locking; auto-creates stock record if absent
- * @description_zh 使用悲觀鎖確保高併發安全的庫存扣減；若庫存紀錄不存在則自動建立
+ * @description_en Handles concurrent-safe stock deduction using pessimistic locking
+ * @description_zh 使用悲觀鎖確保高併發安全的庫存扣減
  */
 package com.enterprise.inventory.service;
 
+import com.enterprise.common.exception.BusinessException;
 import com.enterprise.inventory.entity.StockMovement;
 import com.enterprise.inventory.entity.StoreStock;
 import com.enterprise.inventory.repository.StockMovementRepository;
@@ -32,10 +33,14 @@ public class StockDeductionService {
     // ========================================
     @Transactional
     public void deductForSale(UUID storeId, UUID itemId, BigDecimal qty, UUID orderId) {
-        StoreStock stock = getOrCreateStock(storeId, itemId);
-        if (stock.getQuantity().compareTo(qty) < 0) {
+        StoreStock stock = getExistingStockForSale(storeId, itemId, qty);
+        BigDecimal availableQty = stock.getAvailableQuantity();
+        if (availableQty.compareTo(qty) < 0) {
             log.warn("Insufficient stock: storeId={}, itemId={}, available={}, requested={}",
-                     storeId, itemId, stock.getQuantity(), qty);
+                     storeId, itemId, availableQty, qty);
+            throw new BusinessException(409,
+                    "庫存不足，商品 " + itemId + " 可用庫存 " + availableQty.stripTrailingZeros().toPlainString()
+                            + "，需求 " + qty.stripTrailingZeros().toPlainString());
         }
         stock.setQuantity(stock.getQuantity().subtract(qty));
         stockRepository.save(stock);
@@ -104,6 +109,16 @@ public class StockDeductionService {
                     s.setItemId(itemId);
                     return stockRepository.save(s);
                 });
+    }
+
+    // ========================================
+    // 銷售扣庫必須有既有庫存 / Sale deduction requires existing stock
+    // ========================================
+    private StoreStock getExistingStockForSale(UUID storeId, UUID itemId, BigDecimal qty) {
+        return stockRepository.findByStoreIdAndItemIdForUpdate(storeId, itemId)
+                .orElseThrow(() -> new BusinessException(409,
+                        "庫存不足，商品 " + itemId + " 尚未建立庫存，需求 "
+                                + qty.stripTrailingZeros().toPlainString()));
     }
 
     private void recordMovement(UUID storeId, UUID itemId, BigDecimal change,

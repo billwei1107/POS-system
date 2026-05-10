@@ -32,7 +32,7 @@ import CheckoutPage from './features/pos-orders/pages/CheckoutPage';
 import OrderListPage from './features/pos-orders/pages/OrderListPage';
 import RefundPage from './features/pos-orders/pages/RefundPage';
 
-import InventoryPage from './features/pos-inventory/pages/InventoryPage';
+import StockOverviewPage from './features/pos-inventory/pages/StockOverviewPage';
 import PosLoginPage from './features/pos-auth/pages/PosLoginPage';
 import ProductListPage from './features/pos-products/pages/ProductListPage';
 import CategoryListPage from './features/pos-products/pages/CategoryListPage';
@@ -99,7 +99,7 @@ function App() {
               <Route path="products" element={<ProductListPage />} />
               <Route path="categories" element={<CategoryListPage />} />
               <Route path="checkout" element={<CheckoutPage />} />
-              <Route path="inventory" element={<InventoryPage />} />
+              <Route path="inventory" element={<StockOverviewPage />} />
               <Route path="invoices" element={<InvoicePage />} />
               <Route path="*" element={<Navigate to="/pos/register" replace />} />
           </Route>

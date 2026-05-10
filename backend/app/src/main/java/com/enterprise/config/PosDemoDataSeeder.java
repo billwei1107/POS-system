@@ -14,6 +14,8 @@ import com.enterprise.organization.repository.CompanyRepository;
 import com.enterprise.organization.repository.EmployeeRepository;
 import com.enterprise.organization.repository.StoreRepository;
 import com.enterprise.organization.repository.TerminalRepository;
+import com.enterprise.inventory.entity.StoreStock;
+import com.enterprise.inventory.repository.StoreStockRepository;
 import com.enterprise.product.entity.ProductCategory;
 import com.enterprise.product.entity.ProductItem;
 import com.enterprise.product.repository.ProductCategoryRepository;
@@ -60,6 +62,7 @@ public class PosDemoDataSeeder implements CommandLineRunner {
     private final TerminalTokenRepository terminalTokenRepository;
     private final ProductCategoryRepository productCategoryRepository;
     private final ProductItemRepository productItemRepository;
+    private final StoreStockRepository storeStockRepository;
     private final PasswordEncoder passwordEncoder;
 
     public PosDemoDataSeeder(
@@ -72,6 +75,7 @@ public class PosDemoDataSeeder implements CommandLineRunner {
             TerminalTokenRepository terminalTokenRepository,
             ProductCategoryRepository productCategoryRepository,
             ProductItemRepository productItemRepository,
+            StoreStockRepository storeStockRepository,
             PasswordEncoder passwordEncoder) {
         this.companyRepository = companyRepository;
         this.storeRepository = storeRepository;
@@ -82,6 +86,7 @@ public class PosDemoDataSeeder implements CommandLineRunner {
         this.terminalTokenRepository = terminalTokenRepository;
         this.productCategoryRepository = productCategoryRepository;
         this.productItemRepository = productItemRepository;
+        this.storeStockRepository = storeStockRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -214,10 +219,10 @@ public class PosDemoDataSeeder implements CommandLineRunner {
         ProductCategory coffee = seedCategory("咖啡飲品", 10, "#B2C6FF");
         ProductCategory bakery = seedCategory("烘焙點心", 20, "#FFB86B");
 
-        seedProduct("DEMO-LATTE-12OZ", "拿鐵 12oz", coffee.getId(), "120.00", "4710000000011");
-        seedProduct("DEMO-AMERICANO-12OZ", "美式咖啡 12oz", coffee.getId(), "90.00", "4710000000012");
-        seedProduct("DEMO-OAT-LATTE-12OZ", "燕麥拿鐵 12oz", coffee.getId(), "145.00", "4710000000013");
-        seedProduct("DEMO-CROISSANT", "奶油可頌", bakery.getId(), "75.00", "4710000000021");
+        seedDemoStock(seedProduct("DEMO-LATTE-12OZ", "拿鐵 12oz", coffee.getId(), "120.00", "4710000000011"));
+        seedDemoStock(seedProduct("DEMO-AMERICANO-12OZ", "美式咖啡 12oz", coffee.getId(), "90.00", "4710000000012"));
+        seedDemoStock(seedProduct("DEMO-OAT-LATTE-12OZ", "燕麥拿鐵 12oz", coffee.getId(), "145.00", "4710000000013"));
+        seedDemoStock(seedProduct("DEMO-CROISSANT", "奶油可頌", bakery.getId(), "75.00", "4710000000021"));
     }
 
     private ProductCategory seedCategory(String name, int sortOrder, String displayColor) {
@@ -234,22 +239,31 @@ public class PosDemoDataSeeder implements CommandLineRunner {
                 });
     }
 
-    private void seedProduct(String sku, String name, UUID categoryId, String price, String barcode) {
-        if (productItemRepository.existsBySku(sku)) {
-            return;
-        }
-
-        ProductItem item = new ProductItem();
+    private ProductItem seedProduct(String sku, String name, UUID categoryId, String price, String barcode) {
+        ProductItem item = productItemRepository.findBySku(sku).orElseGet(ProductItem::new);
         item.setSku(sku);
         item.setName(name);
         item.setCategoryId(categoryId);
         item.setBasePrice(new BigDecimal(price));
         item.setUnit(ProductItem.UnitType.PCS);
         item.setBarcodePrimary(barcode);
-        item.setTrackInventory(false);
+        item.setTrackInventory(true);
         item.setSellable(true);
         item.setWeightBased(false);
         item.setActive(true);
-        productItemRepository.save(item);
+        return productItemRepository.save(item);
+    }
+
+    private void seedDemoStock(ProductItem item) {
+        storeStockRepository.findByStoreIdAndItemId(DEMO_STORE_ID, item.getId()).orElseGet(() -> {
+            StoreStock stock = new StoreStock();
+            stock.setStoreId(DEMO_STORE_ID);
+            stock.setItemId(item.getId());
+            stock.setQuantity(new BigDecimal("100.000"));
+            stock.setReservedQuantity(BigDecimal.ZERO);
+            stock.setReorderPoint(new BigDecimal("10.000"));
+            stock.setReorderQuantity(new BigDecimal("50.000"));
+            return storeStockRepository.save(stock);
+        });
     }
 }

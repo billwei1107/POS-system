@@ -8,9 +8,13 @@ package com.enterprise.inventory.service;
 
 import com.enterprise.core.event.OrderCompletedEvent;
 import com.enterprise.core.event.RefundCompletedEvent;
+import com.enterprise.core.repository.OrderItemRepository;
+import com.enterprise.inventory.entity.StockMovement;
 import com.enterprise.inventory.repository.StockMovementRepository;
+import com.enterprise.product.repository.ProductItemRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,29 +28,33 @@ public class InventoryEventListener {
 
     private final StockDeductionService deductionService;
     private final StockMovementRepository movementRepository;
+    private final OrderItemRepository orderItemRepository;
+    private final ProductItemRepository productItemRepository;
 
     // ========================================
-    // 訂單完成 → 扣庫存（僅記錄聚合層扣減，明細由訂單品項資料提供）
-    // OrderCompleted → deduct stock (aggregate-level guard; item-level handled via order items)
+    // 訂單完成 → 交易內扣庫存 / OrderCompleted → deduct stock in order transaction
     // ========================================
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @EventListener
     public void onOrderCompleted(OrderCompletedEvent event) {
-        // 庫存扣減的精確品項數量需要從 order_items 查詢
-        // 在本 Sprint 中，inventoryService 只記錄「已有扣減」的 movement 作為聚合哨兵
-        // Phase 2-1 後期：整合 OrderItemsRepository 執行品項級扣庫
-        // 目前以 event.orderId 為 referenceId，防止重複處理
         boolean alreadyProcessed = movementRepository
                 .findFirstByReferenceIdAndMovementType(event.getOrderId(),
-                        com.enterprise.inventory.entity.StockMovement.MovementType.SALE)
+                        StockMovement.MovementType.SALE)
                 .isPresent();
         if (alreadyProcessed) {
             log.debug("Inventory already deducted for order: {}", event.getOrderId());
             return;
         }
-        log.info("Inventory deduction triggered for order: {}, store: {}", event.getOrderId(), event.getStoreId());
-        // 實際品項層級扣庫需 pos-core 提供 order items 查詢介面（Phase 2 整合）
-        // 此處保留事件監聽點位，供後續實作調用 deductionService.deductForSale()
+
+        orderItemRepository.findByOrderIdOrderBySortOrder(event.getOrderId()).forEach(item -> {
+            productItemRepository.findById(item.getItemId())
+                    .filter(product -> Boolean.TRUE.equals(product.getTrackInventory()))
+                    .ifPresent(product -> deductionService.deductForSale(
+                            event.getStoreId(),
+                            item.getItemId(),
+                            item.getQuantity(),
+                            event.getOrderId()));
+        });
+        log.info("Inventory deducted for completed order: {}, store: {}", event.getOrderId(), event.getStoreId());
     }
 
     // ========================================

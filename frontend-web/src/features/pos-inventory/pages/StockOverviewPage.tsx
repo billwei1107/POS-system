@@ -10,10 +10,9 @@ import {
   Chip, Alert, TextField, Paper, Dialog, DialogTitle, DialogContent,
   DialogActions, CircularProgress, Badge,
 } from '@mui/material';
+import { DEFAULT_STORE_ID } from '../../pos-orders/config';
 import { alertApi, stockApi } from '../api/inventoryApi';
 import type { AdjustStockPayload, StockAlert, StoreStock } from '../types';
-
-const STORE_ID = import.meta.env.VITE_DEFAULT_STORE_ID as string;
 
 // ========================================
 // 庫存狀態 Chip 配色 / Stock status chip color
@@ -39,18 +38,18 @@ const StockOverviewPage: React.FC = () => {
   // ========================================
   const [adjDialog, setAdjDialog] = useState(false);
   const [adjForm, setAdjForm] = useState<AdjustStockPayload>({
-    storeId: STORE_ID, itemId: '', adjustQty: 0, notes: '',
+    storeId: DEFAULT_STORE_ID, itemId: '', adjustQty: 0, notes: '',
   });
 
   const loadData = async () => {
     try {
       setLoading(true);
       const [stockRes, alertRes] = await Promise.all([
-        stockApi.listByStore(STORE_ID),
-        alertApi.listUnacknowledged(STORE_ID),
+        stockApi.listByStore(DEFAULT_STORE_ID),
+        alertApi.listUnacknowledged(DEFAULT_STORE_ID),
       ]);
-      setStocks(stockRes.data.data ?? []);
-      setAlerts(alertRes.data.data ?? []);
+      setStocks(stockRes.data ?? []);
+      setAlerts(alertRes.data ?? []);
     } catch {
       setError('載入失敗');
     } finally {
@@ -64,7 +63,7 @@ const StockOverviewPage: React.FC = () => {
     try {
       await stockApi.adjust(adjForm);
       setAdjDialog(false);
-      setAdjForm({ storeId: STORE_ID, itemId: '', adjustQty: 0, notes: '' });
+      setAdjForm({ storeId: DEFAULT_STORE_ID, itemId: '', adjustQty: 0, notes: '' });
       await loadData();
       setSuccess('庫存調整成功');
     } catch {

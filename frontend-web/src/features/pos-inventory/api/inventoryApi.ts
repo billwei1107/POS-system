@@ -5,6 +5,7 @@
  * @description_zh 庫存管理的 Axios API 函式，涵蓋庫存查詢、調撥、警示與盤點
  */
 import axiosInstance from '../../../shared/api/axiosInstance';
+import type { ApiResponse } from '../../../shared/types';
 import type {
   AdjustStockPayload,
   CreateTransferRequestPayload,
@@ -22,16 +23,16 @@ const BASE = '/v1/inventory';
 // ========================================
 export const stockApi = {
   listByStore: (storeId: string) =>
-    axiosInstance.get<{ data: StoreStock[] }>(`${BASE}/stores/${storeId}/stock`),
+    axiosInstance.get<unknown, ApiResponse<StoreStock[]>>(`${BASE}/stores/${storeId}/stock`),
 
   getByItem: (storeId: string, itemId: string) =>
-    axiosInstance.get<{ data: StoreStock }>(`${BASE}/stores/${storeId}/stock/${itemId}`),
+    axiosInstance.get<unknown, ApiResponse<StoreStock>>(`${BASE}/stores/${storeId}/stock/${itemId}`),
 
   adjust: (payload: AdjustStockPayload) =>
-    axiosInstance.post<{ data: string }>(`${BASE}/stock/adjust`, payload),
+    axiosInstance.post<unknown, ApiResponse<string>>(`${BASE}/stock/adjust`, payload),
 
   listMovements: (storeId: string, itemId: string) =>
-    axiosInstance.get<{ data: StockMovement[] }>(
+    axiosInstance.get<unknown, ApiResponse<StockMovement[]>>(
       `${BASE}/stores/${storeId}/items/${itemId}/movements`
     ),
 };
@@ -71,10 +72,10 @@ export const transferApi = {
 // ========================================
 export const alertApi = {
   listUnacknowledged: (storeId: string) =>
-    axiosInstance.get<{ data: StockAlert[] }>(`${BASE}/stores/${storeId}/alerts`),
+    axiosInstance.get<unknown, ApiResponse<StockAlert[]>>(`${BASE}/stores/${storeId}/alerts`),
 
   acknowledge: (alertId: string, acknowledgedBy?: string) =>
-    axiosInstance.post<{ data: StockAlert }>(
+    axiosInstance.post<unknown, ApiResponse<StockAlert>>(
       `${BASE}/alerts/${alertId}/acknowledge`,
       null,
       { params: { acknowledgedBy } }

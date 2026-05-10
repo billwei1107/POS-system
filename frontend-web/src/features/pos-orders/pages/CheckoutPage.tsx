@@ -3,6 +3,7 @@
  * @description POS 結帳與付款選擇頁面 / POS Checkout and Payment Selection
  */
 import React, { useEffect, useMemo, useState } from 'react';
+import axios from 'axios';
 import { Box, Typography, Button, Avatar, Divider, Chip, TextField } from '@mui/material';
 import { 
     Payments, CreditCard, AccountBalanceWallet, QrCode, 
@@ -28,6 +29,10 @@ const PAYMENT_METHOD_LABEL: Record<string, string> = {
     jkopay: 'JKOPAY',
     easycard: 'EASYCARD',
     others: 'OTHER',
+};
+
+type ApiErrorBody = {
+    message?: string;
 };
 
 const CheckoutPage: React.FC = () => {
@@ -124,7 +129,11 @@ const CheckoutPage: React.FC = () => {
             setCompletedOrder(completeResponse.data);
             clearCart();
         } catch (err) {
-            setError(err instanceof Error ? err.message : '付款流程失敗，請稍後再試。');
+            if (axios.isAxiosError<ApiErrorBody>(err)) {
+                setError(err.response?.data?.message || err.message || '付款流程失敗，請稍後再試。');
+            } else {
+                setError(err instanceof Error ? err.message : '付款流程失敗，請稍後再試。');
+            }
         } finally {
             setSubmitting(false);
         }
