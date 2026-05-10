@@ -117,7 +117,8 @@ public class OrderService {
 
         eventPublisher.publishEvent(new OrderCompletedEvent(
             this, order.getId(), order.getStoreId(), order.getOrderNo(),
-            order.getMemberId(), order.getGrandTotal()
+            order.getMemberId(), order.getGrandTotal(), payMethod,
+            order.getPaidTotal(), tendered, change
         ));
 
         List<OrderItemResponse> items = orderItemRepository

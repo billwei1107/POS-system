@@ -57,7 +57,7 @@ const PayMethodSettingsPage: React.FC = () => {
     try {
       setLoading(true);
       const res = await payMethodApi.list(STORE_ID);
-      setMethods(res.data.data ?? []);
+      setMethods(res.data ?? []);
     } catch {
       setError('載入失敗');
     } finally {

@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -61,20 +62,46 @@ public class PaymentService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onOrderCompleted(OrderCompletedEvent event) {
         log.info("PaymentService received OrderCompletedEvent for order={}", event.getOrderNo());
-        // OrderService already recorded the payment record in pos_order_payments.
-        // Here we create the canonical PaymentTransaction record with gateway tracking.
-        PaymentTransaction txn = new PaymentTransaction();
-        txn.setOrderId(event.getOrderId());
-        txn.setStoreId(event.getStoreId());
-        txn.setMethodType("UNKNOWN"); // method resolved later via explicit processPayment call
-        txn.setAmount(event.getGrandTotal());
-        txn.setStatus(PaymentTransaction.TxnStatus.SUCCESS);
-
-        // Only create a stub transaction if no explicit call was made
         if (!transactionRepository.findByOrderId(event.getOrderId()).isEmpty()) {
             return;
         }
+
+        PayMethod payMethod = resolveEventPayMethod(event.getStoreId(), event.getPayMethod());
+        GatewayConfig.GatewayType gatewayType = resolveGatewayType(payMethod);
+        PaymentGateway gateway = gatewayMap().get(gatewayType);
+        if (gateway == null) {
+            throw new BusinessException("No gateway implementation for type: " + gatewayType);
+        }
+
+        BigDecimal amount = event.getPaidAmount() != null ? event.getPaidAmount() : event.getGrandTotal();
+        GatewayResponse gatewayResp = gateway.charge(new GatewayRequest(
+            event.getOrderId(), event.getOrderNo(), amount, event.getTenderedAmount(),
+            "TWD", UUID.randomUUID().toString(), "OrderCompletedEvent"
+        ));
+
+        PaymentTransaction txn = new PaymentTransaction();
+        txn.setOrderId(event.getOrderId());
+        txn.setStoreId(event.getStoreId());
+        txn.setPayMethodId(payMethod.getId());
+        txn.setMethodType(payMethod.getMethodType().name());
+        txn.setAmount(amount);
+        txn.setTendered(event.getTenderedAmount());
+        txn.setChangeGiven(event.getChangeGiven() != null ? event.getChangeGiven() : BigDecimal.ZERO);
+        txn.setStatus(gatewayResp.success() ? PaymentTransaction.TxnStatus.SUCCESS : PaymentTransaction.TxnStatus.FAILED);
+        txn.setGatewayRef(gatewayResp.gatewayRef());
+        txn.setGatewayResp(gatewayResp.rawResponse());
+        txn.setErrorCode(gatewayResp.errorCode());
+        txn.setErrorMsg(gatewayResp.errorMessage());
         transactionRepository.save(txn);
+
+        if (!gatewayResp.success()) {
+            throw new BusinessException("Payment failed: " + gatewayResp.errorMessage());
+        }
+
+        eventPublisher.publishEvent(new PaymentProcessedEvent(
+            this, txn.getId(), txn.getOrderId(), txn.getStoreId(),
+            event.getOrderNo(), txn.getMethodType(), txn.getAmount()
+        ));
     }
 
     // ========================================
@@ -145,6 +172,53 @@ public class PaymentService {
             case CASH -> GatewayConfig.GatewayType.CASH;
             case CARD -> GatewayConfig.GatewayType.MOCK_CARD;
             default -> GatewayConfig.GatewayType.MOCK_CARD;
+        };
+    }
+
+    // ========================================
+    // 事件支付方式解析 / Resolve event pay method
+    // ========================================
+    private PayMethod resolveEventPayMethod(UUID storeId, String payMethodCode) {
+        String code = normalizePayMethodCode(payMethodCode);
+        return payMethodRepository.findByStoreIdAndCode(storeId, code)
+            .orElseGet(() -> createDefaultEventPayMethod(storeId, code));
+    }
+
+    private PayMethod createDefaultEventPayMethod(UUID storeId, String code) {
+        PayMethod pm = new PayMethod();
+        pm.setStoreId(storeId);
+        pm.setCode(code);
+        pm.setName(defaultPayMethodName(code));
+        pm.setMethodType(defaultMethodType(code));
+        pm.setChangeBack(pm.getMethodType() == PayMethod.MethodType.CASH);
+        pm.setSortOrder(pm.getMethodType() == PayMethod.MethodType.CASH ? 0 : 100);
+        return payMethodRepository.save(pm);
+    }
+
+    private String normalizePayMethodCode(String payMethodCode) {
+        if (payMethodCode == null || payMethodCode.isBlank()) {
+            return "CASH";
+        }
+        return payMethodCode.trim().toUpperCase();
+    }
+
+    private PayMethod.MethodType defaultMethodType(String code) {
+        return switch (code) {
+            case "CASH" -> PayMethod.MethodType.CASH;
+            case "CREDIT", "CREDIT_CARD", "CARD" -> PayMethod.MethodType.CARD;
+            case "LINE_PAY", "LINEPAY", "JKOPAY", "EASYCARD" -> PayMethod.MethodType.QR_CODE;
+            default -> PayMethod.MethodType.MIXED;
+        };
+    }
+
+    private String defaultPayMethodName(String code) {
+        return switch (code) {
+            case "CASH" -> "現金";
+            case "CREDIT", "CREDIT_CARD", "CARD" -> "信用卡";
+            case "LINE_PAY", "LINEPAY" -> "LINE Pay";
+            case "JKOPAY" -> "街口支付";
+            case "EASYCARD" -> "悠遊卡";
+            default -> code;
         };
     }
 }

@@ -55,7 +55,7 @@ const ReconciliationPage: React.FC = () => {
     setError('');
     try {
       const res = await reconciliationApi.list(STORE_ID, date);
-      setRecords(res.data.data ?? []);
+      setRecords(res.data ?? []);
     } catch {
       setError('查詢失敗');
     } finally {
@@ -69,8 +69,8 @@ const ReconciliationPage: React.FC = () => {
     setError('');
     try {
       const res = await reconciliationApi.generate(STORE_ID, date);
-      setRecords(res.data.data ?? []);
-      setSuccess(`已產生 ${res.data.data?.length ?? 0} 筆對帳記錄`);
+      setRecords(res.data ?? []);
+      setSuccess(`已產生 ${res.data?.length ?? 0} 筆對帳記錄`);
     } catch {
       setError('產生對帳失敗');
     } finally {

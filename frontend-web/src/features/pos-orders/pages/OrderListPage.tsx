@@ -15,6 +15,8 @@ import { orderApi } from '../api/orderApi';
 import type { Order, OrderStatus, OrderListParams } from '../types';
 import { DEFAULT_STORE_ID } from '../config';
 import { useNavigate } from 'react-router-dom';
+import { paymentApi } from '../../pos-payment/api/paymentApi';
+import type { PaymentTransaction } from '../../pos-payment/types';
 
 // ========================================
 // 狀態顏色映射 / Status color mapping
@@ -49,6 +51,10 @@ const OrderListPage: React.FC = () => {
   const [voidTarget, setVoidTarget] = useState<Order | null>(null);
   const [voidReason, setVoidReason] = useState('');
   const [voidedBy] = useState('00000000-0000-0000-0000-000000000001');
+  const [paymentDialog, setPaymentDialog] = useState(false);
+  const [paymentTarget, setPaymentTarget] = useState<Order | null>(null);
+  const [paymentTransactions, setPaymentTransactions] = useState<PaymentTransaction[]>([]);
+  const [paymentLoading, setPaymentLoading] = useState(false);
 
   const fetchOrders = useCallback(async () => {
     if (!DEFAULT_STORE_ID) {
@@ -96,8 +102,27 @@ const OrderListPage: React.FC = () => {
     }
   };
 
+  // ========================================
+  // 查詢付款記錄 / Load payment transactions
+  // ========================================
+  const handleOpenPayments = async (order: Order) => {
+    setPaymentTarget(order);
+    setPaymentDialog(true);
+    setPaymentLoading(true);
+    setError('');
+    try {
+      const res = await paymentApi.getByOrder(order.id);
+      setPaymentTransactions(res.data ?? []);
+    } catch {
+      setPaymentTransactions([]);
+      setError('付款記錄載入失敗。');
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
   const formatMoney = (amount: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+    new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', maximumFractionDigits: 0 }).format(amount);
 
   const formatDate = (dateStr: string) =>
     new Date(dateStr).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
@@ -199,13 +224,22 @@ const OrderListPage: React.FC = () => {
                 <TableCell>
                   <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                     {['COMPLETED', 'CLOSED'].includes(order.status) && (
-                      <Button
-                        size="small"
-                        color="secondary"
-                        onClick={() => navigate(`/pos/refunds?orderId=${order.id}&amount=${order.grandTotal}&orderNo=${encodeURIComponent(order.orderNo)}`)}
-                      >
-                        退款
-                      </Button>
+                      <>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => handleOpenPayments(order)}
+                        >
+                          付款記錄
+                        </Button>
+                        <Button
+                          size="small"
+                          color="secondary"
+                          onClick={() => navigate(`/pos/refunds?orderId=${order.id}&amount=${order.grandTotal}&orderNo=${encodeURIComponent(order.orderNo)}`)}
+                        >
+                          退款
+                        </Button>
+                      </>
                     )}
                     {['DRAFT','CONFIRMED','PREPARING','READY'].includes(order.status) && (
                       <Button size="small" color="error" onClick={() => { setVoidTarget(order); setVoidDialog(true); }}>
@@ -239,6 +273,64 @@ const OrderListPage: React.FC = () => {
         <DialogActions>
           <Button onClick={() => setVoidDialog(false)}>取消</Button>
           <Button color="error" onClick={handleVoid}>確認作廢</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={paymentDialog} onClose={() => setPaymentDialog(false)} maxWidth="md" fullWidth>
+        <DialogTitle>付款記錄 {paymentTarget?.orderNo}</DialogTitle>
+        <DialogContent>
+          {paymentLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress size={24} />
+            </Box>
+          ) : (
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>支付方式</TableCell>
+                  <TableCell>狀態</TableCell>
+                  <TableCell align="right">付款金額</TableCell>
+                  <TableCell align="right">實收</TableCell>
+                  <TableCell align="right">找零</TableCell>
+                  <TableCell>閘道編號</TableCell>
+                  <TableCell>處理時間</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {paymentTransactions.map((txn) => (
+                  <TableRow key={txn.id}>
+                    <TableCell>{txn.methodType}</TableCell>
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        label={txn.status}
+                        color={txn.status === 'SUCCESS' ? 'success' : 'error'}
+                      />
+                    </TableCell>
+                    <TableCell align="right">{formatMoney(txn.amount)}</TableCell>
+                    <TableCell align="right">{txn.tendered === null ? '-' : formatMoney(txn.tendered)}</TableCell>
+                    <TableCell align="right">{formatMoney(txn.changeGiven)}</TableCell>
+                    <TableCell>
+                      <Typography variant="caption" fontFamily="monospace">
+                        {txn.gatewayRef ?? '-'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>{formatDate(txn.processedAt)}</TableCell>
+                  </TableRow>
+                ))}
+                {paymentTransactions.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                      尚無付款記錄
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPaymentDialog(false)}>關閉</Button>
         </DialogActions>
       </Dialog>
     </Box>

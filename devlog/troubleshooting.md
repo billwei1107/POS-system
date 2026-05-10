@@ -301,3 +301,28 @@ waiting for locator('button').filter({ has: locator('svg[data-testid="ShoppingCa
 - `docker compose -f docker/local/docker-compose.yml up -d --no-deps frontend`：通過。
 - Playwright 實測登入、加入商品、套用 10% 折扣、進入結帳、確認付款：通過。
 - 資料庫最新訂單：`discount_total=12.00`、`tax_total=5.40`、`rounding_adj=-0.40`、`grand_total=113.00`、`paid_total=113.00`、`change_given=0.00`。
+
+---
+
+# 2026-05-11 POS payment transaction 瀏覽器測試 PIN 送出定位問題
+
+## Issue
+
+- 場景：為 Sprint 1-3 payment transaction 執行 Playwright 瀏覽器端到端測試。
+- 問題：PIN `1234` 輸入後，測試腳本用「最後一個含 svg 的 button」定位送出鍵，實際點到其他圖示按鈕，導致等待 `/pos/register` 逾時。
+
+## Root Cause
+
+- POS PIN 頁面有多個純圖示按鈕，送出鍵沒有文字或 aria-label。
+- 以 `svg` 或最後一個圖示按鈕作為 selector 不穩定。
+
+## Solution
+
+- 先列出 PIN 頁面所有 button，確認送出鍵是 keypad 第 12 個按鈕。
+- 測試腳本改用 `page.locator('button').nth(11)` 點擊送出鍵。
+- 後續建議為 PIN 送出鍵補 `aria-label`，讓自動化測試可用語意 selector。
+
+## Verification
+
+- 重新執行瀏覽器測試後，PIN `1234` 成功導向 `/pos/register`。
+- 完整 payment transaction 流程通過：登入、加商品、結帳、現金付款、前端查付款記錄、DB 查 `pos_payment_transactions`。

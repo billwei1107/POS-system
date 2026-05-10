@@ -26,13 +26,13 @@ const RECON_BASE = '/v1/pos/reconciliation';
 // ========================================
 export const payMethodApi = {
   list: (storeId: string) =>
-    axiosInstance.get<ApiResponse<PayMethod[]>>(`${BASE}/methods`, { params: { storeId } }),
+    axiosInstance.get<unknown, ApiResponse<PayMethod[]>>(`${BASE}/methods`, { params: { storeId } }),
 
   create: (req: CreatePayMethodRequest) =>
-    axiosInstance.post<ApiResponse<PayMethod>>(`${BASE}/methods`, req),
+    axiosInstance.post<unknown, ApiResponse<PayMethod>, CreatePayMethodRequest>(`${BASE}/methods`, req),
 
   deactivate: (id: string) =>
-    axiosInstance.delete<ApiResponse<null>>(`${BASE}/methods/${id}`),
+    axiosInstance.delete<unknown, ApiResponse<null>>(`${BASE}/methods/${id}`),
 };
 
 // ========================================
@@ -40,10 +40,10 @@ export const payMethodApi = {
 // ========================================
 export const paymentApi = {
   process: (req: ProcessPaymentRequest) =>
-    axiosInstance.post<ApiResponse<PaymentTransaction>>(BASE, req),
+    axiosInstance.post<unknown, ApiResponse<PaymentTransaction>, ProcessPaymentRequest>(BASE, req),
 
   getByOrder: (orderId: string) =>
-    axiosInstance.get<ApiResponse<PaymentTransaction[]>>(`${BASE}/orders/${orderId}`),
+    axiosInstance.get<unknown, ApiResponse<PaymentTransaction[]>>(`${BASE}/orders/${orderId}`),
 };
 
 // ========================================
@@ -51,15 +51,15 @@ export const paymentApi = {
 // ========================================
 export const cashDrawerApi = {
   open: (req: OpenDrawerRequest) =>
-    axiosInstance.post<ApiResponse<CashDrawer>>(`${DRAWER_BASE}/open`, req),
+    axiosInstance.post<unknown, ApiResponse<CashDrawer>, OpenDrawerRequest>(`${DRAWER_BASE}/open`, req),
 
   close: (id: string, closedBy: string, closingAmount?: number, note?: string) =>
-    axiosInstance.post<ApiResponse<CashDrawer>>(`${DRAWER_BASE}/${id}/close`, null, {
+    axiosInstance.post<unknown, ApiResponse<CashDrawer>>(`${DRAWER_BASE}/${id}/close`, null, {
       params: { closedBy, closingAmount, note },
     }),
 
   getOpen: (terminalId: string) =>
-    axiosInstance.get<ApiResponse<CashDrawer>>(`${DRAWER_BASE}/terminal/${terminalId}/open`),
+    axiosInstance.get<unknown, ApiResponse<CashDrawer>>(`${DRAWER_BASE}/terminal/${terminalId}/open`),
 };
 
 // ========================================
@@ -67,7 +67,7 @@ export const cashDrawerApi = {
 // ========================================
 export const gatewayApi = {
   list: (storeId: string) =>
-    axiosInstance.get<ApiResponse<GatewayConfig[]>>(`${BASE}/gateways`, { params: { storeId } }),
+    axiosInstance.get<unknown, ApiResponse<GatewayConfig[]>>(`${BASE}/gateways`, { params: { storeId } }),
 };
 
 // ========================================
@@ -75,15 +75,15 @@ export const gatewayApi = {
 // ========================================
 export const reconciliationApi = {
   generate: (storeId: string, date: string) =>
-    axiosInstance.post<ApiResponse<Reconciliation[]>>(`${RECON_BASE}/generate`, null, {
+    axiosInstance.post<unknown, ApiResponse<Reconciliation[]>>(`${RECON_BASE}/generate`, null, {
       params: { storeId, date },
     }),
 
   list: (storeId: string, date: string) =>
-    axiosInstance.get<ApiResponse<Reconciliation[]>>(RECON_BASE, { params: { storeId, date } }),
+    axiosInstance.get<unknown, ApiResponse<Reconciliation[]>>(RECON_BASE, { params: { storeId, date } }),
 
   confirm: (id: string, gatewayAmount: number, reconciledBy: string) =>
-    axiosInstance.post<ApiResponse<Reconciliation>>(`${RECON_BASE}/${id}/confirm`, null, {
+    axiosInstance.post<unknown, ApiResponse<Reconciliation>>(`${RECON_BASE}/${id}/confirm`, null, {
       params: { gatewayAmount, reconciledBy },
     }),
 };
