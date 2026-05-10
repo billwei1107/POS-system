@@ -12,8 +12,7 @@ import {
 } from '@mui/material';
 import { invoiceTrackApi } from '../api/taxApi';
 import type { InvoiceTrack, AddInvoiceTrackRequest } from '../types';
-
-const STORE_ID = import.meta.env.VITE_DEFAULT_STORE_ID as string;
+import { DEFAULT_STORE_ID } from '../../pos-orders/config';
 
 // ========================================
 // 字軌使用進度計算 / Track usage progress calculation
@@ -39,7 +38,7 @@ const InvoiceTrackPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
 
   const [form, setForm] = useState<AddInvoiceTrackRequest>({
-    storeId: STORE_ID,
+    storeId: DEFAULT_STORE_ID,
     sellerId: '',
     trackPrefix: '',
     yearMonth: '',
@@ -51,8 +50,8 @@ const InvoiceTrackPage: React.FC = () => {
   const loadTracks = async () => {
     try {
       setLoading(true);
-      const res = await invoiceTrackApi.list(STORE_ID);
-      setTracks(res.data.data ?? []);
+      const res = await invoiceTrackApi.list(DEFAULT_STORE_ID);
+      setTracks(res.data ?? []);
     } catch {
       setError('載入失敗');
     } finally {
@@ -68,7 +67,7 @@ const InvoiceTrackPage: React.FC = () => {
     try {
       await invoiceTrackApi.add(form);
       setDialogOpen(false);
-      setForm({ storeId: STORE_ID, sellerId: '', trackPrefix: '', yearMonth: '', period: '', startNo: '00000001', endNo: '00000050' });
+      setForm({ storeId: DEFAULT_STORE_ID, sellerId: '', trackPrefix: '', yearMonth: '', period: '', startNo: '00000001', endNo: '00000050' });
       await loadTracks();
       setSuccess('字軌已新增');
     } catch {

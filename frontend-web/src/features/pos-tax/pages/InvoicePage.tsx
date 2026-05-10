@@ -12,8 +12,7 @@ import {
 } from '@mui/material';
 import { invoiceApi } from '../api/taxApi';
 import type { Invoice, InvoiceStatus, UploadStatus } from '../types';
-
-const STORE_ID = import.meta.env.VITE_DEFAULT_STORE_ID as string;
+import { DEFAULT_STORE_ID } from '../../pos-orders/config';
 
 const STATUS_COLOR: Record<InvoiceStatus, 'default' | 'success' | 'error' | 'warning'> = {
   ISSUED: 'success',
@@ -66,8 +65,8 @@ const InvoicePage: React.FC = () => {
     try {
       const from = `${fromDate}T00:00:00`;
       const to = `${toDate}T23:59:59`;
-      const res = await invoiceApi.list(STORE_ID, from, to);
-      setInvoices(res.data.data ?? []);
+      const res = await invoiceApi.list(DEFAULT_STORE_ID, from, to);
+      setInvoices(res.data ?? []);
     } catch {
       setError('查詢失敗');
     } finally {

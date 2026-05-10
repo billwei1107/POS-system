@@ -69,7 +69,7 @@ public class InvoiceService {
             return;
         }
         try {
-            issueForOrder(event.getOrderId(), event.getStoreId(), event.getGrandTotal());
+            issueForOrder(event.getOrderId(), event.getStoreId(), event.getGrandTotal(), event.getTaxAmount());
         } catch (Exception e) {
             log.error("Failed to auto-issue invoice for order {}: {}", event.getOrderId(), e.getMessage());
         }
@@ -151,14 +151,14 @@ public class InvoiceService {
     // 私有輔助方法 / Private helpers
     // =====================================
 
-    private void issueForOrder(UUID orderId, UUID storeId, BigDecimal grandTotal) {
-        Invoice invoice = buildInvoiceFromTotal(orderId, storeId, grandTotal);
+    private void issueForOrder(UUID orderId, UUID storeId, BigDecimal grandTotal, BigDecimal taxAmount) {
+        Invoice invoice = buildInvoiceFromTotal(orderId, storeId, grandTotal, taxAmount);
         uploadAndSave(invoice);
     }
 
     private Invoice buildInvoice(UUID orderId, UUID storeId, BigDecimal grandTotal, IssueInvoiceRequest req) {
         BigDecimal total = grandTotal != null ? grandTotal : BigDecimal.ZERO;
-        Invoice invoice = buildInvoiceFromTotal(orderId, storeId, total);
+        Invoice invoice = buildInvoiceFromTotal(orderId, storeId, total, null);
         if (req != null) {
             invoice.setInvoiceType(req.invoiceType() != null ? req.invoiceType() : Invoice.InvoiceType.B2C);
             invoice.setBuyerId(req.buyerId());
@@ -170,10 +170,12 @@ public class InvoiceService {
         return invoice;
     }
 
-    private Invoice buildInvoiceFromTotal(UUID orderId, UUID storeId, BigDecimal grandTotal) {
-        // 含稅總額拆分：稅前 = 總額 / 1.05，稅額 = 總額 - 稅前
-        BigDecimal salesAmount = grandTotal.divide(BigDecimal.ONE.add(TAX_RATE), 0, RoundingMode.HALF_UP);
-        BigDecimal taxAmount = grandTotal.subtract(salesAmount);
+    private Invoice buildInvoiceFromTotal(UUID orderId, UUID storeId, BigDecimal grandTotal, BigDecimal orderTaxAmount) {
+        BigDecimal totalAmount = (grandTotal != null ? grandTotal : BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal taxAmount = orderTaxAmount != null
+                ? orderTaxAmount.setScale(2, RoundingMode.HALF_UP)
+                : deriveInclusiveTaxAmount(totalAmount);
+        BigDecimal salesAmount = totalAmount.subtract(taxAmount).setScale(2, RoundingMode.HALF_UP);
 
         Invoice invoice = new Invoice();
         invoice.setStoreId(storeId);
@@ -182,22 +184,19 @@ public class InvoiceService {
         invoice.setSellerName(defaultSellerName);
         invoice.setSalesAmount(salesAmount);
         invoice.setTaxAmount(taxAmount);
-        invoice.setTotalAmount(grandTotal);
+        invoice.setTotalAmount(totalAmount);
         invoice.setInvoiceType(Invoice.InvoiceType.B2C);
         return invoice;
     }
 
+    private BigDecimal deriveInclusiveTaxAmount(BigDecimal totalAmount) {
+        // 含稅總額拆分：稅前 = 總額 / 1.05，稅額 = 總額 - 稅前
+        BigDecimal salesAmount = totalAmount.divide(BigDecimal.ONE.add(TAX_RATE), 0, RoundingMode.HALF_UP);
+        return totalAmount.subtract(salesAmount).setScale(2, RoundingMode.HALF_UP);
+    }
+
     private void uploadAndSave(Invoice invoice) {
-        // 分配字軌號碼
-        try {
-            InvoiceTrack track = trackService.getTrackForStore(invoice.getStoreId());
-            String fullNo = trackService.allocateNextNumber(invoice.getStoreId());
-            invoice.setTrack(track);
-            invoice.setInvoiceNo(fullNo.substring(3)); // 去掉 "XX-" 前綴
-            invoice.setFullInvoiceNo(fullNo);
-        } catch (Exception e) {
-            log.warn("Could not allocate invoice track (no tracks registered?): {}", e.getMessage());
-        }
+        allocateInvoiceTrackIfAvailable(invoice);
 
         Invoice saved = invoiceRepository.save(invoice);
 
@@ -218,6 +217,30 @@ public class InvoiceService {
                 this, saved.getId(), saved.getOrderId(), saved.getStoreId(),
                 saved.getFullInvoiceNo(), saved.getTotalAmount()
         ));
+    }
+
+    private void allocateInvoiceTrackIfAvailable(Invoice invoice) {
+        Optional<InvoiceTrack> trackOpt = trackRepository.findAvailableTrackForUpdate(invoice.getStoreId());
+        if (trackOpt.isEmpty()) {
+            log.warn("Could not allocate invoice track (no tracks registered?) for store {}", invoice.getStoreId());
+            return;
+        }
+
+        InvoiceTrack track = trackOpt.get();
+        int next = Integer.parseInt(track.getCurrentNo()) + 1;
+        if (next > Integer.parseInt(track.getEndNo())) {
+            log.warn("Could not allocate invoice track because track {} is exhausted", track.getTrackPrefix());
+            return;
+        }
+
+        String nextNo = String.format("%08d", next);
+        track.setCurrentNo(nextNo);
+        trackRepository.save(track);
+
+        String fullNo = track.getTrackPrefix() + "-" + nextNo;
+        invoice.setTrack(track);
+        invoice.setInvoiceNo(nextNo);
+        invoice.setFullInvoiceNo(fullNo);
     }
 
     private void createAllowance(Invoice invoice, UUID refundId, BigDecimal refundAmount) {

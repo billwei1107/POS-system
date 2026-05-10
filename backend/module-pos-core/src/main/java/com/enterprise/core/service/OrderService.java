@@ -117,7 +117,7 @@ public class OrderService {
 
         eventPublisher.publishEvent(new OrderCompletedEvent(
             this, order.getId(), order.getStoreId(), order.getOrderNo(),
-            order.getMemberId(), order.getGrandTotal(), payMethod,
+            order.getMemberId(), order.getGrandTotal(), order.getTaxTotal(), payMethod,
             order.getPaidTotal(), tendered, change
         ));
 

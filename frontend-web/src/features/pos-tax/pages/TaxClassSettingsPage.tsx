@@ -12,8 +12,7 @@ import {
 } from '@mui/material';
 import { taxClassApi } from '../api/taxApi';
 import type { TaxClass, CreateTaxClassRequest, TaxType } from '../types';
-
-const STORE_ID = import.meta.env.VITE_DEFAULT_STORE_ID as string;
+import { DEFAULT_STORE_ID } from '../../pos-orders/config';
 
 const TAX_TYPE_OPTIONS: { value: TaxType; label: string }[] = [
   { value: 'INCLUSIVE', label: '含稅' },
@@ -47,7 +46,7 @@ const TaxClassSettingsPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
 
   const [form, setForm] = useState<CreateTaxClassRequest>({
-    storeId: STORE_ID,
+    storeId: DEFAULT_STORE_ID,
     name: '',
     taxType: 'INCLUSIVE',
     rate: 0.05,
@@ -58,8 +57,8 @@ const TaxClassSettingsPage: React.FC = () => {
   const loadClasses = async () => {
     try {
       setLoading(true);
-      const res = await taxClassApi.list(STORE_ID);
-      setClasses(res.data.data ?? []);
+      const res = await taxClassApi.list(DEFAULT_STORE_ID);
+      setClasses(res.data ?? []);
     } catch {
       setError('載入失敗');
     } finally {
@@ -75,7 +74,7 @@ const TaxClassSettingsPage: React.FC = () => {
     try {
       await taxClassApi.create(form);
       setDialogOpen(false);
-      setForm({ storeId: STORE_ID, name: '', taxType: 'INCLUSIVE', rate: 0.05, description: '', isDefault: false });
+      setForm({ storeId: DEFAULT_STORE_ID, name: '', taxType: 'INCLUSIVE', rate: 0.05, description: '', isDefault: false });
       await loadClasses();
     } catch {
       setError('建立失敗');

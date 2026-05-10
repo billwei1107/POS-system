@@ -326,3 +326,58 @@ waiting for locator('button').filter({ has: locator('svg[data-testid="ShoppingCa
 
 - 重新執行瀏覽器測試後，PIN `1234` 成功導向 `/pos/register`。
 - 完整 payment transaction 流程通過：登入、加商品、結帳、現金付款、前端查付款記錄、DB 查 `pos_payment_transactions`。
+
+---
+
+# 2026-05-11 POS tax mock invoice 無字軌時未保存
+
+## Issue
+
+- 場景：Checkpoint 2 進行 Tax / Invoice happy path，瀏覽器完成現金付款後，DB `pos_orders` 有完成訂單，但 `pos_invoices` 沒有對應資料。
+- 後端 log 顯示 `TransactionSynchronization.afterCompletion threw exception` 與 `UnexpectedRollbackException: Transaction silently rolled back because it has been marked as rollback-only`。
+
+## Root Cause
+
+- `InvoiceService.uploadAndSave` 透過 `InvoiceTrackService.getTrackForStore()` 查字軌。
+- 本地 demo 沒有建立 `pos_invoice_tracks` 時，`InvoiceTrackService` 的 `@Transactional` 方法拋出 `IllegalStateException`。
+- 即使外層 catch 例外，該交易已被 Spring 標記 rollback-only，導致 mock invoice 保存被整筆回滾。
+
+## Solution
+
+- `InvoiceService` 改為在同一交易中透過 `InvoiceTrackRepository.findAvailableTrackForUpdate` 查可用字軌。
+- 無字軌時不拋例外，直接保存 `fullInvoiceNo=null` 的 mock invoice。
+- 有字軌時在 `InvoiceService` 內配發下一號並保存 track，避免無字軌路徑污染開票交易。
+
+## Verification
+
+- `mvn -pl module-pos-tax,module-pos-core -am test`：通過。
+- Docker backend 重建後，Playwright 完成現金訂單，DB `pos_invoices` 有對應資料。
+- 驗證訂單 `000000-20260510183637-6093`：`pos_orders.tax_total=6.00`，`pos_invoices.tax_amount=6.00`。
+
+---
+
+# 2026-05-11 POS 發票頁 Docker 查詢缺 storeId
+
+## Issue
+
+- 場景：發票已在 DB 建立，但 `/pos/invoices` 點擊「查詢」顯示「查詢失敗」。
+- 瀏覽器網路回應：`/api/v1/pos/invoices?from=...&to=...` 回 500，訊息為 `Required request parameter 'storeId' ... is not present`。
+
+## Root Cause
+
+- `InvoicePage`、`TaxClassSettingsPage`、`InvoiceTrackPage` 直接讀 `import.meta.env.VITE_DEFAULT_STORE_ID as string`。
+- Docker frontend build 未注入該 env 時，`STORE_ID` 為 `undefined`，axios params 省略 `storeId`。
+- 收銀流程已有 `DEFAULT_STORE_ID` fallback，但 tax 頁面未共用。
+
+## Solution
+
+- tax 三個頁面改用 `../../pos-orders/config` 的 `DEFAULT_STORE_ID`。
+- `taxApi` 改用共用 `axiosInstance`，確保 baseURL 與 JWT interceptor 與其他 POS 模組一致。
+- 頁面讀取 axios interceptor 正規化後的 `res.data`。
+
+## Verification
+
+- `npm run lint && npm run build`：通過。
+- `docker compose -f docker/local/docker-compose.yml up -d --build frontend`：通過。
+- Playwright 登入後進入 `/pos/invoices`，查詢 API 帶 `storeId=00000000-0000-0000-0000-000000000001` 且回 200。
+- 畫面可見稅前 `NT$ 120.00`、稅額 `NT$ 6.00`、總額 `NT$ 126.00`。

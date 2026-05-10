@@ -4,7 +4,8 @@
  * @description_en Axios-based API calls for tax classes, invoice tracks, and invoices
  * @description_zh 稅率類別、字軌管理、電子發票的 Axios API 呼叫
  */
-import axios from 'axios';
+import axiosInstance from '../../../shared/api/axiosInstance';
+import type { ApiResponse } from '../../../shared/types';
 import type {
   TaxClass, CreateTaxClassRequest,
   InvoiceTrack, AddInvoiceTrackRequest,
@@ -18,11 +19,11 @@ const BASE = '/v1/pos';
 // ========================================
 export const taxClassApi = {
   list: (storeId: string) =>
-    axios.get<{ data: TaxClass[] }>(`${BASE}/tax-classes`, { params: { storeId } }),
+    axiosInstance.get<unknown, ApiResponse<TaxClass[]>>(`${BASE}/tax-classes`, { params: { storeId } }),
   create: (req: CreateTaxClassRequest) =>
-    axios.post<{ data: TaxClass }>(`${BASE}/tax-classes`, req),
+    axiosInstance.post<unknown, ApiResponse<TaxClass>, CreateTaxClassRequest>(`${BASE}/tax-classes`, req),
   deactivate: (id: string) =>
-    axios.delete(`${BASE}/tax-classes/${id}`),
+    axiosInstance.delete<unknown, ApiResponse<null>>(`${BASE}/tax-classes/${id}`),
 };
 
 // ========================================
@@ -30,9 +31,9 @@ export const taxClassApi = {
 // ========================================
 export const invoiceTrackApi = {
   list: (storeId: string) =>
-    axios.get<{ data: InvoiceTrack[] }>(`${BASE}/invoice-tracks`, { params: { storeId } }),
+    axiosInstance.get<unknown, ApiResponse<InvoiceTrack[]>>(`${BASE}/invoice-tracks`, { params: { storeId } }),
   add: (req: AddInvoiceTrackRequest) =>
-    axios.post<{ data: InvoiceTrack }>(`${BASE}/invoice-tracks`, req),
+    axiosInstance.post<unknown, ApiResponse<InvoiceTrack>, AddInvoiceTrackRequest>(`${BASE}/invoice-tracks`, req),
 };
 
 // ========================================
@@ -40,13 +41,13 @@ export const invoiceTrackApi = {
 // ========================================
 export const invoiceApi = {
   issue: (req: IssueInvoiceRequest) =>
-    axios.post<{ data: Invoice }>(`${BASE}/invoices`, req),
+    axiosInstance.post<unknown, ApiResponse<Invoice>, IssueInvoiceRequest>(`${BASE}/invoices`, req),
   getByOrder: (orderId: string) =>
-    axios.get<{ data: Invoice }>(`${BASE}/invoices/orders/${orderId}`),
+    axiosInstance.get<unknown, ApiResponse<Invoice>>(`${BASE}/invoices/orders/${orderId}`),
   list: (storeId: string, from: string, to: string) =>
-    axios.get<{ data: Invoice[] }>(`${BASE}/invoices`, { params: { storeId, from, to } }),
+    axiosInstance.get<unknown, ApiResponse<Invoice[]>>(`${BASE}/invoices`, { params: { storeId, from, to } }),
   void: (id: string, reason?: string) =>
-    axios.post<{ data: Invoice }>(`${BASE}/invoices/${id}/void`, null, {
+    axiosInstance.post<unknown, ApiResponse<Invoice>>(`${BASE}/invoices/${id}/void`, null, {
       params: { reason: reason ?? '手動作廢' },
     }),
 };

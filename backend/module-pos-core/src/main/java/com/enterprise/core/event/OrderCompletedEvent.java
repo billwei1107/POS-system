@@ -20,6 +20,7 @@ public class OrderCompletedEvent extends ApplicationEvent {
     private final String orderNo;
     private final UUID memberId;
     private final BigDecimal grandTotal;
+    private final BigDecimal taxAmount;
     private final String payMethod;
     private final BigDecimal paidAmount;
     private final BigDecimal tenderedAmount;
@@ -27,12 +28,20 @@ public class OrderCompletedEvent extends ApplicationEvent {
 
     public OrderCompletedEvent(Object source, UUID orderId, UUID storeId, String orderNo,
                                UUID memberId, BigDecimal grandTotal) {
-        this(source, orderId, storeId, orderNo, memberId, grandTotal, null, grandTotal, null, BigDecimal.ZERO);
+        this(source, orderId, storeId, orderNo, memberId, grandTotal, null, null, grandTotal, null, BigDecimal.ZERO);
     }
 
     public OrderCompletedEvent(Object source, UUID orderId, UUID storeId, String orderNo,
                                UUID memberId, BigDecimal grandTotal, String payMethod,
                                BigDecimal paidAmount, BigDecimal tenderedAmount,
+                               BigDecimal changeGiven) {
+        this(source, orderId, storeId, orderNo, memberId, grandTotal, null, payMethod,
+                paidAmount, tenderedAmount, changeGiven);
+    }
+
+    public OrderCompletedEvent(Object source, UUID orderId, UUID storeId, String orderNo,
+                               UUID memberId, BigDecimal grandTotal, BigDecimal taxAmount,
+                               String payMethod, BigDecimal paidAmount, BigDecimal tenderedAmount,
                                BigDecimal changeGiven) {
         super(source);
         this.orderId = orderId;
@@ -40,6 +49,7 @@ public class OrderCompletedEvent extends ApplicationEvent {
         this.orderNo = orderNo;
         this.memberId = memberId;
         this.grandTotal = grandTotal;
+        this.taxAmount = taxAmount;
         this.payMethod = payMethod;
         this.paidAmount = paidAmount;
         this.tenderedAmount = tenderedAmount;
