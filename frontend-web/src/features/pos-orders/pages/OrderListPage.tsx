@@ -17,6 +17,8 @@ import { DEFAULT_STORE_ID } from '../config';
 import { useNavigate } from 'react-router-dom';
 import { paymentApi } from '../../pos-payment/api/paymentApi';
 import type { PaymentTransaction } from '../../pos-payment/types';
+import { invoiceApi } from '../../pos-tax/api/taxApi';
+import type { Invoice } from '../../pos-tax/types';
 
 // ========================================
 // 狀態顏色映射 / Status color mapping
@@ -37,6 +39,49 @@ const ORDER_METRICS = [
   { label: '平均客單', value: '$0.00', helper: '首筆訂單後開始計算' },
 ];
 
+type PaymentStatusSummary = 'PAID' | 'UNPAID' | 'REFUNDED' | 'FAILED';
+type InvoiceStatusSummary = 'ISSUED' | 'VOIDED' | 'ALLOWANCE' | 'MISSING';
+
+const PAYMENT_STATUS_LABEL: Record<PaymentStatusSummary, string> = {
+  PAID: '已付款',
+  UNPAID: '未付款',
+  REFUNDED: '已退款',
+  FAILED: '付款異常',
+};
+
+const PAYMENT_STATUS_COLOR: Record<PaymentStatusSummary, 'default' | 'success' | 'warning' | 'error'> = {
+  PAID: 'success',
+  UNPAID: 'default',
+  REFUNDED: 'warning',
+  FAILED: 'error',
+};
+
+const INVOICE_STATUS_LABEL: Record<InvoiceStatusSummary, string> = {
+  ISSUED: '已開立',
+  VOIDED: '已作廢',
+  ALLOWANCE: '折讓',
+  MISSING: '未開立',
+};
+
+const INVOICE_STATUS_COLOR: Record<InvoiceStatusSummary, 'default' | 'success' | 'warning' | 'error'> = {
+  ISSUED: 'success',
+  VOIDED: 'error',
+  ALLOWANCE: 'warning',
+  MISSING: 'default',
+};
+
+const summarizePaymentStatus = (transactions: PaymentTransaction[]): PaymentStatusSummary => {
+  if (transactions.some(txn => txn.status === 'REFUNDED')) return 'REFUNDED';
+  if (transactions.some(txn => txn.status === 'SUCCESS')) return 'PAID';
+  if (transactions.some(txn => txn.status === 'FAILED' || txn.status === 'VOIDED')) return 'FAILED';
+  return 'UNPAID';
+};
+
+const summarizeInvoiceStatus = (invoice: Invoice | null): InvoiceStatusSummary => {
+  if (!invoice) return 'MISSING';
+  return invoice.status;
+};
+
 const OrderListPage: React.FC = () => {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -55,6 +100,41 @@ const OrderListPage: React.FC = () => {
   const [paymentTarget, setPaymentTarget] = useState<Order | null>(null);
   const [paymentTransactions, setPaymentTransactions] = useState<PaymentTransaction[]>([]);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentStatusByOrder, setPaymentStatusByOrder] = useState<Record<string, PaymentStatusSummary>>({});
+  const [invoiceStatusByOrder, setInvoiceStatusByOrder] = useState<Record<string, InvoiceStatusSummary>>({});
+
+  const loadOrderClosureStatuses = useCallback(async (orderList: Order[]) => {
+    const closedOrders = orderList.filter(order => ['COMPLETED', 'CLOSED'].includes(order.status));
+    if (closedOrders.length === 0) {
+      setPaymentStatusByOrder({});
+      setInvoiceStatusByOrder({});
+      return;
+    }
+
+    const statusEntries = await Promise.all(closedOrders.map(async (order) => {
+      let paymentStatus: PaymentStatusSummary = order.paidTotal > 0 ? 'PAID' : 'UNPAID';
+      let invoiceStatus: InvoiceStatusSummary = 'MISSING';
+
+      try {
+        const paymentRes = await paymentApi.getByOrder(order.id);
+        paymentStatus = summarizePaymentStatus(paymentRes.data ?? []);
+      } catch {
+        paymentStatus = order.paidTotal > 0 ? 'PAID' : 'FAILED';
+      }
+
+      try {
+        const invoiceRes = await invoiceApi.getByOrder(order.id);
+        invoiceStatus = summarizeInvoiceStatus(invoiceRes.data ?? null);
+      } catch {
+        invoiceStatus = 'MISSING';
+      }
+
+      return [order.id, paymentStatus, invoiceStatus] as const;
+    }));
+
+    setPaymentStatusByOrder(Object.fromEntries(statusEntries.map(([orderId, paymentStatus]) => [orderId, paymentStatus])));
+    setInvoiceStatusByOrder(Object.fromEntries(statusEntries.map(([orderId, , invoiceStatus]) => [orderId, invoiceStatus])));
+  }, []);
 
   const fetchOrders = useCallback(async () => {
     if (!DEFAULT_STORE_ID) {
@@ -75,15 +155,17 @@ const OrderListPage: React.FC = () => {
       };
       const res = await orderApi.list(params);
       if (res.code === 200 && res.data) {
-        setOrders(res.data.content);
+        const content = res.data.content;
+        setOrders(content);
         setTotal(res.data.totalPages);
+        await loadOrderClosureStatuses(content);
       }
     } catch {
       setError('訂單載入失敗，請稍後再試。');
     } finally {
       setLoading(false);
     }
-  }, [page, status]);
+  }, [loadOrderClosureStatuses, page, status]);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
@@ -192,6 +274,8 @@ const OrderListPage: React.FC = () => {
               <TableCell>狀態</TableCell>
               <TableCell>類型</TableCell>
               <TableCell>品項</TableCell>
+              <TableCell>付款狀態</TableCell>
+              <TableCell>發票狀態</TableCell>
               <TableCell align="right">合計</TableCell>
               <TableCell>建立時間</TableCell>
               <TableCell>操作</TableCell>
@@ -200,11 +284,11 @@ const OrderListPage: React.FC = () => {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} align="center"><CircularProgress size={24} /></TableCell>
+                <TableCell colSpan={9} align="center"><CircularProgress size={24} /></TableCell>
               </TableRow>
             ) : orders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 8 }}>
+                <TableCell colSpan={9} align="center" sx={{ py: 8 }}>
                   <Typography variant="h6" fontWeight={800}>目前沒有訂單</Typography>
                   <Typography variant="body2" color="text.secondary">
                     選擇門店並建立銷售後，訂單會顯示在這裡。
@@ -219,6 +303,28 @@ const OrderListPage: React.FC = () => {
                 </TableCell>
                 <TableCell>{order.orderType}</TableCell>
                 <TableCell>{order.items?.length ?? 0}</TableCell>
+                <TableCell>
+                  {['COMPLETED', 'CLOSED'].includes(order.status) ? (
+                    <Chip
+                      label={PAYMENT_STATUS_LABEL[paymentStatusByOrder[order.id] ?? (order.paidTotal > 0 ? 'PAID' : 'UNPAID')]}
+                      color={PAYMENT_STATUS_COLOR[paymentStatusByOrder[order.id] ?? (order.paidTotal > 0 ? 'PAID' : 'UNPAID')]}
+                      size="small"
+                    />
+                  ) : (
+                    <Typography variant="caption" color="text.secondary">-</Typography>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {['COMPLETED', 'CLOSED'].includes(order.status) ? (
+                    <Chip
+                      label={INVOICE_STATUS_LABEL[invoiceStatusByOrder[order.id] ?? 'MISSING']}
+                      color={INVOICE_STATUS_COLOR[invoiceStatusByOrder[order.id] ?? 'MISSING']}
+                      size="small"
+                    />
+                  ) : (
+                    <Typography variant="caption" color="text.secondary">-</Typography>
+                  )}
+                </TableCell>
                 <TableCell align="right">{formatMoney(order.grandTotal)}</TableCell>
                 <TableCell>{formatDate(order.createdAt)}</TableCell>
                 <TableCell>
