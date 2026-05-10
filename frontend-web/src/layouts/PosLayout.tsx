@@ -11,7 +11,7 @@ import {
   Paper, Button, BottomNavigation, BottomNavigationAction 
 } from '@mui/material';
 import {
-  PointOfSale, Receipt, Inventory, Settings, Category, LocalCafe,
+  PointOfSale, Receipt, Inventory, Settings, Category, LocalCafe, Replay,
   LockOutlined, Menu as MenuIcon, ShoppingCart, Wifi, Circle
 } from '@mui/icons-material';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
@@ -44,6 +44,7 @@ const PosLayout: React.FC = () => {
   const menuItems = [
     { text: '收銀台', icon: <PointOfSale />, path: '/pos/register' },
     { text: '訂單', icon: <Receipt />, path: '/pos/orders' },
+    { text: '退款', icon: <Replay />, path: '/pos/refunds' },
     { text: '商品', icon: <LocalCafe />, path: '/pos/products' },
     { text: '分類', icon: <Category />, path: '/pos/categories' },
     { text: '庫存', icon: <Inventory />, path: '/pos/inventory' },

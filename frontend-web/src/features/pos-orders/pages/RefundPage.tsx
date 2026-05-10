@@ -8,15 +8,30 @@ import React, { useState } from 'react';
 import {
   Box, Typography, TextField, Button, Alert,
   Card, CardContent, Divider, MenuItem, Select,
-  FormControl, InputLabel, InputAdornment,
+  FormControl, InputLabel, InputAdornment, Chip,
 } from '@mui/material';
+import { useSearchParams } from 'react-router-dom';
 import { refundApi } from '../api/orderApi';
 import type { CreateRefundRequest, OrderRefund } from '../types';
+import { DEFAULT_EMPLOYEE_ID } from '../config';
+import { formatMoney } from '@shared/utils';
 
-const PAY_METHODS = ['CASH', 'CARD', 'LINE_PAY', 'GIFT_CARD', 'OTHER'];
+const PAY_METHODS = ['CASH', 'CREDIT_CARD', 'LINE_PAY', 'JKOPAY', 'EASYCARD', 'OTHER'];
+
+const parseAmount = (value: string | null) => {
+  const amount = Number(value);
+  return Number.isFinite(amount) && amount > 0 ? amount : undefined;
+};
 
 const RefundPage: React.FC = () => {
-  const [form, setForm] = useState<Partial<CreateRefundRequest>>({ refundMethod: 'CASH' });
+  const [searchParams] = useSearchParams();
+  const orderNo = searchParams.get('orderNo');
+  const [form, setForm] = useState<Partial<CreateRefundRequest>>({
+    orderId: searchParams.get('orderId') ?? '',
+    refundAmount: parseAmount(searchParams.get('amount')),
+    refundMethod: 'CASH',
+    approvedBy: DEFAULT_EMPLOYEE_ID,
+  });
   const [result, setResult] = useState<OrderRefund | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,8 +44,13 @@ const RefundPage: React.FC = () => {
       setError('請填寫必要欄位（訂單 ID、退款金額、退款方式）');
       return;
     }
+    if (form.refundAmount <= 0) {
+      setError('退款金額必須大於 0');
+      return;
+    }
     setLoading(true);
     setError('');
+    setResult(null);
     try {
       const res = await refundApi.create(form as CreateRefundRequest);
       if (res.success && res.data) {
@@ -65,19 +85,27 @@ const RefundPage: React.FC = () => {
     setForm(f => ({ ...f, [key]: value }));
 
   return (
-    <Box sx={{ p: 3, maxWidth: 600 }}>
-      <Typography variant="h5" fontWeight="bold" mb={3}>退款申請</Typography>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, maxWidth: 760 }}>
+      <Box>
+        <Typography variant="h4" fontWeight={900} sx={{ mb: 0.5 }}>
+          退款申請
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          從訂單列表帶入訂單資料，建立退款申請後可立即完成退款處理。
+        </Typography>
+      </Box>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {orderNo && <Chip label={`訂單 ${orderNo}`} sx={{ alignSelf: 'flex-start', fontFamily: 'monospace', fontWeight: 800 }} />}
 
       {result ? (
         // 退款結果 / Refund result
-        <Card>
+        <Card sx={{ bgcolor: 'background.paper', borderRadius: 3, border: '1px solid rgba(255,255,255,0.06)' }}>
           <CardContent>
             <Typography variant="h6" mb={1}>退款申請已建立</Typography>
             <Typography>退款單號：<strong>{result.refundNo}</strong></Typography>
             <Typography>狀態：<strong>{result.status}</strong></Typography>
-            <Typography>退款金額：<strong>NT$ {result.refundAmount.toLocaleString()}</strong></Typography>
+            <Typography>退款金額：<strong>{formatMoney(result.refundAmount)}</strong></Typography>
             {result.status === 'APPROVED' && (
               <>
                 <Divider sx={{ my: 2 }} />
@@ -90,7 +118,7 @@ const RefundPage: React.FC = () => {
         </Card>
       ) : (
         // 退款表單 / Refund form
-        <Card>
+        <Card sx={{ bgcolor: 'background.paper', borderRadius: 3, border: '1px solid rgba(255,255,255,0.06)' }}>
           <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <TextField
               fullWidth label="訂單 ID" required
@@ -100,9 +128,10 @@ const RefundPage: React.FC = () => {
 
             <TextField
               fullWidth label="退款金額" required type="number"
-              InputProps={{ startAdornment: <InputAdornment position="start">NT$</InputAdornment> }}
+              InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
               value={form.refundAmount ?? ''}
-              onChange={e => update('refundAmount', parseFloat(e.target.value))}
+              onChange={e => update('refundAmount', Number(e.target.value))}
+              inputProps={{ min: 0.01, step: 0.01 }}
             />
 
             <FormControl fullWidth>
@@ -120,9 +149,10 @@ const RefundPage: React.FC = () => {
             />
 
             <TextField
-              fullWidth label="審批人 UUID（選填）"
+              fullWidth label="核准人 UUID"
               value={form.approvedBy ?? ''}
               onChange={e => update('approvedBy', e.target.value || undefined)}
+              helperText="目前本地測試預設使用操作員 UUID；留空會建立待核准退款，不能直接完成。"
             />
 
             <Button variant="contained" onClick={handleSubmit} disabled={loading}>

@@ -19,6 +19,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
@@ -46,6 +47,15 @@ public class RefundService {
 
         if (req.refundAmount().compareTo(order.getGrandTotal()) > 0) {
             throw new BusinessException("Refund amount exceeds order grand total");
+        }
+
+        BigDecimal activeRefundTotal = refundRepository.findByOrderId(req.orderId()).stream()
+            .filter(refund -> refund.getStatus() != OrderRefund.RefundStatus.REJECTED)
+            .map(OrderRefund::getRefundAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal remainingRefundable = order.getGrandTotal().subtract(activeRefundTotal);
+        if (req.refundAmount().compareTo(remainingRefundable) > 0) {
+            throw new BusinessException("Refund amount exceeds remaining refundable total");
         }
 
         OrderRefund refund = new OrderRefund();

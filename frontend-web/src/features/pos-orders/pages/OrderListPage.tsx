@@ -14,6 +14,7 @@ import {
 import { orderApi } from '../api/orderApi';
 import type { Order, OrderStatus, OrderListParams } from '../types';
 import { DEFAULT_STORE_ID } from '../config';
+import { useNavigate } from 'react-router-dom';
 
 // ========================================
 // 狀態顏色映射 / Status color mapping
@@ -35,6 +36,7 @@ const ORDER_METRICS = [
 ];
 
 const OrderListPage: React.FC = () => {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -195,11 +197,22 @@ const OrderListPage: React.FC = () => {
                 <TableCell align="right">{formatMoney(order.grandTotal)}</TableCell>
                 <TableCell>{formatDate(order.createdAt)}</TableCell>
                 <TableCell>
-                  {['DRAFT','CONFIRMED','PREPARING','READY'].includes(order.status) && (
-                    <Button size="small" color="error" onClick={() => { setVoidTarget(order); setVoidDialog(true); }}>
-                      作廢
-                    </Button>
-                  )}
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    {['COMPLETED', 'CLOSED'].includes(order.status) && (
+                      <Button
+                        size="small"
+                        color="secondary"
+                        onClick={() => navigate(`/pos/refunds?orderId=${order.id}&amount=${order.grandTotal}&orderNo=${encodeURIComponent(order.orderNo)}`)}
+                      >
+                        退款
+                      </Button>
+                    )}
+                    {['DRAFT','CONFIRMED','PREPARING','READY'].includes(order.status) && (
+                      <Button size="small" color="error" onClick={() => { setVoidTarget(order); setVoidDialog(true); }}>
+                        作廢
+                      </Button>
+                    )}
+                  </Box>
                 </TableCell>
               </TableRow>
             ))}
