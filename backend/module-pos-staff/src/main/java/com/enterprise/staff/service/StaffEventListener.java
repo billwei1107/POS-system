@@ -13,9 +13,11 @@ import com.enterprise.staff.entity.StaffShift;
 import com.enterprise.staff.repository.StaffShiftRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -31,8 +33,8 @@ public class StaffEventListener {
     // ========================================
     // 訂單完成 → 累計班次銷售 / Order completed → accumulate sales
     // ========================================
-    @EventListener
-    @Transactional
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onOrderCompleted(OrderCompletedEvent event) {
         Optional<StaffShift> openShift = findOpenShiftForStore(event.getStoreId());
         if (openShift.isEmpty()) {
@@ -51,8 +53,8 @@ public class StaffEventListener {
     // ========================================
     // 退款完成 → 累計班次退款 / Refund completed → accumulate refund
     // ========================================
-    @EventListener
-    @Transactional
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onRefundCompleted(RefundCompletedEvent event) {
         Optional<StaffShift> openShift = findOpenShiftForStore(event.getStoreId());
         if (openShift.isEmpty()) {
@@ -68,8 +70,8 @@ public class StaffEventListener {
     // ========================================
     // 訂單作廢 → 遞減交易計數 / Order voided → decrement transaction count
     // ========================================
-    @EventListener
-    @Transactional
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onOrderVoided(OrderVoidedEvent event) {
         Optional<StaffShift> openShift = findOpenShiftForStore(event.getStoreId());
         if (openShift.isEmpty()) {

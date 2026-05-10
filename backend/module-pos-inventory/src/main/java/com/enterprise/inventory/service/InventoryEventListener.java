@@ -11,9 +11,11 @@ import com.enterprise.core.event.RefundCompletedEvent;
 import com.enterprise.inventory.repository.StockMovementRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 @Component
 @RequiredArgsConstructor
@@ -27,8 +29,8 @@ public class InventoryEventListener {
     // 訂單完成 → 扣庫存（僅記錄聚合層扣減，明細由訂單品項資料提供）
     // OrderCompleted → deduct stock (aggregate-level guard; item-level handled via order items)
     // ========================================
-    @EventListener
-    @Transactional
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onOrderCompleted(OrderCompletedEvent event) {
         // 庫存扣減的精確品項數量需要從 order_items 查詢
         // 在本 Sprint 中，inventoryService 只記錄「已有扣減」的 movement 作為聚合哨兵
@@ -50,8 +52,8 @@ public class InventoryEventListener {
     // ========================================
     // 退款完成 → 回補庫存 / RefundCompleted → return stock
     // ========================================
-    @EventListener
-    @Transactional
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onRefundCompleted(RefundCompletedEvent event) {
         boolean alreadyProcessed = movementRepository
                 .findFirstByReferenceIdAndMovementType(event.getRefundId(),

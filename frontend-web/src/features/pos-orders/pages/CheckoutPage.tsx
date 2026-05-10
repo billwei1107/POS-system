@@ -6,17 +6,39 @@ import React, { useMemo, useState } from 'react';
 import { Box, Typography, Button, Avatar, Divider, Chip } from '@mui/material';
 import { 
     Payments, CreditCard, AccountBalanceWallet, QrCode, 
-    Nfc, MoreHoriz, ArrowBack 
+    Nfc, MoreHoriz, ArrowBack, ReceiptLong
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { calculateCartTotals, useCartStore } from '../store/cartStore';
 import { formatMoney } from '@shared/utils';
+import { orderApi } from '../api/orderApi';
+import type { Order, OrderType } from '../types';
+import {
+    DEFAULT_EMPLOYEE_ID,
+    DEFAULT_GUEST_COUNT,
+    DEFAULT_STORE_ID,
+    DEFAULT_TABLE_NO,
+    DEFAULT_TERMINAL_ID,
+} from '../config';
+
+const PAYMENT_METHOD_LABEL: Record<string, string> = {
+    cash: 'CASH',
+    credit: 'CREDIT_CARD',
+    linepay: 'LINE_PAY',
+    jkopay: 'JKOPAY',
+    easycard: 'EASYCARD',
+    others: 'OTHER',
+};
 
 const CheckoutPage: React.FC = () => {
     const navigate = useNavigate();
     const [selectedMethod, setSelectedMethod] = useState('cash');
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
     const orderItems = useCartStore((state) => state.lines);
     const taxRate = useCartStore((state) => state.taxRate);
+    const clearCart = useCartStore((state) => state.clear);
     const totals = useMemo(() => calculateCartTotals(orderItems, taxRate), [orderItems, taxRate]);
 
     const paymentMethods = [
@@ -27,6 +49,59 @@ const CheckoutPage: React.FC = () => {
         { id: 'easycard', label: '悠遊卡', icon: <Nfc sx={{ fontSize: 32 }} />, color: '#FF7D00', bg: 'rgba(255, 125, 0, 0.15)' },
         { id: 'others', label: '其他', icon: <MoreHoriz sx={{ fontSize: 32 }} />, color: '#9CA3AF', bg: 'rgba(156, 163, 175, 0.15)' },
     ];
+
+    // ========================================
+    // 確認付款 / Confirm Payment
+    // ========================================
+    const handleConfirmPayment = async () => {
+        if (orderItems.length === 0 || submitting) return;
+
+        setSubmitting(true);
+        setError(null);
+        setCompletedOrder(null);
+        try {
+            const createResponse = await orderApi.create({
+                storeId: DEFAULT_STORE_ID,
+                terminalId: DEFAULT_TERMINAL_ID,
+                employeeId: DEFAULT_EMPLOYEE_ID,
+                orderType: 'DINE_IN' as OrderType,
+                tableNo: DEFAULT_TABLE_NO,
+                guestCount: DEFAULT_GUEST_COUNT,
+                taxIncluded: false,
+                discountAmount: totals.discount,
+                items: orderItems.map((item) => ({
+                    itemId: item.itemId,
+                    itemNameSnapshot: item.name,
+                    skuSnapshot: item.sku,
+                    unitPrice: item.unitPrice,
+                    quantity: item.quantity,
+                    modifierPriceAdjustment: 0,
+                    note: item.note,
+                })),
+            });
+
+            if (!createResponse.success || !createResponse.data) {
+                throw new Error(createResponse.message || '建立訂單失敗。');
+            }
+
+            const completeResponse = await orderApi.complete(
+                createResponse.data.id,
+                PAYMENT_METHOD_LABEL[selectedMethod] ?? selectedMethod.toUpperCase(),
+                selectedMethod === 'cash' ? totals.total : undefined
+            );
+
+            if (!completeResponse.success || !completeResponse.data) {
+                throw new Error(completeResponse.message || '付款完成失敗。');
+            }
+
+            setCompletedOrder(completeResponse.data);
+            clearCart();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : '付款流程失敗，請稍後再試。');
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
     return (
         <Box sx={{ 
@@ -51,8 +126,28 @@ const CheckoutPage: React.FC = () => {
             }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 5 }}>
                     <Typography variant="h6" fontWeight="bold">訂單摘要</Typography>
-                    <Chip label="#INV-8842" size="small" sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: 'text.secondary', fontFamily: 'monospace', fontWeight: 800 }} />
+                    <Chip
+                        label={completedOrder ? completedOrder.orderNo : '尚未送出'}
+                        size="small"
+                        sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: 'text.secondary', fontFamily: 'monospace', fontWeight: 800 }}
+                    />
                 </Box>
+
+                {error && (
+                    <Box sx={{ mb: 3, p: 2, borderRadius: 2, bgcolor: 'rgba(255,82,82,0.1)', color: 'error.main', border: '1px solid rgba(255,82,82,0.22)' }}>
+                        <Typography variant="body2" fontWeight={800}>{error}</Typography>
+                    </Box>
+                )}
+
+                {completedOrder && (
+                    <Box sx={{ mb: 3, p: 2, borderRadius: 2, bgcolor: 'rgba(76,175,80,0.12)', color: 'success.main', border: '1px solid rgba(76,175,80,0.24)', display: 'flex', gap: 1.5, alignItems: 'center' }}>
+                        <ReceiptLong />
+                        <Box>
+                            <Typography fontWeight={900}>付款完成</Typography>
+                            <Typography variant="body2">訂單 {completedOrder.orderNo} 已完成，購物車已清空。</Typography>
+                        </Box>
+                    </Box>
+                )}
 
                 {/* 品項列表 / Items list */}
                 <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
@@ -184,7 +279,8 @@ const CheckoutPage: React.FC = () => {
                     </Button>
                     <Button 
                         variant="contained" 
-                        disabled={orderItems.length === 0}
+                        disabled={orderItems.length === 0 || submitting}
+                        onClick={handleConfirmPayment}
                         sx={{ 
                             flex: 2, 
                             py: 2, 
@@ -195,9 +291,18 @@ const CheckoutPage: React.FC = () => {
                             fontSize: '16px'
                         }}
                     >
-                        確認付款方式
+                        {submitting ? '付款處理中' : '確認付款方式'}
                     </Button>
                 </Box>
+                {completedOrder && (
+                    <Button
+                        variant="outlined"
+                        onClick={() => navigate('/pos/orders')}
+                        sx={{ mt: 2, color: 'text.primary', borderColor: 'rgba(255,255,255,0.12)' }}
+                    >
+                        查看訂單列表
+                    </Button>
+                )}
             </Box>
 
         </Box>

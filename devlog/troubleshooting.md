@@ -144,3 +144,29 @@ waiting for locator('button').filter({ has: locator('svg[data-testid="ShoppingCa
   - 點選商品後購物車加減數量正常。
   - `/pos/checkout` 顯示同一筆商品與正確 `$126` 應收金額。
   - 未登入狀態 `/pos/register` 顯示登入提示，未再打出商品 API 403。
+
+---
+
+# 2026-05-10 POS checkout 付款完成流程後端交易問題
+
+## Issue
+
+- 場景：Checkout 頁接上真實 `pos-orders` API 後，以 Playwright 執行「收銀台加入商品 → checkout → 確認付款」。
+- 問題：
+  - `completeOrder` 第一次回 500，錯誤為 `illegal transition CONFIRMED → READY`。
+  - 補狀態後仍回 500，錯誤為 `Transaction silently rolled back because it has been marked as rollback-only`。
+  - 訂單付款完成後進入列表時，`GET /api/v1/pos/orders?...` 回 500，PostgreSQL 錯誤為 `could not determine data type of parameter $4`。
+
+## Solution
+
+- `OrderService.completeOrder` 改為透過 `advanceToCompleted` 依序推進 `DRAFT → CONFIRMED → PREPARING → READY → COMPLETED`。
+- 為 `OrderService.completeOrder` 新增 unit test，驗證付款金額、找零、完成時間、付款紀錄與事件發布。
+- 將 `PaymentService`、`InvoiceService`、`InventoryEventListener`、`StaffEventListener` 的訂單完成/退款/作廢事件監聽改為 `@TransactionalEventListener(phase = AFTER_COMMIT)`，並使用 `@Transactional(propagation = REQUIRES_NEW)`，避免周邊副作用污染核心訂單交易。
+- 將 `OrderRepository` 擴充 `JpaSpecificationExecutor`，`OrderService.listByStore` 改用 Specification 動態產生 store/status/from/to 條件，避免 nullable JPQL 參數造成 PostgreSQL 型別推斷失敗。
+
+## Verification
+
+- `mvn -pl module-pos-core,module-pos-payment,module-pos-inventory,module-pos-staff,module-pos-tax -am test`：通過。
+- `docker compose up -d --build backend`：通過。
+- `curl http://localhost:38080/actuator/health`：通過，回傳 `{"status":"UP"}`。
+- Playwright checkout payment smoke：通過，建立訂單、完成付款、清空購物車、跳轉訂單列表並看到 `COMPLETED` 訂單。

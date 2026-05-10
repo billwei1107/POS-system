@@ -24,9 +24,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -59,8 +61,8 @@ public class InvoiceService {
     // ========================================
     // 消費訂單完成事件，自動開立電子發票 / Auto-issue invoice on order completion
     // ========================================
-    @EventListener
-    @Transactional
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onOrderCompleted(OrderCompletedEvent event) {
         if (invoiceRepository.findByOrderId(event.getOrderId()).isPresent()) {
             log.debug("Invoice already exists for order {}", event.getOrderId());
@@ -76,8 +78,8 @@ public class InvoiceService {
     // ========================================
     // 消費退款完成事件，自動作廢或折讓 / Auto-void or allowance on refund completion
     // ========================================
-    @EventListener
-    @Transactional
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onRefundCompleted(RefundCompletedEvent event) {
         Optional<Invoice> invoiceOpt = invoiceRepository.findByOrderId(event.getOrderId());
         if (invoiceOpt.isEmpty()) {

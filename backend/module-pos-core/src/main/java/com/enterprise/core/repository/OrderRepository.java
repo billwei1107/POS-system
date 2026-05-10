@@ -7,32 +7,15 @@
 package com.enterprise.core.repository;
 
 import com.enterprise.core.entity.Order;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface OrderRepository extends JpaRepository<Order, UUID> {
+public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecificationExecutor<Order> {
 
     Optional<Order> findByOrderNo(String orderNo);
 
     boolean existsByOrderNo(String orderNo);
-
-    @Query("SELECT o FROM Order o WHERE o.storeId = :storeId " +
-           "AND (:status IS NULL OR o.status = :status) " +
-           "AND (:from IS NULL OR o.createdAt >= :from) " +
-           "AND (:to IS NULL OR o.createdAt <= :to) " +
-           "ORDER BY o.createdAt DESC")
-    Page<Order> findByStoreIdAndFilters(
-        @Param("storeId") UUID storeId,
-        @Param("status") Order.OrderStatus status,
-        @Param("from") LocalDateTime from,
-        @Param("to") LocalDateTime to,
-        Pageable pageable
-    );
 }

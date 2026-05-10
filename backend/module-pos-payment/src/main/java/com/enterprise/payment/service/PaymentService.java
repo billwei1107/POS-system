@@ -23,9 +23,11 @@ import com.enterprise.payment.repository.PaymentTransactionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.util.List;
 import java.util.Map;
@@ -55,8 +57,8 @@ public class PaymentService {
     // ========================================
     // 消費 OrderCompletedEvent / Consume OrderCompletedEvent
     // ========================================
-    @EventListener
-    @Transactional
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onOrderCompleted(OrderCompletedEvent event) {
         log.info("PaymentService received OrderCompletedEvent for order={}", event.getOrderNo());
         // OrderService already recorded the payment record in pos_order_payments.

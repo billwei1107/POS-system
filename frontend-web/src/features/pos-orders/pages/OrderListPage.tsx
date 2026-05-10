@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { orderApi } from '../api/orderApi';
 import type { Order, OrderStatus, OrderListParams } from '../types';
+import { DEFAULT_STORE_ID } from '../config';
 
 // ========================================
 // 狀態顏色映射 / Status color mapping
@@ -26,8 +27,6 @@ const STATUS_COLOR: Record<OrderStatus, 'default' | 'primary' | 'secondary' | 'e
   CLOSED: 'default',
   VOIDED: 'error',
 };
-
-const STORE_ID = import.meta.env.VITE_DEFAULT_STORE_ID || '';
 
 const ORDER_METRICS = [
   { label: '進行中訂單', value: '0', helper: '等待同步資料' },
@@ -50,7 +49,7 @@ const OrderListPage: React.FC = () => {
   const [voidedBy] = useState('00000000-0000-0000-0000-000000000001');
 
   const fetchOrders = useCallback(async () => {
-    if (!STORE_ID) {
+    if (!DEFAULT_STORE_ID) {
       setOrders([]);
       setTotal(0);
       setError('尚未設定預設門店。請設定 VITE_DEFAULT_STORE_ID 後載入即時訂單。');
@@ -61,7 +60,7 @@ const OrderListPage: React.FC = () => {
     setError('');
     try {
       const params: OrderListParams = {
-        storeId: STORE_ID,
+        storeId: DEFAULT_STORE_ID,
         page: page - 1,
         size: 20,
         ...(status ? { status } : {}),

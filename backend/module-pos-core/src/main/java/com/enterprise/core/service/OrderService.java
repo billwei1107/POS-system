@@ -21,16 +21,19 @@ import com.enterprise.core.event.OrderVoidedEvent;
 import com.enterprise.core.repository.OrderItemRepository;
 import com.enterprise.core.repository.OrderPaymentRepository;
 import com.enterprise.core.repository.OrderRepository;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -96,9 +99,7 @@ public class OrderService {
     @Transactional
     public OrderResponse completeOrder(UUID orderId, String payMethod, BigDecimal tendered) {
         Order order = getOrThrow(orderId);
-        stateMachine.transition(order, Order.OrderStatus.CONFIRMED);
-        stateMachine.transition(order, Order.OrderStatus.READY);
-        stateMachine.transition(order, Order.OrderStatus.COMPLETED);
+        advanceToCompleted(order);
 
         BigDecimal change = pricingEngine.calculateChange(tendered, order.getGrandTotal());
         order.setPaidTotal(order.getGrandTotal());
@@ -163,7 +164,7 @@ public class OrderService {
     public PageResponse<OrderResponse> listByStore(UUID storeId, Order.OrderStatus status,
                                                     LocalDateTime from, LocalDateTime to,
                                                     Pageable pageable) {
-        Page<Order> page = orderRepository.findByStoreIdAndFilters(storeId, status, from, to, pageable);
+        Page<Order> page = orderRepository.findAll(buildStoreFilter(storeId, status, from, to), pageable);
         return PageResponse.of(page.map(o -> {
             List<OrderItemResponse> items = orderItemRepository
                 .findByOrderIdOrderBySortOrder(o.getId()).stream()
@@ -178,6 +179,43 @@ public class OrderService {
     private Order getOrThrow(UUID id) {
         return orderRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Order not found: " + id));
+    }
+
+    // ========================================
+    // 推進至完成 / Advance lifecycle to completed
+    // ========================================
+    private void advanceToCompleted(Order order) {
+        if (order.getStatus() == Order.OrderStatus.DRAFT) {
+            stateMachine.transition(order, Order.OrderStatus.CONFIRMED);
+        }
+        if (order.getStatus() == Order.OrderStatus.CONFIRMED) {
+            stateMachine.transition(order, Order.OrderStatus.PREPARING);
+        }
+        if (order.getStatus() == Order.OrderStatus.PREPARING) {
+            stateMachine.transition(order, Order.OrderStatus.READY);
+        }
+        stateMachine.transition(order, Order.OrderStatus.COMPLETED);
+    }
+
+    // ========================================
+    // 訂單查詢條件 / Order query filters
+    // ========================================
+    private Specification<Order> buildStoreFilter(UUID storeId, Order.OrderStatus status,
+                                                  LocalDateTime from, LocalDateTime to) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("storeId"), storeId));
+            if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            if (from != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), from));
+            }
+            if (to != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), to));
+            }
+            return cb.and(predicates.toArray(Predicate[]::new));
+        };
     }
 
     private String generateOrderNo(UUID storeId) {
