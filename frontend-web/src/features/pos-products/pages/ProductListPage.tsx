@@ -26,6 +26,7 @@ import {
   Edit as EditIcon,
   Search as SearchIcon,
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import { productApi } from '../api/productApi';
 import type { Category, ProductItem, ProductItemRequest, UnitType } from '../types';
 import { ConfirmDialog, DataTable, PageHeader, StatusChip, type Column } from '@shared/components';
@@ -134,6 +135,7 @@ const ProductDialog: React.FC<ProductDialogProps> = ({ open, initial, categories
 // 主頁面 / Main page
 // ========================================
 const ProductListPage: React.FC = () => {
+  const navigate = useNavigate();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -154,7 +156,7 @@ const ProductListPage: React.FC = () => {
     if (!isAuthenticated) {
       setProducts([]);
       setTotal(0);
-      setError('請先登入後台後再管理商品資料。');
+      setError('請先登入系統後再管理商品資料。');
       setLoading(false);
       return;
     }
@@ -298,7 +300,19 @@ const ProductListPage: React.FC = () => {
         )}
       />
 
-      {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
+      {error && (
+        <Alert
+          severity="error"
+          onClose={() => setError(null)}
+          action={!isAuthenticated ? (
+            <Button color="inherit" size="small" onClick={() => navigate('/login')}>
+              前往登入
+            </Button>
+          ) : undefined}
+        >
+          {error}
+        </Alert>
+      )}
 
       {/* ===== 篩選列 / Filter bar ===== */}
       <Box sx={{

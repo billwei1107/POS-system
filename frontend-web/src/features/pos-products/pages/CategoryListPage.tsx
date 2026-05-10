@@ -17,6 +17,7 @@ import {
   Alert,
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import { productApi } from '../api/productApi';
 import type { Category, CategoryRequest } from '../types';
 import { ConfirmDialog, DataTable, PageHeader, StatusChip, type Column } from '@shared/components';
@@ -96,6 +97,7 @@ const CategoryDialog: React.FC<CategoryDialogProps> = ({ open, initial, onClose,
 // 主頁面 / Main page
 // ========================================
 const CategoryListPage: React.FC = () => {
+  const navigate = useNavigate();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,7 +109,7 @@ const CategoryListPage: React.FC = () => {
   const load = useCallback(async () => {
     if (!isAuthenticated) {
       setCategories([]);
-      setError('請先登入後台後再管理商品分類。');
+      setError('請先登入系統後再管理商品分類。');
       setLoading(false);
       return;
     }
@@ -228,7 +230,19 @@ const CategoryListPage: React.FC = () => {
         )}
       />
 
-      {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
+      {error && (
+        <Alert
+          severity="error"
+          onClose={() => setError(null)}
+          action={!isAuthenticated ? (
+            <Button color="inherit" size="small" onClick={() => navigate('/login')}>
+              前往登入
+            </Button>
+          ) : undefined}
+        >
+          {error}
+        </Alert>
+      )}
 
       <DataTable
         columns={columns}
