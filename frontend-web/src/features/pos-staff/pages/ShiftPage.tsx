@@ -11,9 +11,9 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { shiftApi } from '../api/staffApi';
+import { cashDrawerApi } from '../../pos-payment/api/paymentApi';
 import type { OpenShiftPayload, StaffShift } from '../types';
-
-const STORE_ID = import.meta.env.VITE_DEFAULT_STORE_ID as string;
+import { DEFAULT_EMPLOYEE_ID, DEFAULT_STORE_ID, DEFAULT_TERMINAL_ID } from '../../pos-orders/config';
 
 const STATUS_LABEL: Record<string, string> = {
   OPEN: '開班中',
@@ -41,14 +41,18 @@ const ShiftPage: React.FC = () => {
   // ========================================
   // 開班表單 / Open shift form
   // ========================================
-  const [openForm, setOpenForm] = useState<OpenShiftPayload>({ employeeId: '', openingCash: 0 });
+  const [openForm, setOpenForm] = useState<OpenShiftPayload>({
+    employeeId: DEFAULT_EMPLOYEE_ID,
+    terminalId: DEFAULT_TERMINAL_ID,
+    openingCash: 1000,
+  });
   const [closingCash, setClosingCash] = useState('');
 
   const loadShifts = async () => {
     try {
       setLoading(true);
-      const res = await shiftApi.listOpen(STORE_ID);
-      setShifts(res.data.data ?? []);
+      const res = await shiftApi.listOpen(DEFAULT_STORE_ID);
+      setShifts(res.data ?? []);
     } catch {
       setError('載入失敗');
     } finally {
@@ -61,9 +65,19 @@ const ShiftPage: React.FC = () => {
   const handleOpen = async () => {
     if (!openForm.employeeId) return;
     try {
-      await shiftApi.open(STORE_ID, openForm);
+      await shiftApi.open(DEFAULT_STORE_ID, openForm);
+      try {
+        await cashDrawerApi.open({
+          storeId: DEFAULT_STORE_ID,
+          terminalId: openForm.terminalId || DEFAULT_TERMINAL_ID,
+          openedBy: openForm.employeeId,
+          openingAmount: openForm.openingCash,
+        });
+      } catch {
+        // 現金抽屜可能已由同終端機開啟；開班成功時不阻斷班次流程。
+      }
       setOpenDialog(false);
-      setOpenForm({ employeeId: '', openingCash: 0 });
+      setOpenForm({ employeeId: DEFAULT_EMPLOYEE_ID, terminalId: DEFAULT_TERMINAL_ID, openingCash: 1000 });
       await loadShifts();
       setSuccess('班次已開啟');
     } catch {
@@ -75,6 +89,14 @@ const ShiftPage: React.FC = () => {
     if (!closingCash) return;
     try {
       await shiftApi.close(closeDialog.shiftId, { closingCash: Number(closingCash) });
+      try {
+        const drawer = await cashDrawerApi.getOpen(DEFAULT_TERMINAL_ID);
+        if (drawer.data) {
+          await cashDrawerApi.close(drawer.data.id, DEFAULT_EMPLOYEE_ID, Number(closingCash), 'shift close');
+        }
+      } catch {
+        // 若沒有開啟中的抽屜，仍保留班次關班結果。
+      }
       setCloseDialog({ open: false, shiftId: '' });
       setClosingCash('');
       await loadShifts();
@@ -169,6 +191,11 @@ const ShiftPage: React.FC = () => {
             value={openForm.employeeId}
             onChange={e => setOpenForm({ ...openForm, employeeId: e.target.value })}
             required
+          />
+          <TextField
+            label="終端機 ID"
+            value={openForm.terminalId ?? ''}
+            onChange={e => setOpenForm({ ...openForm, terminalId: e.target.value })}
           />
           <TextField
             type="number"

@@ -11,11 +11,16 @@ import com.enterprise.common.exception.ResourceNotFoundException;
 import com.enterprise.payment.dto.request.OpenDrawerRequest;
 import com.enterprise.payment.entity.CashDrawer;
 import com.enterprise.payment.entity.CashDrawerEvent;
+import com.enterprise.payment.event.PaymentProcessedEvent;
 import com.enterprise.payment.repository.CashDrawerEventRepository;
 import com.enterprise.payment.repository.CashDrawerRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -23,6 +28,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CashDrawerService {
 
     private final CashDrawerRepository cashDrawerRepository;
@@ -83,6 +89,29 @@ public class CashDrawerService {
     public CashDrawer getOpen(UUID terminalId) {
         return cashDrawerRepository.findByTerminalIdAndStatus(terminalId, CashDrawer.DrawerStatus.OPEN)
             .orElseThrow(() -> new ResourceNotFoundException("No open drawer on terminal: " + terminalId));
+    }
+
+    // ========================================
+    // 現金付款 → 記錄抽屜銷售 / Cash payment → record drawer sale
+    // ========================================
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void onPaymentProcessed(PaymentProcessedEvent event) {
+        if (!"CASH".equalsIgnoreCase(event.getMethodType())) {
+            return;
+        }
+        if (event.getTerminalId() == null || event.getEmployeeId() == null) {
+            log.debug("Cash drawer sale skipped because terminal or employee is missing for order {}", event.getOrderId());
+            return;
+        }
+
+        cashDrawerRepository.findByTerminalIdAndStatus(event.getTerminalId(), CashDrawer.DrawerStatus.OPEN)
+            .ifPresentOrElse(drawer -> {
+                logEvent(drawer.getId(), CashDrawerEvent.EventType.SALE, event.getAmount(),
+                    event.getEmployeeId(), event.getOrderId(), "cash payment " + event.getOrderNo());
+                log.info("Recorded cash drawer sale {} for order {}", event.getAmount(), event.getOrderId());
+            }, () -> log.debug("No open cash drawer on terminal {}, skipping order {}",
+                event.getTerminalId(), event.getOrderId()));
     }
 
     // ========================================

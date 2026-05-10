@@ -18,16 +18,26 @@ public class PaymentProcessedEvent extends ApplicationEvent {
     private final UUID transactionId;
     private final UUID orderId;
     private final UUID storeId;
+    private final UUID terminalId;
+    private final UUID employeeId;
     private final String orderNo;
     private final String methodType;
     private final BigDecimal amount;
 
     public PaymentProcessedEvent(Object source, UUID transactionId, UUID orderId,
                                   UUID storeId, String orderNo, String methodType, BigDecimal amount) {
+        this(source, transactionId, orderId, storeId, null, null, orderNo, methodType, amount);
+    }
+
+    public PaymentProcessedEvent(Object source, UUID transactionId, UUID orderId,
+                                  UUID storeId, UUID terminalId, UUID employeeId,
+                                  String orderNo, String methodType, BigDecimal amount) {
         super(source);
         this.transactionId = transactionId;
         this.orderId = orderId;
         this.storeId = storeId;
+        this.terminalId = terminalId;
+        this.employeeId = employeeId;
         this.orderNo = orderNo;
         this.methodType = methodType;
         this.amount = amount;

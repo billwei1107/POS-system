@@ -12,7 +12,8 @@ import {
 } from '@mui/material';
 import {
   PointOfSale, Receipt, Inventory, Settings, Category, LocalCafe, Replay,
-  LockOutlined, Menu as MenuIcon, ShoppingCart, Wifi, Circle, ReceiptLong
+  LockOutlined, Menu as MenuIcon, ShoppingCart, Wifi, Circle, ReceiptLong,
+  Badge, FactCheck
 } from '@mui/icons-material';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@shared/store/authStore';
@@ -56,6 +57,8 @@ const PosLayout: React.FC = () => {
     { text: '分類', icon: <Category />, path: '/pos/categories' },
     { text: '庫存', icon: <Inventory />, path: '/pos/inventory' },
     { text: '發票', icon: <ReceiptLong />, path: '/pos/invoices' },
+    { text: '班次', icon: <Badge />, path: '/pos/shifts' },
+    { text: '對帳', icon: <FactCheck />, path: '/pos/reconciliation' },
   ];
 
   const sidebarContent = (

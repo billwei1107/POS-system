@@ -12,8 +12,7 @@ import {
 } from '@mui/material';
 import { reconciliationApi } from '../api/paymentApi';
 import type { Reconciliation, ReconStatus } from '../types';
-
-const STORE_ID = import.meta.env.VITE_DEFAULT_STORE_ID as string;
+import { DEFAULT_EMPLOYEE_ID, DEFAULT_STORE_ID } from '../../pos-orders/config';
 
 const STATUS_COLOR: Record<ReconStatus, 'default' | 'warning' | 'success' | 'error'> = {
   PENDING: 'warning',
@@ -47,14 +46,14 @@ const ReconciliationPage: React.FC = () => {
     reconId: '',
   });
   const [gatewayAmount, setGatewayAmount] = useState('');
-  const [reconciledBy, setReconciledBy] = useState('');
+  const [reconciledBy, setReconciledBy] = useState(DEFAULT_EMPLOYEE_ID);
 
   const loadRecords = async () => {
     if (!date) return;
     setLoading(true);
     setError('');
     try {
-      const res = await reconciliationApi.list(STORE_ID, date);
+      const res = await reconciliationApi.list(DEFAULT_STORE_ID, date);
       setRecords(res.data ?? []);
     } catch {
       setError('查詢失敗');
@@ -68,7 +67,7 @@ const ReconciliationPage: React.FC = () => {
     setGenerating(true);
     setError('');
     try {
-      const res = await reconciliationApi.generate(STORE_ID, date);
+      const res = await reconciliationApi.generate(DEFAULT_STORE_ID, date);
       setRecords(res.data ?? []);
       setSuccess(`已產生 ${res.data?.length ?? 0} 筆對帳記錄`);
     } catch {
@@ -84,7 +83,7 @@ const ReconciliationPage: React.FC = () => {
       await reconciliationApi.confirm(confirmDialog.reconId, Number(gatewayAmount), reconciledBy);
       setConfirmDialog({ open: false, reconId: '' });
       setGatewayAmount('');
-      setReconciledBy('');
+      setReconciledBy(DEFAULT_EMPLOYEE_ID);
       await loadRecords();
       setSuccess('對帳已確認');
     } catch {

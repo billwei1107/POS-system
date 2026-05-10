@@ -37,6 +37,8 @@ import PosLoginPage from './features/pos-auth/pages/PosLoginPage';
 import ProductListPage from './features/pos-products/pages/ProductListPage';
 import CategoryListPage from './features/pos-products/pages/CategoryListPage';
 import InvoicePage from './features/pos-tax/pages/InvoicePage';
+import ShiftPage from './features/pos-staff/pages/ShiftPage';
+import ReconciliationPage from './features/pos-payment/pages/ReconciliationPage';
 
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const logout = useAuthStore((state) => state.logout);
@@ -101,6 +103,8 @@ function App() {
               <Route path="checkout" element={<CheckoutPage />} />
               <Route path="inventory" element={<StockOverviewPage />} />
               <Route path="invoices" element={<InvoicePage />} />
+              <Route path="shifts" element={<ShiftPage />} />
+              <Route path="reconciliation" element={<ReconciliationPage />} />
               <Route path="*" element={<Navigate to="/pos/register" replace />} />
           </Route>
 

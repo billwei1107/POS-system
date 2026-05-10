@@ -10,6 +10,7 @@ import com.enterprise.core.event.OrderCompletedEvent;
 import com.enterprise.payment.entity.GatewayConfig;
 import com.enterprise.payment.entity.PayMethod;
 import com.enterprise.payment.entity.PaymentTransaction;
+import com.enterprise.payment.event.PaymentProcessedEvent;
 import com.enterprise.payment.gateway.PaymentGateway;
 import com.enterprise.payment.gateway.dto.GatewayRequest;
 import com.enterprise.payment.gateway.dto.GatewayResponse;
@@ -68,6 +69,8 @@ class PaymentServiceTest {
     void onOrderCompleted_cashPayment_savesTenderedAndChange() {
         UUID orderId = UUID.randomUUID();
         UUID storeId = UUID.randomUUID();
+        UUID terminalId = UUID.randomUUID();
+        UUID employeeId = UUID.randomUUID();
         UUID payMethodId = UUID.randomUUID();
         PayMethod cash = payMethod(storeId, payMethodId);
 
@@ -83,9 +86,12 @@ class PaymentServiceTest {
             this,
             orderId,
             storeId,
+            terminalId,
+            employeeId,
             "ORD-001",
             null,
             new BigDecimal("126.00"),
+            new BigDecimal("6.00"),
             "CASH",
             new BigDecimal("126.00"),
             new BigDecimal("130.00"),
@@ -104,22 +110,31 @@ class PaymentServiceTest {
         assertThat(txn.getChangeGiven()).isEqualByComparingTo("4.00");
         assertThat(txn.getStatus()).isEqualTo(PaymentTransaction.TxnStatus.SUCCESS);
         assertThat(txn.getGatewayRef()).isEqualTo("CASH-TEST");
-        verify(eventPublisher).publishEvent(any());
+        ArgumentCaptor<PaymentProcessedEvent> eventCaptor = ArgumentCaptor.forClass(PaymentProcessedEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().getMethodType()).isEqualTo("CASH");
+        assertThat(eventCaptor.getValue().getTerminalId()).isEqualTo(terminalId);
+        assertThat(eventCaptor.getValue().getEmployeeId()).isEqualTo(employeeId);
     }
 
     @Test
     void onOrderCompleted_existingTransaction_doesNotCreateDuplicate() {
         UUID orderId = UUID.randomUUID();
         UUID storeId = UUID.randomUUID();
+        UUID terminalId = UUID.randomUUID();
+        UUID employeeId = UUID.randomUUID();
         when(transactionRepository.findByOrderId(orderId)).thenReturn(List.of(new PaymentTransaction()));
 
         paymentService.onOrderCompleted(new OrderCompletedEvent(
             this,
             orderId,
             storeId,
+            terminalId,
+            employeeId,
             "ORD-002",
             null,
             new BigDecimal("126.00"),
+            new BigDecimal("6.00"),
             "CASH",
             new BigDecimal("126.00"),
             new BigDecimal("130.00"),

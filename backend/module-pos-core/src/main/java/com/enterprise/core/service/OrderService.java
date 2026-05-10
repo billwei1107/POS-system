@@ -116,7 +116,7 @@ public class OrderService {
         orderPaymentRepository.save(payment);
 
         eventPublisher.publishEvent(new OrderCompletedEvent(
-            this, order.getId(), order.getStoreId(), order.getOrderNo(),
+            this, order.getId(), order.getStoreId(), order.getTerminalId(), order.getEmployeeId(), order.getOrderNo(),
             order.getMemberId(), order.getGrandTotal(), order.getTaxTotal(), payMethod,
             order.getPaidTotal(), tendered, change
         ));

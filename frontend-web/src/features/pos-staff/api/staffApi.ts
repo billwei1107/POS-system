@@ -5,6 +5,7 @@
  * @description_zh 班次管理、X/Z Report、打卡的 Axios API 函式
  */
 import axiosInstance from '../../../shared/api/axiosInstance';
+import type { ApiResponse } from '../../../shared/types';
 import type {
   CloseShiftPayload,
   GenerateZReportPayload,
@@ -22,16 +23,16 @@ const REPORT_BASE = '/v1/staff/reports';
 // ========================================
 export const shiftApi = {
   listOpen: (storeId: string) =>
-    axiosInstance.get<{ data: StaffShift[] }>(SHIFT_BASE, { params: { storeId } }),
+    axiosInstance.get<unknown, ApiResponse<StaffShift[]>>(SHIFT_BASE, { params: { storeId } }),
 
   open: (storeId: string, payload: OpenShiftPayload) =>
-    axiosInstance.post<{ data: StaffShift }>(`${SHIFT_BASE}/open`, payload, { params: { storeId } }),
+    axiosInstance.post<unknown, ApiResponse<StaffShift>, OpenShiftPayload>(`${SHIFT_BASE}/open`, payload, { params: { storeId } }),
 
   close: (shiftId: string, payload: CloseShiftPayload) =>
-    axiosInstance.post<{ data: StaffShift }>(`${SHIFT_BASE}/${shiftId}/close`, payload),
+    axiosInstance.post<unknown, ApiResponse<StaffShift>, CloseShiftPayload>(`${SHIFT_BASE}/${shiftId}/close`, payload),
 
   blindClose: (shiftId: string, notes?: string) =>
-    axiosInstance.post<{ data: StaffShift }>(`${SHIFT_BASE}/${shiftId}/blind-close`, null, { params: { notes } }),
+    axiosInstance.post<unknown, ApiResponse<StaffShift>>(`${SHIFT_BASE}/${shiftId}/blind-close`, null, { params: { notes } }),
 
   createHandover: (fromShiftId: string, params: {
     toShiftId?: string;
@@ -39,10 +40,10 @@ export const shiftApi = {
     notes?: string;
     confirmedBy: string;
   }) =>
-    axiosInstance.post<{ data: string }>(`${SHIFT_BASE}/${fromShiftId}/handover`, null, { params }),
+    axiosInstance.post<unknown, ApiResponse<string>>(`${SHIFT_BASE}/${fromShiftId}/handover`, null, { params }),
 
   clock: (shiftId: string, clockType: string, terminalId?: string, notes?: string) =>
-    axiosInstance.post<{ data: string }>(`${SHIFT_BASE}/${shiftId}/clock`, null, {
+    axiosInstance.post<unknown, ApiResponse<string>>(`${SHIFT_BASE}/${shiftId}/clock`, null, {
       params: { clockType, terminalId, notes },
     }),
 };
@@ -52,14 +53,14 @@ export const shiftApi = {
 // ========================================
 export const reportApi = {
   generateX: (shiftId: string) =>
-    axiosInstance.post<{ data: XReport }>(`${REPORT_BASE}/x/${shiftId}`),
+    axiosInstance.post<unknown, ApiResponse<XReport>>(`${REPORT_BASE}/x/${shiftId}`),
 
   listX: (shiftId: string) =>
-    axiosInstance.get<{ data: XReport[] }>(`${REPORT_BASE}/x`, { params: { shiftId } }),
+    axiosInstance.get<unknown, ApiResponse<XReport[]>>(`${REPORT_BASE}/x`, { params: { shiftId } }),
 
   generateZ: (storeId: string, payload: GenerateZReportPayload) =>
-    axiosInstance.post<{ data: ZReport }>(`${REPORT_BASE}/z/${storeId}`, payload),
+    axiosInstance.post<unknown, ApiResponse<ZReport>, GenerateZReportPayload>(`${REPORT_BASE}/z/${storeId}`, payload),
 
   listZ: (storeId: string) =>
-    axiosInstance.get<{ data: ZReport[] }>(`${REPORT_BASE}/z/${storeId}`),
+    axiosInstance.get<unknown, ApiResponse<ZReport[]>>(`${REPORT_BASE}/z/${storeId}`),
 };

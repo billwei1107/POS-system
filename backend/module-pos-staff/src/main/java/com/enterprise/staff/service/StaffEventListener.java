@@ -42,10 +42,9 @@ public class StaffEventListener {
             return;
         }
         StaffShift shift = openShift.get();
-        // ========================================
-        // 稅額與折扣在 Phase 2 整合 pos-core 後補充 / Tax/discount deferral to Phase 2
-        // ========================================
-        shift.addSale(event.getGrandTotal(), BigDecimal.ZERO, BigDecimal.ZERO);
+        shift.addSale(event.getGrandTotal(),
+                event.getTaxAmount() != null ? event.getTaxAmount() : BigDecimal.ZERO,
+                BigDecimal.ZERO);
         shiftRepository.save(shift);
         log.info("Accumulated sale {} to shift {} for order {}", event.getGrandTotal(), shift.getShiftNo(), event.getOrderId());
     }

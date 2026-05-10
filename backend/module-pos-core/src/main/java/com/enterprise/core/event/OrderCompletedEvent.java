@@ -17,6 +17,8 @@ public class OrderCompletedEvent extends ApplicationEvent {
 
     private final UUID orderId;
     private final UUID storeId;
+    private final UUID terminalId;
+    private final UUID employeeId;
     private final String orderNo;
     private final UUID memberId;
     private final BigDecimal grandTotal;
@@ -28,14 +30,15 @@ public class OrderCompletedEvent extends ApplicationEvent {
 
     public OrderCompletedEvent(Object source, UUID orderId, UUID storeId, String orderNo,
                                UUID memberId, BigDecimal grandTotal) {
-        this(source, orderId, storeId, orderNo, memberId, grandTotal, null, null, grandTotal, null, BigDecimal.ZERO);
+        this(source, orderId, storeId, null, null, orderNo, memberId, grandTotal, null, null,
+                grandTotal, null, BigDecimal.ZERO);
     }
 
     public OrderCompletedEvent(Object source, UUID orderId, UUID storeId, String orderNo,
                                UUID memberId, BigDecimal grandTotal, String payMethod,
                                BigDecimal paidAmount, BigDecimal tenderedAmount,
                                BigDecimal changeGiven) {
-        this(source, orderId, storeId, orderNo, memberId, grandTotal, null, payMethod,
+        this(source, orderId, storeId, null, null, orderNo, memberId, grandTotal, null, payMethod,
                 paidAmount, tenderedAmount, changeGiven);
     }
 
@@ -43,9 +46,19 @@ public class OrderCompletedEvent extends ApplicationEvent {
                                UUID memberId, BigDecimal grandTotal, BigDecimal taxAmount,
                                String payMethod, BigDecimal paidAmount, BigDecimal tenderedAmount,
                                BigDecimal changeGiven) {
+        this(source, orderId, storeId, null, null, orderNo, memberId, grandTotal, taxAmount, payMethod,
+                paidAmount, tenderedAmount, changeGiven);
+    }
+
+    public OrderCompletedEvent(Object source, UUID orderId, UUID storeId, UUID terminalId, UUID employeeId,
+                               String orderNo, UUID memberId, BigDecimal grandTotal, BigDecimal taxAmount,
+                               String payMethod, BigDecimal paidAmount, BigDecimal tenderedAmount,
+                               BigDecimal changeGiven) {
         super(source);
         this.orderId = orderId;
         this.storeId = storeId;
+        this.terminalId = terminalId;
+        this.employeeId = employeeId;
         this.orderNo = orderNo;
         this.memberId = memberId;
         this.grandTotal = grandTotal;

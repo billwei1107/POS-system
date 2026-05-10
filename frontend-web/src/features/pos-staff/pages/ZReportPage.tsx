@@ -12,9 +12,8 @@ import {
 } from '@mui/material';
 import { reportApi } from '../api/staffApi';
 import type { GenerateZReportPayload, ZReport } from '../types';
+import { DEFAULT_EMPLOYEE_ID, DEFAULT_STORE_ID } from '../../pos-orders/config';
 
-const STORE_ID = import.meta.env.VITE_DEFAULT_STORE_ID as string;
-const DEFAULT_OPERATOR_ID = import.meta.env.VITE_DEFAULT_OPERATOR_ID as string ?? '00000000-0000-0000-0000-000000000000';
 
 // ========================================
 // Z Report 日結頁 / Z Report daily close page
@@ -28,14 +27,14 @@ const ZReportPage: React.FC = () => {
   const [form, setForm] = useState<GenerateZReportPayload>({
     reportDate: new Date().toISOString().split('T')[0],
     cashInDrawer: 0,
-    generatedBy: DEFAULT_OPERATOR_ID,
+    generatedBy: DEFAULT_EMPLOYEE_ID,
   });
 
   const loadReports = async () => {
     try {
       setLoading(true);
-      const res = await reportApi.listZ(STORE_ID);
-      setReports(res.data.data ?? []);
+      const res = await reportApi.listZ(DEFAULT_STORE_ID);
+      setReports(res.data ?? []);
     } catch {
       setError('載入失敗');
     } finally {
@@ -47,7 +46,7 @@ const ZReportPage: React.FC = () => {
 
   const handleGenerate = async () => {
     try {
-      await reportApi.generateZ(STORE_ID, form);
+      await reportApi.generateZ(DEFAULT_STORE_ID, form);
       setDialogOpen(false);
       await loadReports();
       setSuccess('Z Report 已產生');

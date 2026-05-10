@@ -412,3 +412,29 @@ waiting for locator('button').filter({ has: locator('svg[data-testid="ShoppingCa
 - `docker compose -f docker/local/docker-compose.yml up -d --build frontend`：通過。
 - Playwright 登入後進入 `/pos/invoices`，查詢 API 帶 `storeId=00000000-0000-0000-0000-000000000001` 且回 200。
 - 畫面可見稅前 `NT$ 120.00`、稅額 `NT$ 6.00`、總額 `NT$ 126.00`。
+
+---
+
+# 2026-05-11 POS staff API response 型別與頁面讀取不一致
+
+## Issue
+
+- 場景：Checkpoint 4 串接班次、錢櫃與對帳頁後執行 `npm run build`。
+- 問題：`ZReportPage` 仍以舊型別讀取 staff report API 回應，與 axios interceptor 實際回傳的 `ApiResponse` body 不一致，造成 TypeScript build 失敗。
+
+## Root Cause
+
+- `staffApi` 舊型別宣告為 `{ data: T }`，但專案共用 `axiosInstance` interceptor 會先抽出 response body。
+- `ShiftPage` 與 `ReconciliationPage` 已依 `ApiResponse<T>` 修正，但 `ZReportPage` 仍讀取錯誤層級。
+
+## Solution
+
+- `frontend-web/src/features/pos-staff/api/staffApi.ts` 改為回傳 `ApiResponse<T>`。
+- `ZReportPage` 改讀 `res.data ?? []`，並統一使用 `DEFAULT_STORE_ID`、`DEFAULT_EMPLOYEE_ID` fallback。
+- `ShiftPage` 與 `ReconciliationPage` 同步維持 `ApiResponse<T>` 讀取方式。
+
+## Verification
+
+- `npm run lint`：通過。
+- `npm run build`：通過，僅保留 Vite chunk size warning。
+- Docker frontend 重建後，`/pos/shifts` 與 `/pos/reconciliation` 可正常開啟與查詢。

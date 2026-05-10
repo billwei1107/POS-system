@@ -100,6 +100,7 @@ public class PaymentService {
 
         eventPublisher.publishEvent(new PaymentProcessedEvent(
             this, txn.getId(), txn.getOrderId(), txn.getStoreId(),
+            event.getTerminalId(), event.getEmployeeId(),
             event.getOrderNo(), txn.getMethodType(), txn.getAmount()
         ));
     }
