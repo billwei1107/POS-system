@@ -4,7 +4,7 @@
  * @description_en Management view for listing, filtering and voiding POS orders
  * @description_zh POS 訂單管理列表頁，支援狀態篩選、分頁與作廢操作
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box, Typography, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Paper, Chip, Select, MenuItem, FormControl,
@@ -32,12 +32,6 @@ const STATUS_COLOR: Record<OrderStatus, 'default' | 'primary' | 'secondary' | 'e
   CLOSED: 'default',
   VOIDED: 'error',
 };
-
-const ORDER_METRICS = [
-  { label: '進行中訂單', value: '0', helper: '等待同步資料' },
-  { label: '今日營收', value: '$0.00', helper: '尚未選擇門店' },
-  { label: '平均客單', value: '$0.00', helper: '首筆訂單後開始計算' },
-];
 
 type PaymentStatusSummary = 'PAID' | 'UNPAID' | 'REFUNDED' | 'FAILED';
 type InvoiceStatusSummary = 'ISSUED' | 'VOIDED' | 'ALLOWANCE' | 'MISSING';
@@ -102,6 +96,23 @@ const OrderListPage: React.FC = () => {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentStatusByOrder, setPaymentStatusByOrder] = useState<Record<string, PaymentStatusSummary>>({});
   const [invoiceStatusByOrder, setInvoiceStatusByOrder] = useState<Record<string, InvoiceStatusSummary>>({});
+
+  function formatMoney(amount: number) {
+    return new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', maximumFractionDigits: 0 }).format(amount);
+  }
+
+  const orderMetrics = useMemo(() => {
+    const activeCount = orders.filter(order => !['COMPLETED', 'CLOSED', 'VOIDED'].includes(order.status)).length;
+    const completedOrders = orders.filter(order => ['COMPLETED', 'CLOSED'].includes(order.status));
+    const revenue = completedOrders.reduce((sum, order) => sum + order.grandTotal, 0);
+    const averageTicket = completedOrders.length > 0 ? revenue / completedOrders.length : 0;
+
+    return [
+      { label: '進行中訂單', value: String(activeCount), helper: total > 1 ? `目前第 ${page} 頁資料` : '目前列表資料' },
+      { label: '本頁營收', value: formatMoney(revenue), helper: `${completedOrders.length} 筆已完成訂單` },
+      { label: '平均客單', value: formatMoney(averageTicket), helper: completedOrders.length > 0 ? '依本頁已完成訂單計算' : '首筆訂單後開始計算' },
+    ];
+  }, [orders, page, total]);
 
   const loadOrderClosureStatuses = useCallback(async (orderList: Order[]) => {
     const closedOrders = orderList.filter(order => ['COMPLETED', 'CLOSED'].includes(order.status));
@@ -203,11 +214,65 @@ const OrderListPage: React.FC = () => {
     }
   };
 
-  const formatMoney = (amount: number) =>
-    new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', maximumFractionDigits: 0 }).format(amount);
-
   const formatDate = (dateStr: string) =>
     new Date(dateStr).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+
+  const getPaymentSummary = (order: Order) =>
+    paymentStatusByOrder[order.id] ?? (order.paidTotal > 0 ? 'PAID' : 'UNPAID');
+
+  const getInvoiceSummary = (order: Order) =>
+    invoiceStatusByOrder[order.id] ?? 'MISSING';
+
+  const renderClosureChips = (order: Order) => {
+    if (!['COMPLETED', 'CLOSED'].includes(order.status)) {
+      return <Typography variant="caption" color="text.secondary">尚未完成</Typography>;
+    }
+
+    const paymentSummary = getPaymentSummary(order);
+    const invoiceSummary = getInvoiceSummary(order);
+
+    return (
+      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+        <Chip label={PAYMENT_STATUS_LABEL[paymentSummary]} color={PAYMENT_STATUS_COLOR[paymentSummary]} size="small" />
+        <Chip label={INVOICE_STATUS_LABEL[invoiceSummary]} color={INVOICE_STATUS_COLOR[invoiceSummary]} size="small" />
+      </Box>
+    );
+  };
+
+  const renderOrderActions = (order: Order) => (
+    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: { xs: 'stretch', md: 'flex-start' } }}>
+      {['COMPLETED', 'CLOSED'].includes(order.status) && (
+        <>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() => handleOpenPayments(order)}
+            sx={{ flex: { xs: '1 1 120px', md: '0 0 auto' } }}
+          >
+            付款記錄
+          </Button>
+          <Button
+            size="small"
+            color="secondary"
+            onClick={() => navigate(`/pos/refunds?orderId=${order.id}&amount=${order.grandTotal}&orderNo=${encodeURIComponent(order.orderNo)}`)}
+            sx={{ flex: { xs: '1 1 120px', md: '0 0 auto' } }}
+          >
+            退款
+          </Button>
+        </>
+      )}
+      {['DRAFT','CONFIRMED','PREPARING','READY'].includes(order.status) && (
+        <Button
+          size="small"
+          color="error"
+          onClick={() => { setVoidTarget(order); setVoidDialog(true); }}
+          sx={{ flex: { xs: '1 1 120px', md: '0 0 auto' } }}
+        >
+          作廢
+        </Button>
+      )}
+    </Box>
+  );
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 3 }}>
@@ -230,7 +295,7 @@ const OrderListPage: React.FC = () => {
       </Box>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 2 }}>
-        {ORDER_METRICS.map(metric => (
+        {orderMetrics.map(metric => (
           <Card key={metric.label} sx={{ bgcolor: 'background.paper', borderRadius: 3, boxShadow: 'none', border: '1px solid rgba(255,255,255,0.06)' }}>
             <CardContent sx={{ '&:last-child': { pb: 2 } }}>
               <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
@@ -266,7 +331,60 @@ const OrderListPage: React.FC = () => {
         />
       </Box>
 
-      <TableContainer component={Paper} sx={{ flexGrow: 1, bgcolor: 'background.paper', borderRadius: 3, border: '1px solid rgba(255,255,255,0.06)', boxShadow: 'none' }}>
+      <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', gap: 1.5 }}>
+        {loading && (
+          <Card sx={{ bgcolor: 'background.paper', borderRadius: 3, border: '1px solid rgba(255,255,255,0.06)', boxShadow: 'none' }}>
+            <CardContent sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
+              <CircularProgress size={24} />
+            </CardContent>
+          </Card>
+        )}
+        {!loading && orders.length === 0 && (
+          <Card sx={{ bgcolor: 'background.paper', borderRadius: 3, border: '1px solid rgba(255,255,255,0.06)', boxShadow: 'none' }}>
+            <CardContent sx={{ py: 5, textAlign: 'center' }}>
+              <Typography variant="h6" fontWeight={800}>目前沒有訂單</Typography>
+              <Typography variant="body2" color="text.secondary">建立銷售後，訂單會顯示在這裡。</Typography>
+            </CardContent>
+          </Card>
+        )}
+        {!loading && orders.map(order => (
+          <Card key={order.id} sx={{ bgcolor: 'background.paper', borderRadius: 3, border: '1px solid rgba(255,255,255,0.06)', boxShadow: 'none' }}>
+            <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, '&:last-child': { pb: 2 } }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1.5, alignItems: 'flex-start' }}>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="caption" color="text.secondary" fontWeight={800}>訂單編號</Typography>
+                  <Typography variant="body2" fontFamily="monospace" fontWeight={800} sx={{ overflowWrap: 'anywhere' }}>
+                    {order.orderNo}
+                  </Typography>
+                </Box>
+                <Chip label={order.status} color={STATUS_COLOR[order.status]} size="small" sx={{ flexShrink: 0 }} />
+              </Box>
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">類型</Typography>
+                  <Typography fontWeight={800}>{order.orderType}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">品項</Typography>
+                  <Typography fontWeight={800}>{order.items?.length ?? 0}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">合計</Typography>
+                  <Typography fontWeight={900} color="secondary.main">{formatMoney(order.grandTotal)}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">建立時間</Typography>
+                  <Typography variant="body2">{formatDate(order.createdAt)}</Typography>
+                </Box>
+              </Box>
+              {renderClosureChips(order)}
+              {renderOrderActions(order)}
+            </CardContent>
+          </Card>
+        ))}
+      </Box>
+
+      <TableContainer component={Paper} sx={{ display: { xs: 'none', md: 'block' }, flexGrow: 1, bgcolor: 'background.paper', borderRadius: 3, border: '1px solid rgba(255,255,255,0.06)', boxShadow: 'none' }}>
         <Table>
           <TableHead>
             <TableRow>
@@ -306,8 +424,8 @@ const OrderListPage: React.FC = () => {
                 <TableCell>
                   {['COMPLETED', 'CLOSED'].includes(order.status) ? (
                     <Chip
-                      label={PAYMENT_STATUS_LABEL[paymentStatusByOrder[order.id] ?? (order.paidTotal > 0 ? 'PAID' : 'UNPAID')]}
-                      color={PAYMENT_STATUS_COLOR[paymentStatusByOrder[order.id] ?? (order.paidTotal > 0 ? 'PAID' : 'UNPAID')]}
+                      label={PAYMENT_STATUS_LABEL[getPaymentSummary(order)]}
+                      color={PAYMENT_STATUS_COLOR[getPaymentSummary(order)]}
                       size="small"
                     />
                   ) : (
@@ -317,8 +435,8 @@ const OrderListPage: React.FC = () => {
                 <TableCell>
                   {['COMPLETED', 'CLOSED'].includes(order.status) ? (
                     <Chip
-                      label={INVOICE_STATUS_LABEL[invoiceStatusByOrder[order.id] ?? 'MISSING']}
-                      color={INVOICE_STATUS_COLOR[invoiceStatusByOrder[order.id] ?? 'MISSING']}
+                      label={INVOICE_STATUS_LABEL[getInvoiceSummary(order)]}
+                      color={INVOICE_STATUS_COLOR[getInvoiceSummary(order)]}
                       size="small"
                     />
                   ) : (
@@ -328,31 +446,7 @@ const OrderListPage: React.FC = () => {
                 <TableCell align="right">{formatMoney(order.grandTotal)}</TableCell>
                 <TableCell>{formatDate(order.createdAt)}</TableCell>
                 <TableCell>
-                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                    {['COMPLETED', 'CLOSED'].includes(order.status) && (
-                      <>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => handleOpenPayments(order)}
-                        >
-                          付款記錄
-                        </Button>
-                        <Button
-                          size="small"
-                          color="secondary"
-                          onClick={() => navigate(`/pos/refunds?orderId=${order.id}&amount=${order.grandTotal}&orderNo=${encodeURIComponent(order.orderNo)}`)}
-                        >
-                          退款
-                        </Button>
-                      </>
-                    )}
-                    {['DRAFT','CONFIRMED','PREPARING','READY'].includes(order.status) && (
-                      <Button size="small" color="error" onClick={() => { setVoidTarget(order); setVoidDialog(true); }}>
-                        作廢
-                      </Button>
-                    )}
-                  </Box>
+                  {renderOrderActions(order)}
                 </TableCell>
               </TableRow>
             ))}

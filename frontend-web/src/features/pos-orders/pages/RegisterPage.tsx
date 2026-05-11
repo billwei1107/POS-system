@@ -25,6 +25,8 @@ const QUICK_ACTIONS = [
 ];
 
 const FEATURED_CATEGORY_NAMES = ['咖啡飲品', '烘焙點心'];
+const GENERATED_TEST_TEXT_PATTERNS = [/^Smoke Test/i, /^API Debug/i, /^api-debug/i, /測試/, /退款測試/, /瀏覽器測試/];
+const GENERATED_TEST_SKU_PREFIXES = ['SMOKE-', 'RF-', 'BAR-177', 'API-DEBUG'];
 
 // ========================================
 // 收銀排序規則 / Register Sort Rules
@@ -32,6 +34,23 @@ const FEATURED_CATEGORY_NAMES = ['咖啡飲品', '烘焙點心'];
 const isFeaturedCategory = (category: Category) => FEATURED_CATEGORY_NAMES.includes(category.name);
 
 const isFeaturedProduct = (product: ProductItem) => product.sku.startsWith('DEMO-');
+
+const includesGeneratedTestText = (value: string | null | undefined) =>
+    GENERATED_TEST_TEXT_PATTERNS.some((pattern) => pattern.test(value ?? ''));
+
+const isGeneratedTestCategory = (category: Category) =>
+    includesGeneratedTestText(category.name);
+
+const isGeneratedTestProduct = (product: ProductItem, categories: Category[]) => {
+    const categoryName = getCategoryName(categories, product.categoryId);
+    return (
+        includesGeneratedTestText(product.name) ||
+        includesGeneratedTestText(product.sku) ||
+        includesGeneratedTestText(product.barcodePrimary) ||
+        includesGeneratedTestText(categoryName) ||
+        GENERATED_TEST_SKU_PREFIXES.some((prefix) => product.sku.startsWith(prefix))
+    );
+};
 
 const getCategoryName = (categories: Category[], categoryId: string | null) => (
     categories.find((category) => category.id === categoryId)?.name ?? '未分類'
@@ -119,16 +138,21 @@ const RegisterPage: React.FC = () => {
                 productApi.getCategories(),
             ]);
 
+            const allCategories = categoryResponse.success ? categoryResponse.data : [];
             const nextCategories = categoryResponse.success
-                ? sortCategoriesForRegister(categoryResponse.data.filter((category) => category.active))
+                ? sortCategoriesForRegister(allCategories.filter((category) => category.active && !isGeneratedTestCategory(category)))
                 : [];
 
             setCategories(nextCategories);
 
             if (productResponse.success) {
                 setProducts(sortProductsForRegister(
-                    productResponse.data.content.filter((product) => product.sellable && product.active),
-                    nextCategories
+                    productResponse.data.content.filter((product) => (
+                        product.sellable &&
+                        product.active &&
+                        !isGeneratedTestProduct(product, allCategories)
+                    )),
+                    allCategories
                 ));
             }
         } catch {
@@ -248,9 +272,11 @@ const RegisterPage: React.FC = () => {
 
                 <Tooltip title="掃描條碼">
                     <IconButton sx={{
-                        minWidth: 44,
-                        minHeight: 44,
-                        bgcolor: 'rgba(255,109,0,0.14)',
+                    minWidth: 44,
+                    width: 44,
+                    minHeight: 44,
+                    justifySelf: { xs: 'start', md: 'stretch' },
+                    bgcolor: 'rgba(255,109,0,0.14)',
                         color: 'secondary.main',
                         borderRadius: 2,
                         '&:hover': { bgcolor: 'rgba(255,109,0,0.22)' }
