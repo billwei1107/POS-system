@@ -9,6 +9,9 @@ import {
   Alert,
   Box,
   Button,
+  Card,
+  CardContent,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -17,8 +20,10 @@ import {
   IconButton,
   InputLabel,
   MenuItem,
+  Pagination,
   Select,
   TextField,
+  Typography,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -225,6 +230,26 @@ const ProductListPage: React.FC = () => {
   const getCategoryName = (id: string | null) =>
     categories.find((c) => c.id === id)?.name ?? '-';
 
+  const renderProductActions = (product: ProductItem) => (
+    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
+      <IconButton
+        aria-label={`編輯 ${product.name}`}
+        size="small"
+        onClick={() => { setEditTarget(product); setDialogOpen(true); }}
+      >
+        <EditIcon fontSize="small" />
+      </IconButton>
+      <IconButton
+        aria-label={`刪除 ${product.name}`}
+        size="small"
+        color="error"
+        onClick={() => setDeleteTarget(product)}
+      >
+        <DeleteIcon fontSize="small" />
+      </IconButton>
+    </Box>
+  );
+
   const columns: Column<ProductItem>[] = [
     {
       key: 'sku',
@@ -261,25 +286,7 @@ const ProductListPage: React.FC = () => {
       label: '操作',
       align: 'right',
       width: 120,
-      render: (product) => (
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
-          <IconButton
-            aria-label={`編輯 ${product.name}`}
-            size="small"
-            onClick={() => { setEditTarget(product); setDialogOpen(true); }}
-          >
-            <EditIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            aria-label={`刪除 ${product.name}`}
-            size="small"
-            color="error"
-            onClick={() => setDeleteTarget(product)}
-          >
-            <DeleteIcon fontSize="small" />
-          </IconButton>
-        </Box>
-      ),
+      render: renderProductActions,
     },
   ];
 
@@ -347,17 +354,105 @@ const ProductListPage: React.FC = () => {
         </FormControl>
       </Box>
 
-      <DataTable
-        columns={columns}
-        rows={products}
-        loading={loading}
-        total={total * PAGE_SIZE}
-        page={page - 1}
-        pageSize={PAGE_SIZE}
-        onPageChange={(nextPage) => setPage(nextPage + 1)}
-        emptyMessage="尚無商品資料"
-        rowKey={(product) => product.id}
-      />
+      {/* ===== 手機卡片列表 / Mobile card list ===== */}
+      <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', gap: 1.25 }}>
+        {loading ? (
+          <Card variant="outlined" sx={{ borderRadius: 2 }}>
+            <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <CircularProgress size={20} />
+              <Typography variant="body2" color="text.secondary">載入商品中...</Typography>
+            </CardContent>
+          </Card>
+        ) : products.length === 0 ? (
+          <Card variant="outlined" sx={{ borderRadius: 2 }}>
+            <CardContent>
+              <Typography variant="body2" color="text.secondary">尚無商品資料</Typography>
+            </CardContent>
+          </Card>
+        ) : products.map((product) => (
+          <Card key={product.id} variant="outlined" sx={{ borderRadius: 2 }}>
+            <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="caption" color="text.secondary">SKU</Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ fontFamily: 'monospace', fontWeight: 800, overflowWrap: 'anywhere' }}
+                  >
+                    {product.sku}
+                  </Typography>
+                </Box>
+                <StatusChip
+                  status={product.active ? 'ACTIVE' : 'INACTIVE'}
+                  labelMap={{ ACTIVE: '啟用', INACTIVE: '停用' }}
+                />
+              </Box>
+
+              <Box>
+                <Typography variant="h6" sx={{ fontSize: '1rem', lineHeight: 1.35, overflowWrap: 'anywhere' }}>
+                  {product.name}
+                </Typography>
+                {product.description && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, overflowWrap: 'anywhere' }}>
+                    {product.description}
+                  </Typography>
+                )}
+              </Box>
+
+              <Box sx={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                gap: 1,
+              }}>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">分類</Typography>
+                  <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+                    {getCategoryName(product.categoryId)}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">售價</Typography>
+                  <Typography variant="body2" fontWeight={800}>{formatMoney(product.basePrice)}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">單位</Typography>
+                  <Typography variant="body2">{product.unit}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">銷售</Typography>
+                  <Typography variant="body2">{product.sellable ? '可銷售' : '不可銷售'}</Typography>
+                </Box>
+              </Box>
+
+              {renderProductActions(product)}
+            </CardContent>
+          </Card>
+        ))}
+
+        {total > 1 && (
+          <Pagination
+            count={total}
+            page={page}
+            onChange={(_, nextPage) => setPage(nextPage)}
+            size="small"
+            sx={{ alignSelf: 'center', pt: 0.5 }}
+          />
+        )}
+      </Box>
+
+      <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+        <DataTable
+          columns={columns}
+          rows={products}
+          loading={loading}
+          total={total * PAGE_SIZE}
+          page={page - 1}
+          pageSize={PAGE_SIZE}
+          onPageChange={(nextPage) => setPage(nextPage + 1)}
+          emptyMessage="尚無商品資料"
+          rowKey={(product) => product.id}
+        />
+      </Box>
 
       {dialogOpen && (
         <ProductDialog

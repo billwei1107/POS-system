@@ -8,6 +8,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   Box,
   Button,
+  Card,
+  CardContent,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -15,6 +18,7 @@ import {
   IconButton,
   TextField,
   Alert,
+  Typography,
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -157,25 +161,48 @@ const CategoryListPage: React.FC = () => {
     }
   };
 
+  const renderCategoryActions = (category: Category) => (
+    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
+      <IconButton
+        aria-label={`編輯 ${category.name}`}
+        size="small"
+        onClick={() => { setEditTarget(category); setDialogOpen(true); }}
+      >
+        <EditIcon fontSize="small" />
+      </IconButton>
+      <IconButton
+        aria-label={`刪除 ${category.name}`}
+        size="small"
+        color="error"
+        onClick={() => setDeleteTarget(category)}
+      >
+        <DeleteIcon fontSize="small" />
+      </IconButton>
+    </Box>
+  );
+
+  const renderColor = (category: Category) => category.displayColor ? (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+      <Box
+        sx={{
+          width: 16,
+          height: 16,
+          borderRadius: '50%',
+          bgcolor: category.displayColor,
+          border: '1px solid rgba(255,255,255,0.24)',
+          flex: '0 0 auto',
+        }}
+      />
+      <Box component="span" sx={{ overflowWrap: 'anywhere' }}>{category.displayColor}</Box>
+    </Box>
+  ) : '-';
+
   const columns: Column<Category>[] = [
     { key: 'name', label: '分類名稱' },
     {
       key: 'displayColor',
       label: '顏色',
-      render: (category) => category.displayColor ? (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Box
-            sx={{
-              width: 16,
-              height: 16,
-              borderRadius: '50%',
-              bgcolor: category.displayColor,
-              border: '1px solid rgba(255,255,255,0.24)',
-            }}
-          />
-          {category.displayColor}
-        </Box>
-      ) : '-',
+      render: renderColor,
     },
     { key: 'sortOrder', label: '排序', width: 100 },
     {
@@ -191,25 +218,7 @@ const CategoryListPage: React.FC = () => {
       label: '操作',
       align: 'right',
       width: 120,
-      render: (category) => (
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
-          <IconButton
-            aria-label={`編輯 ${category.name}`}
-            size="small"
-            onClick={() => { setEditTarget(category); setDialogOpen(true); }}
-          >
-            <EditIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            aria-label={`刪除 ${category.name}`}
-            size="small"
-            color="error"
-            onClick={() => setDeleteTarget(category)}
-          >
-            <DeleteIcon fontSize="small" />
-          </IconButton>
-        </Box>
-      ),
+      render: renderCategoryActions,
     },
   ];
 
@@ -244,13 +253,67 @@ const CategoryListPage: React.FC = () => {
         </Alert>
       )}
 
-      <DataTable
-        columns={columns}
-        rows={categories}
-        loading={loading}
-        emptyMessage="尚無分類資料"
-        rowKey={(category) => category.id}
-      />
+      {/* ===== 手機卡片列表 / Mobile card list ===== */}
+      <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', gap: 1.25 }}>
+        {loading ? (
+          <Card variant="outlined" sx={{ borderRadius: 2 }}>
+            <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <CircularProgress size={20} />
+              <Typography variant="body2" color="text.secondary">載入分類中...</Typography>
+            </CardContent>
+          </Card>
+        ) : categories.length === 0 ? (
+          <Card variant="outlined" sx={{ borderRadius: 2 }}>
+            <CardContent>
+              <Typography variant="body2" color="text.secondary">尚無分類資料</Typography>
+            </CardContent>
+          </Card>
+        ) : categories.map((category) => (
+          <Card key={category.id} variant="outlined" sx={{ borderRadius: 2 }}>
+            <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="caption" color="text.secondary">分類名稱</Typography>
+                  <Typography variant="h6" sx={{ fontSize: '1rem', lineHeight: 1.35, overflowWrap: 'anywhere' }}>
+                    {category.name}
+                  </Typography>
+                </Box>
+                <StatusChip
+                  status={category.active ? 'ACTIVE' : 'INACTIVE'}
+                  labelMap={{ ACTIVE: '啟用', INACTIVE: '停用' }}
+                />
+              </Box>
+
+              <Box sx={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                gap: 1,
+              }}>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">顏色</Typography>
+                  <Typography component="div" variant="body2">{renderColor(category)}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">排序</Typography>
+                  <Typography variant="body2" fontWeight={800}>{category.sortOrder}</Typography>
+                </Box>
+              </Box>
+
+              {renderCategoryActions(category)}
+            </CardContent>
+          </Card>
+        ))}
+      </Box>
+
+      <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+        <DataTable
+          columns={columns}
+          rows={categories}
+          loading={loading}
+          emptyMessage="尚無分類資料"
+          rowKey={(category) => category.id}
+        />
+      </Box>
 
       {dialogOpen && (
         <CategoryDialog
