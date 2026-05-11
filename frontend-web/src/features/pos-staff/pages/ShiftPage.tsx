@@ -8,7 +8,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell, TableBody,
   Chip, Alert, TextField, Dialog, DialogTitle, DialogContent, DialogActions,
-  CircularProgress,
+  CircularProgress, Card, CardContent,
 } from '@mui/material';
 import { shiftApi } from '../api/staffApi';
 import { cashDrawerApi } from '../../pos-payment/api/paymentApi';
@@ -117,6 +117,78 @@ const ShiftPage: React.FC = () => {
     }
   };
 
+  const renderShiftActions = (shift: StaffShift) => shift.status === 'OPEN' && (
+    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
+      <Button
+        size="small"
+        variant="outlined"
+        color="primary"
+        onClick={() => setCloseDialog({ open: true, shiftId: shift.id })}
+      >
+        關班
+      </Button>
+      <Button
+        size="small"
+        variant="outlined"
+        color="warning"
+        onClick={() => handleBlindClose(shift.id)}
+      >
+        盲點結算
+      </Button>
+    </Box>
+  );
+
+  const renderShiftCards = () => (
+    <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', gap: 1.25 }}>
+      {shifts.length === 0 ? (
+        <Card variant="outlined" sx={{ borderRadius: 2 }}>
+          <CardContent>
+            <Typography variant="body2" color="text.secondary">尚無開放班次</Typography>
+          </CardContent>
+        </Card>
+      ) : shifts.map((shift) => (
+        <Card key={shift.id} variant="outlined" sx={{ borderRadius: 2 }}>
+          <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="caption" color="text.secondary">班次編號</Typography>
+                <Typography variant="body2" fontWeight={800} sx={{ overflowWrap: 'anywhere' }}>
+                  {shift.shiftNo}
+                </Typography>
+              </Box>
+              <Chip label={STATUS_LABEL[shift.status] ?? shift.status} color={STATUS_COLOR[shift.status] ?? 'default'} size="small" />
+            </Box>
+
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 1 }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary">員工 ID</Typography>
+                <Typography variant="body2" sx={{ fontFamily: 'monospace', overflowWrap: 'anywhere' }}>{shift.employeeId}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">交易筆數</Typography>
+                <Typography variant="body2" fontWeight={800}>{shift.transactionCount}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">開班現金</Typography>
+                <Typography variant="body2">{shift.openingCash.toLocaleString()}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">淨銷售</Typography>
+                <Typography variant="body2" fontWeight={800}>{shift.netSales.toLocaleString()}</Typography>
+              </Box>
+              <Box sx={{ gridColumn: '1 / -1' }}>
+                <Typography variant="caption" color="text.secondary">開班時間</Typography>
+                <Typography variant="body2">{new Date(shift.openedAt).toLocaleString('zh-TW')}</Typography>
+              </Box>
+            </Box>
+
+            {renderShiftActions(shift)}
+          </CardContent>
+        </Card>
+      ))}
+    </Box>
+  );
+
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
 
   return (
@@ -124,7 +196,14 @@ const ShiftPage: React.FC = () => {
       {/* ======================================== */}
       {/* 頁面標題 / Page header */}
       {/* ======================================== */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+      <Box sx={{
+        display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
+        justifyContent: 'space-between',
+        alignItems: { xs: 'stretch', sm: 'center' },
+        gap: 1.5,
+        mb: 2,
+      }}>
         <Typography variant="h5" fontWeight="bold">班次管理</Typography>
         <Button variant="contained" onClick={() => setOpenDialog(true)}>新增開班</Button>
       </Box>
@@ -135,50 +214,45 @@ const ShiftPage: React.FC = () => {
       {/* ======================================== */}
       {/* 班次列表 / Shift list */}
       {/* ======================================== */}
-      <Table>
-        <TableHead>
-          <TableRow>
-            <TableCell>班次編號</TableCell>
-            <TableCell>員工 ID</TableCell>
-            <TableCell>狀態</TableCell>
-            <TableCell>開班時間</TableCell>
-            <TableCell align="right">開班現金</TableCell>
-            <TableCell align="right">淨銷售</TableCell>
-            <TableCell align="right">交易筆數</TableCell>
-            <TableCell>操作</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {shifts.map(s => (
-            <TableRow key={s.id} hover>
-              <TableCell><strong>{s.shiftNo}</strong></TableCell>
-              <TableCell><code>{s.employeeId.slice(0, 8)}...</code></TableCell>
-              <TableCell>
-                <Chip label={STATUS_LABEL[s.status] ?? s.status} color={STATUS_COLOR[s.status] ?? 'default'} size="small" />
-              </TableCell>
-              <TableCell>{new Date(s.openedAt).toLocaleString('zh-TW')}</TableCell>
-              <TableCell align="right">{s.openingCash.toLocaleString()}</TableCell>
-              <TableCell align="right">{s.netSales.toLocaleString()}</TableCell>
-              <TableCell align="right">{s.transactionCount}</TableCell>
-              <TableCell>
-                {s.status === 'OPEN' && (
-                  <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Button size="small" variant="outlined" color="primary"
-                      onClick={() => setCloseDialog({ open: true, shiftId: s.id })}>關班</Button>
-                    <Button size="small" variant="outlined" color="warning"
-                      onClick={() => handleBlindClose(s.id)}>盲點結算</Button>
-                  </Box>
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
-          {shifts.length === 0 && (
+      {renderShiftCards()}
+
+      <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+        <Table>
+          <TableHead>
             <TableRow>
-              <TableCell colSpan={8} align="center">尚無開放班次</TableCell>
+              <TableCell>班次編號</TableCell>
+              <TableCell>員工 ID</TableCell>
+              <TableCell>狀態</TableCell>
+              <TableCell>開班時間</TableCell>
+              <TableCell align="right">開班現金</TableCell>
+              <TableCell align="right">淨銷售</TableCell>
+              <TableCell align="right">交易筆數</TableCell>
+              <TableCell>操作</TableCell>
             </TableRow>
-          )}
-        </TableBody>
-      </Table>
+          </TableHead>
+          <TableBody>
+            {shifts.map(s => (
+              <TableRow key={s.id} hover>
+                <TableCell><strong>{s.shiftNo}</strong></TableCell>
+                <TableCell><code>{s.employeeId.slice(0, 8)}...</code></TableCell>
+                <TableCell>
+                  <Chip label={STATUS_LABEL[s.status] ?? s.status} color={STATUS_COLOR[s.status] ?? 'default'} size="small" />
+                </TableCell>
+                <TableCell>{new Date(s.openedAt).toLocaleString('zh-TW')}</TableCell>
+                <TableCell align="right">{s.openingCash.toLocaleString()}</TableCell>
+                <TableCell align="right">{s.netSales.toLocaleString()}</TableCell>
+                <TableCell align="right">{s.transactionCount}</TableCell>
+                <TableCell>{renderShiftActions(s)}</TableCell>
+              </TableRow>
+            ))}
+            {shifts.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={8} align="center">尚無開放班次</TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </Box>
 
       {/* ======================================== */}
       {/* 開班對話框 / Open shift dialog */}
