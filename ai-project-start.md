@@ -43,9 +43,10 @@ module/
 3. 閱讀 `docs/project-map.md`
 4. 閱讀 `需求/README.md`
 5. 閱讀 `需求/AI協作交接規範.md`
-6. 執行或確認 `scripts/setup-module-reference.sh`
-7. 閱讀 `reference/模塊化組件/ai-handoff.md`
-8. 依目前角色執行：
+6. 檢查原本本地端口是否被佔用：Backend `38080`、Frontend `38082`、PostgreSQL `5432`、Redis `6379`
+7. 執行或確認 `scripts/setup-module-reference.sh`
+8. 閱讀 `reference/模塊化組件/ai-handoff.md`
+9. 依目前角色執行：
    - Claude：補齊需求、系統規格、開發流程規劃、功能檢驗流程書
    - Codex：檢查 Claude 文件後實作、測試、提交
 
@@ -78,6 +79,7 @@ Codex 接手前應確認：
 ```text
 請先閱讀 AGENTS.md、ai-project-start.md 與 docs/project-map.md。
 如果 reference/模塊化組件/ai-handoff.md 不存在，請執行 bash scripts/setup-module-reference.sh 自動從遠端抓取模塊化組件母體。
+啟動 Docker、前端、後端或瀏覽器測試前，請先檢查 POS 原本端口 38080、38082、5432、6379 是否被佔用；若被其他專案佔用，先回報，不要自行改臨時端口繞過。
 若你是 Claude，請先補齊 需求/需求文檔.md、需求/系統規格表.md、需求/開發流程規劃.md、需求/功能檢驗流程書.md。
 若你是 Codex，請先檢查 Claude 產物是否完整，再自行設計實作方案並執行。
 ```

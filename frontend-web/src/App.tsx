@@ -33,6 +33,8 @@ import OrderListPage from './features/pos-orders/pages/OrderListPage';
 import RefundPage from './features/pos-orders/pages/RefundPage';
 
 import StockOverviewPage from './features/pos-inventory/pages/StockOverviewPage';
+import ReceivingPage from './features/pos-inventory/pages/ReceivingPage';
+import StockTakePage from './features/pos-inventory/pages/StockTakePage';
 import PosLoginPage from './features/pos-auth/pages/PosLoginPage';
 import ProductListPage from './features/pos-products/pages/ProductListPage';
 import CategoryListPage from './features/pos-products/pages/CategoryListPage';
@@ -102,6 +104,9 @@ function App() {
               <Route path="categories" element={<CategoryListPage />} />
               <Route path="checkout" element={<CheckoutPage />} />
               <Route path="inventory" element={<StockOverviewPage />} />
+              <Route path="inventory/receiving" element={<ReceivingPage />} />
+              <Route path="inventory/stock-takes" element={<StockTakePage />} />
+              <Route path="inventory/stock-takes/:stockTakeId" element={<StockTakePage />} />
               <Route path="invoices" element={<InvoicePage />} />
               <Route path="shifts" element={<ShiftPage />} />
               <Route path="reconciliation" element={<ReconciliationPage />} />

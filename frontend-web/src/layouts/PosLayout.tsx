@@ -5,21 +5,28 @@
  * @description_zh 提供響應式導覽、狀態列與購物車掛載區域
  */
 import React, { useState } from 'react';
-import { 
-  Box, Drawer, List, ListItem, ListItemIcon, ListItemText, IconButton, 
-  useTheme, useMediaQuery, Typography, Avatar, Divider, ListItemButton, 
-  Paper, Button, BottomNavigation, BottomNavigationAction 
+import {
+  Box, Collapse, Drawer, List, ListItem, ListItemIcon, ListItemText, IconButton,
+  useTheme, useMediaQuery, Typography, Avatar, Divider, ListItemButton,
+  Paper, Button, BottomNavigation, BottomNavigationAction
 } from '@mui/material';
 import {
   PointOfSale, Receipt, Inventory, Settings, Category, LocalCafe, Replay,
   LockOutlined, Menu as MenuIcon, ShoppingCart, Wifi, Circle, ReceiptLong,
-  Badge, FactCheck
+  Badge, FactCheck, KeyboardArrowDown, KeyboardArrowRight
 } from '@mui/icons-material';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@shared/store/authStore';
 
 const SIDEBAR_EXPANDED_WIDTH = 240;
 const CART_WIDTH = 340;
+
+interface NavItem {
+  text: string;
+  icon: React.ReactNode;
+  path: string;
+  children?: NavItem[];
+}
 
 const PosLayout: React.FC = () => {
   const theme = useTheme();
@@ -32,6 +39,7 @@ const PosLayout: React.FC = () => {
   
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const navigate = useNavigate();
   const location = useLocation();
   const logout = useAuthStore((state) => state.logout);
@@ -49,17 +57,59 @@ const PosLayout: React.FC = () => {
     navigate('/pos/login', { replace: true });
   };
 
-  const menuItems = [
+  const menuItems: NavItem[] = [
     { text: '收銀台', icon: <PointOfSale />, path: '/pos/register' },
-    { text: '訂單', icon: <Receipt />, path: '/pos/orders' },
-    { text: '退款', icon: <Replay />, path: '/pos/refunds' },
-    { text: '商品', icon: <LocalCafe />, path: '/pos/products' },
-    { text: '分類', icon: <Category />, path: '/pos/categories' },
-    { text: '庫存', icon: <Inventory />, path: '/pos/inventory' },
+    {
+      text: '訂單',
+      icon: <Receipt />,
+      path: '/pos/orders',
+      children: [
+        { text: '訂單列表', icon: <Receipt />, path: '/pos/orders' },
+        { text: '退款處理', icon: <Replay />, path: '/pos/refunds' },
+      ],
+    },
+    {
+      text: '商品',
+      icon: <LocalCafe />,
+      path: '/pos/products',
+      children: [
+        { text: '商品管理', icon: <LocalCafe />, path: '/pos/products' },
+        { text: '分類管理', icon: <Category />, path: '/pos/categories' },
+      ],
+    },
+    {
+      text: '庫存',
+      icon: <Inventory />,
+      path: '/pos/inventory',
+      children: [
+        { text: '庫存總覽', icon: <Inventory />, path: '/pos/inventory' },
+        { text: '進貨驗收', icon: <Inventory />, path: '/pos/inventory/receiving' },
+        { text: '盤點單', icon: <FactCheck />, path: '/pos/inventory/stock-takes' },
+      ],
+    },
     { text: '發票', icon: <ReceiptLong />, path: '/pos/invoices' },
     { text: '班次', icon: <Badge />, path: '/pos/shifts' },
     { text: '對帳', icon: <FactCheck />, path: '/pos/reconciliation' },
   ];
+  const mobileDockItems = menuItems.filter((item) => ['收銀台', '訂單', '商品', '庫存'].includes(item.text));
+
+  const isItemActive = (item: NavItem) =>
+    location.pathname.includes(item.path)
+    || Boolean(item.children?.some((child) => location.pathname.includes(child.path)));
+
+  const isChildActive = (item: NavItem) =>
+    item.path === '/pos/inventory'
+      ? location.pathname === item.path
+      : location.pathname.includes(item.path);
+
+  const handleMenuNavigate = (item: NavItem, isExpanded?: boolean) => {
+    if (item.children) {
+      setExpandedGroups((prev) => ({ ...prev, [item.text]: !isExpanded }));
+      if (isExpanded && isItemActive(item)) return;
+    }
+    navigate(item.path);
+    if (isMobile) setMobileOpen(false);
+  };
 
   const sidebarContent = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: 'background.paper' }}>
@@ -84,48 +134,94 @@ const PosLayout: React.FC = () => {
       </Box>
       <List sx={{ flexGrow: 1, px: 2 }}>
         {menuItems.map((item) => {
-          const isActive = location.pathname.includes(item.path);
+          const isActive = isItemActive(item);
+          const isExpanded = Boolean(item.children && (expandedGroups[item.text] ?? isActive));
           return (
-            <ListItem disablePadding key={item.text} sx={{ mb: 1 }}>
-              <ListItemButton
-                onClick={() => navigate(item.path)}
-                selected={isActive}
-                sx={{
-                  borderRadius: 2,
-                  minHeight: 48,
-                  bgcolor: isActive ? 'primary.main' : 'transparent',
-                  background: isActive ? 'linear-gradient(90deg, #7048E8 0%, #4D329A 100%)' : 'transparent',
-                  '&:hover': {
-                    bgcolor: isActive ? 'primary.dark' : 'rgba(255,255,255,0.05)',
-                  },
-                  '&.Mui-selected': {
-                     bgcolor: 'primary.main',
-                     color: 'white',
-                     '&:hover': {
-                        bgcolor: 'primary.dark',
-                     }
-                  }
-                }}
-              >
-                <ListItemIcon sx={{ color: isActive ? 'white' : 'text.secondary', minWidth: 40 }}>
-                  {item.icon}
-                </ListItemIcon>
-                <ListItemText 
-                  primary={item.text} 
-                  primaryTypographyProps={{ 
-                    fontWeight: isActive ? 600 : 400,
-                    color: isActive ? 'white' : 'text.secondary'
-                  }} 
-                />
-              </ListItemButton>
-            </ListItem>
+            <Box key={item.text} sx={{ mb: 1 }}>
+              <ListItem disablePadding>
+                <ListItemButton
+                  onClick={() => handleMenuNavigate(item, isExpanded)}
+                  selected={isActive}
+                  sx={{
+                    borderRadius: 2,
+                    minHeight: 56,
+                    bgcolor: isActive ? 'primary.main' : 'transparent',
+                    background: isActive ? 'linear-gradient(90deg, #7048E8 0%, #4D329A 100%)' : 'transparent',
+                    '&:hover': {
+                      bgcolor: isActive ? 'primary.dark' : 'rgba(255,255,255,0.05)',
+                    },
+                    '&.Mui-selected': {
+                       bgcolor: 'primary.main',
+                       color: 'white',
+                       '&:hover': {
+                          bgcolor: 'primary.dark',
+                       }
+                    }
+                  }}
+                >
+                  <ListItemIcon sx={{ color: isActive ? 'white' : 'text.secondary', minWidth: 40 }}>
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={item.text}
+                    primaryTypographyProps={{
+                      fontWeight: isActive ? 700 : 500,
+                      color: isActive ? 'white' : 'text.secondary'
+                    }}
+                  />
+                  {item.children && (
+                    isExpanded
+                      ? <KeyboardArrowDown fontSize="small" />
+                      : <KeyboardArrowRight fontSize="small" />
+                  )}
+                </ListItemButton>
+              </ListItem>
+              {item.children && (
+                <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                  <List disablePadding sx={{ pt: 0.75 }}>
+                    {item.children.map((child) => {
+                      const childActive = isChildActive(child);
+                      return (
+                        <ListItem disablePadding key={child.text} sx={{ pl: 3.25, mb: 0.5 }}>
+                          <ListItemButton
+                            onClick={() => handleMenuNavigate(child)}
+                            selected={childActive}
+                            sx={{
+                              borderRadius: 2,
+                              minHeight: 48,
+                              bgcolor: childActive ? 'rgba(255,109,0,0.16)' : 'rgba(255,255,255,0.03)',
+                              color: childActive ? 'secondary.main' : 'text.secondary',
+                              '&:hover': {
+                                bgcolor: childActive ? 'rgba(255,109,0,0.22)' : 'rgba(255,255,255,0.07)',
+                              },
+                              '&.Mui-selected': {
+                                bgcolor: 'rgba(255,109,0,0.16)',
+                              },
+                            }}
+                          >
+                            <ListItemText
+                              primary={child.text}
+                              primaryTypographyProps={{
+                                fontSize: '0.92rem',
+                                fontWeight: childActive ? 800 : 600,
+                                color: childActive ? 'secondary.main' : 'text.secondary',
+                              }}
+                            />
+                          </ListItemButton>
+                        </ListItem>
+                      );
+                    })}
+                  </List>
+                </Collapse>
+              )}
+            </Box>
           );
         })}
       </List>
       <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
       <Box sx={{ p: 2 }}>
         <ListItem disablePadding>
-           <ListItemButton sx={{ borderRadius: 2, minHeight: 48 }}>
+           <ListItemButton sx={{ borderRadius: 2, minHeight: 56 }}>
              <ListItemIcon sx={{ minWidth: 40, color: 'text.secondary' }}><Settings /></ListItemIcon>
              <ListItemText primary="支援" sx={{ color: 'text.secondary' }} />
            </ListItemButton>
@@ -137,7 +233,7 @@ const PosLayout: React.FC = () => {
             onClick={handleLockTerminal}
             sx={{ 
                 mt: 2, 
-                minHeight: 48,
+                minHeight: 56,
                 color: 'text.secondary', 
                 borderColor: 'rgba(255,255,255,0.2)',
                 bgcolor: 'rgba(0,0,0,0.2)',
@@ -235,7 +331,7 @@ const PosLayout: React.FC = () => {
           height: '100vh', 
           overflowY: 'auto', 
           pt: isSmallScreen ? '64px' : 0, 
-          pb: isTablet ? '72px' : (isMobile ? '64px' : 0)
+          pb: isTablet ? '72px' : (isMobile ? '76px' : 0)
       }}>
         {/* 桌面狀態列 / Desktop status bar */}
         {!isSmallScreen && (
@@ -307,7 +403,7 @@ const PosLayout: React.FC = () => {
         <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1200 }} elevation={6}>
           <BottomNavigation
             showLabels
-            value={menuItems.findIndex(i => location.pathname.includes(i.path))}
+            value={menuItems.findIndex(i => isItemActive(i))}
             onChange={(_event, newValue) => {
               navigate(menuItems[newValue].path);
             }}
@@ -329,6 +425,52 @@ const PosLayout: React.FC = () => {
                    '&.Mui-selected': { 
                       color: 'primary.main',
                    }
+                }}
+              />
+            ))}
+          </BottomNavigation>
+        </Paper>
+      )}
+
+      {/* 手機底部快速導覽 / Mobile quick dock */}
+      {isMobile && (
+        <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1200 }} elevation={6}>
+          <BottomNavigation
+            showLabels
+            value={mobileDockItems.findIndex(i => isItemActive(i))}
+            onChange={(_event, newValue) => {
+              if (newValue >= 0) navigate(mobileDockItems[newValue].path);
+            }}
+            sx={{
+              height: 76,
+              bgcolor: 'background.paper',
+              borderTop: '1px solid rgba(255,255,255,0.08)',
+              '& .MuiBottomNavigationAction-root': {
+                minWidth: 0,
+                px: 0.5,
+                pt: 1,
+                pb: 1.25,
+              },
+              '& .MuiSvgIcon-root': {
+                fontSize: 24,
+              },
+              '& .MuiBottomNavigationAction-label': {
+                mt: 0.25,
+                fontSize: '0.72rem',
+                fontWeight: 800,
+              },
+            }}
+          >
+            {mobileDockItems.map((item) => (
+              <BottomNavigationAction
+                key={item.text}
+                label={item.text}
+                icon={item.icon}
+                sx={{
+                  color: 'text.secondary',
+                  '&.Mui-selected': {
+                    color: 'secondary.main',
+                  },
                 }}
               />
             ))}

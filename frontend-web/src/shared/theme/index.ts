@@ -50,14 +50,74 @@ export const posTheme = createTheme({
   },
   components: {
     MuiButton: {
+      defaultProps: {
+        disableElevation: true,
+      },
       styleOverrides: {
         root: {
           borderRadius: '8px', // Button border radius
           padding: '10px 24px',
+          minHeight: 48,
+          touchAction: 'manipulation',
         },
         containedSecondary: {
           fontWeight: 'bold',
           fontSize: '1.1rem',
+        },
+      },
+    },
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          minWidth: 44,
+          minHeight: 44,
+          touchAction: 'manipulation',
+        },
+        sizeSmall: {
+          minWidth: 44,
+          minHeight: 44,
+        },
+      },
+    },
+    MuiTextField: {
+      defaultProps: {
+        size: 'medium',
+      },
+    },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          minHeight: 48,
+        },
+        input: {
+          paddingTop: 13,
+          paddingBottom: 13,
+        },
+      },
+    },
+    MuiSelect: {
+      styleOverrides: {
+        select: {
+          minHeight: 24,
+          display: 'flex',
+          alignItems: 'center',
+        },
+      },
+    },
+    MuiMenuItem: {
+      styleOverrides: {
+        root: {
+          minHeight: 48,
+        },
+      },
+    },
+    MuiPaginationItem: {
+      styleOverrides: {
+        root: {
+          minWidth: 44,
+          height: 44,
+          margin: '0 3px',
+          touchAction: 'manipulation',
         },
       },
     },
@@ -75,6 +135,25 @@ export const posTheme = createTheme({
           backgroundImage: 'none',
           borderRight: '1px solid rgba(255,255,255,0.05)',
           borderLeft: '1px solid rgba(255,255,255,0.05)',
+        },
+      },
+    },
+    MuiDialogActions: {
+      styleOverrides: {
+        root: {
+          padding: '16px 24px 24px',
+          gap: 8,
+        },
+      },
+    },
+    MuiTableCell: {
+      styleOverrides: {
+        root: {
+          borderBottomColor: 'rgba(255,255,255,0.08)',
+        },
+        head: {
+          fontWeight: 800,
+          color: '#D8D9E2',
         },
       },
     },

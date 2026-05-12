@@ -31,6 +31,13 @@ public interface StaffShiftRepository extends JpaRepository<StaffShift, UUID> {
     Optional<StaffShift> findOpenByEmployeeId(@Param("employeeId") UUID employeeId);
 
     // ========================================
+    // 查詢終端機開放班次 / Find terminal open shift
+    // ========================================
+    @Query("SELECT s FROM StaffShift s WHERE s.storeId = :storeId AND s.terminalId = :terminalId AND s.status = 'OPEN' AND s.deletedAt IS NULL")
+    Optional<StaffShift> findOpenByStoreIdAndTerminalId(@Param("storeId") UUID storeId,
+                                                        @Param("terminalId") UUID terminalId);
+
+    // ========================================
     // 依時段查詢班次 / Find shifts in date range
     // ========================================
     @Query("SELECT s FROM StaffShift s WHERE s.storeId = :storeId AND s.openedAt >= :from AND s.openedAt < :to AND s.deletedAt IS NULL ORDER BY s.openedAt")

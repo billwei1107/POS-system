@@ -10,6 +10,7 @@ import {
   Chip, Alert, TextField, Dialog, DialogTitle, DialogContent, DialogActions,
   CircularProgress, Collapse,
 } from '@mui/material';
+import { formatDateTime } from '@shared/utils';
 import { transferApi } from '../api/inventoryApi';
 import type { CreateTransferRequestPayload, TransferRequest, TransferStatus } from '../types';
 
@@ -56,7 +57,7 @@ const TransferPage: React.FC = () => {
     try {
       setLoading(true);
       const res = await transferApi.listByStore(STORE_ID);
-      setTransfers(res.data.data ?? []);
+      setTransfers(res.data ?? []);
     } catch {
       setError('載入失敗');
     } finally {
@@ -134,7 +135,7 @@ const TransferPage: React.FC = () => {
                 <TableCell>
                   <Chip label={STATUS_LABEL[t.status]} color={STATUS_COLOR[t.status]} size="small" />
                 </TableCell>
-                <TableCell>{new Date(t.createdAt).toLocaleString('zh-TW')}</TableCell>
+                <TableCell>{formatDateTime(t.createdAt)}</TableCell>
                 <TableCell onClick={e => e.stopPropagation()}>
                   <Box sx={{ display: 'flex', gap: 1 }}>
                     {t.status === 'REQUESTED' && (

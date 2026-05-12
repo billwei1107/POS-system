@@ -8,7 +8,9 @@ package com.enterprise.inventory.service;
 
 import com.enterprise.core.event.OrderCompletedEvent;
 import com.enterprise.core.event.RefundCompletedEvent;
+import com.enterprise.core.entity.OrderRefund;
 import com.enterprise.core.repository.OrderItemRepository;
+import com.enterprise.core.repository.OrderRefundRepository;
 import com.enterprise.inventory.entity.StockMovement;
 import com.enterprise.inventory.repository.StockMovementRepository;
 import com.enterprise.product.repository.ProductItemRepository;
@@ -21,6 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import java.math.BigDecimal;
+
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -29,6 +33,7 @@ public class InventoryEventListener {
     private final StockDeductionService deductionService;
     private final StockMovementRepository movementRepository;
     private final OrderItemRepository orderItemRepository;
+    private final OrderRefundRepository refundRepository;
     private final ProductItemRepository productItemRepository;
 
     // ========================================
@@ -71,7 +76,37 @@ public class InventoryEventListener {
             log.debug("Stock already returned for refund: {}", event.getRefundId());
             return;
         }
-        log.info("Stock return triggered for refund: {}, store: {}", event.getRefundId(), event.getStoreId());
-        // 實際品項層級回補同上，Phase 2 整合 order items 後調用 deductionService.returnForRefund()
+
+        if (!isFullyRefunded(event)) {
+            log.info("Partial refund detected, skipping stock return for refund: {}, order: {}",
+                    event.getRefundId(), event.getOrderId());
+            return;
+        }
+
+        orderItemRepository.findByOrderIdOrderBySortOrder(event.getOrderId()).forEach(item -> {
+            productItemRepository.findById(item.getItemId())
+                    .filter(product -> Boolean.TRUE.equals(product.getTrackInventory()))
+                    .ifPresent(product -> deductionService.returnForRefund(
+                            event.getStoreId(),
+                            item.getItemId(),
+                            item.getQuantity(),
+                            event.getRefundId()));
+        });
+        log.info("Inventory returned for completed full refund: {}, store: {}",
+                event.getRefundId(), event.getStoreId());
+    }
+
+    // ========================================
+    // 判斷是否已全額退款 / Detect fully refunded order
+    // ========================================
+    private boolean isFullyRefunded(RefundCompletedEvent event) {
+        if (event.getOrderGrandTotal() == null) {
+            return false;
+        }
+        BigDecimal completedRefundTotal = refundRepository.findByOrderId(event.getOrderId()).stream()
+                .filter(refund -> refund.getStatus() == OrderRefund.RefundStatus.COMPLETED)
+                .map(OrderRefund::getRefundAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return completedRefundTotal.compareTo(event.getOrderGrandTotal()) >= 0;
     }
 }

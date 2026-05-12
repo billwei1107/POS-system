@@ -48,16 +48,16 @@ export function DataTable<T extends object>({
   };
 
   return (
-    <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-      <TableContainer>
-        <Table stickyHeader size="small">
+    <Paper sx={{ width: '100%', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.06)' }}>
+      <TableContainer sx={{ maxWidth: '100%', overflowX: 'auto' }}>
+        <Table stickyHeader size="medium">
           <TableHead>
             <TableRow>
               {columns.map(col => (
                 <TableCell
                   key={String(col.key)}
                   align={col.align ?? 'left'}
-                  sx={{ width: col.width, fontWeight: 700, whiteSpace: 'nowrap' }}
+                  sx={{ width: col.width, fontWeight: 800, whiteSpace: 'nowrap', py: 1.75 }}
                 >
                   {col.label}
                 </TableCell>
@@ -82,10 +82,13 @@ export function DataTable<T extends object>({
                 <TableRow
                   key={rowKey ? rowKey(row) : idx}
                   hover
-                  sx={{ '&:last-child td': { border: 0 } }}
+                  sx={{
+                    '&:last-child td': { border: 0 },
+                    '& td': { py: 1.5 },
+                  }}
                 >
                   {columns.map(col => (
-                    <TableCell key={String(col.key)} align={col.align ?? 'left'}>
+                    <TableCell key={String(col.key)} align={col.align ?? 'left'} sx={{ minHeight: 56 }}>
                       {getCell(row, col)}
                     </TableCell>
                   ))}

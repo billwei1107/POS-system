@@ -13,6 +13,7 @@ import {
 import { reconciliationApi } from '../api/paymentApi';
 import type { Reconciliation, ReconStatus } from '../types';
 import { DEFAULT_EMPLOYEE_ID, DEFAULT_STORE_ID } from '../../pos-orders/config';
+import { toISODateString } from '@shared/utils';
 
 const STATUS_COLOR: Record<ReconStatus, 'default' | 'warning' | 'success' | 'error'> = {
   PENDING: 'warning',
@@ -30,7 +31,7 @@ const STATUS_LABEL: Record<ReconStatus, string> = {
 // 每日對帳頁 / Daily reconciliation page
 // ========================================
 const ReconciliationPage: React.FC = () => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = toISODateString(new Date());
   const [date, setDate] = useState(today);
   const [records, setRecords] = useState<Reconciliation[]>([]);
   const [loading, setLoading] = useState(false);
@@ -194,7 +195,6 @@ const ReconciliationPage: React.FC = () => {
           value={date}
           onChange={(e) => setDate(e.target.value)}
           InputLabelProps={{ shrink: true }}
-          size="small"
         />
         <Button variant="outlined" onClick={loadRecords} disabled={loading}>
           {loading ? <CircularProgress size={20} /> : '查詢'}

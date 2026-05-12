@@ -10,6 +10,7 @@ import {
   Chip, Alert, TextField, Dialog, DialogTitle, DialogContent, DialogActions,
   CircularProgress, Card, CardContent,
 } from '@mui/material';
+import { formatDateTime } from '@shared/utils';
 import { shiftApi } from '../api/staffApi';
 import { cashDrawerApi } from '../../pos-payment/api/paymentApi';
 import type { OpenShiftPayload, StaffShift } from '../types';
@@ -118,12 +119,13 @@ const ShiftPage: React.FC = () => {
   };
 
   const renderShiftActions = (shift: StaffShift) => shift.status === 'OPEN' && (
-    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
+    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1, width: { xs: '100%', sm: 'auto' } }}>
       <Button
         size="small"
         variant="outlined"
         color="primary"
         onClick={() => setCloseDialog({ open: true, shiftId: shift.id })}
+        sx={{ minWidth: { sm: 88 } }}
       >
         關班
       </Button>
@@ -132,6 +134,7 @@ const ShiftPage: React.FC = () => {
         variant="outlined"
         color="warning"
         onClick={() => handleBlindClose(shift.id)}
+        sx={{ minWidth: { sm: 112 } }}
       >
         盲點結算
       </Button>
@@ -178,7 +181,7 @@ const ShiftPage: React.FC = () => {
               </Box>
               <Box sx={{ gridColumn: '1 / -1' }}>
                 <Typography variant="caption" color="text.secondary">開班時間</Typography>
-                <Typography variant="body2">{new Date(shift.openedAt).toLocaleString('zh-TW')}</Typography>
+                <Typography variant="body2">{formatDateTime(shift.openedAt)}</Typography>
               </Box>
             </Box>
 
@@ -238,7 +241,7 @@ const ShiftPage: React.FC = () => {
                 <TableCell>
                   <Chip label={STATUS_LABEL[s.status] ?? s.status} color={STATUS_COLOR[s.status] ?? 'default'} size="small" />
                 </TableCell>
-                <TableCell>{new Date(s.openedAt).toLocaleString('zh-TW')}</TableCell>
+                <TableCell>{formatDateTime(s.openedAt)}</TableCell>
                 <TableCell align="right">{s.openingCash.toLocaleString()}</TableCell>
                 <TableCell align="right">{s.netSales.toLocaleString()}</TableCell>
                 <TableCell align="right">{s.transactionCount}</TableCell>

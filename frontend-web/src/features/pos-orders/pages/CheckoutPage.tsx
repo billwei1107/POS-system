@@ -338,11 +338,11 @@ const CheckoutPage: React.FC = () => {
                             inputProps={{ min: 0, step: 1 }}
                             fullWidth
                         />
-                        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1 }}>
+                        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' }, gap: 1 }}>
                             <Button
                                 variant="outlined"
                                 onClick={() => setCashTendered(String(totals.total))}
-                                sx={{ minHeight: 42, color: 'text.primary', borderColor: 'rgba(255,255,255,0.12)' }}
+                                sx={{ minHeight: 56, color: 'text.primary', borderColor: 'rgba(255,255,255,0.12)' }}
                             >
                                 剛好
                             </Button>
@@ -351,7 +351,7 @@ const CheckoutPage: React.FC = () => {
                                     key={amount}
                                     variant="outlined"
                                     onClick={() => addCashTendered(amount)}
-                                    sx={{ minHeight: 42, color: 'text.primary', borderColor: 'rgba(255,255,255,0.12)' }}
+                                    sx={{ minHeight: 56, color: 'text.primary', borderColor: 'rgba(255,255,255,0.12)' }}
                                 >
                                     +{formatMoney(amount)}
                                 </Button>

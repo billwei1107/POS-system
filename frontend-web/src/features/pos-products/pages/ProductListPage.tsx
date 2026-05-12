@@ -101,7 +101,7 @@ const ProductDialog: React.FC<ProductDialogProps> = ({ open, initial, categories
           </Select>
         </FormControl>
 
-        <Box sx={{ display: 'flex', gap: 2 }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 0, sm: 2 } }}>
           <TextField label="售價" type="number" fullWidth margin="normal" required
             value={form.basePrice} onChange={set('basePrice')}
             inputProps={{ min: 0, step: 0.01 }} />
@@ -110,7 +110,7 @@ const ProductDialog: React.FC<ProductDialogProps> = ({ open, initial, categories
             inputProps={{ min: 0, step: 0.01 }} />
         </Box>
 
-        <Box sx={{ display: 'flex', gap: 2 }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 0, sm: 2 } }}>
           <FormControl fullWidth margin="normal">
             <InputLabel>單位</InputLabel>
             <Select
@@ -231,11 +231,12 @@ const ProductListPage: React.FC = () => {
     categories.find((c) => c.id === id)?.name ?? '-';
 
   const renderProductActions = (product: ProductItem) => (
-    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
+    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.75 }}>
       <IconButton
         aria-label={`編輯 ${product.name}`}
         size="small"
         onClick={() => { setEditTarget(product); setDialogOpen(true); }}
+        sx={{ width: 44, height: 44, borderRadius: 1.5, bgcolor: 'rgba(255,255,255,0.04)' }}
       >
         <EditIcon fontSize="small" />
       </IconButton>
@@ -244,6 +245,7 @@ const ProductListPage: React.FC = () => {
         size="small"
         color="error"
         onClick={() => setDeleteTarget(product)}
+        sx={{ width: 44, height: 44, borderRadius: 1.5, bgcolor: 'rgba(255,82,82,0.1)' }}
       >
         <DeleteIcon fontSize="small" />
       </IconButton>
@@ -324,6 +326,7 @@ const ProductListPage: React.FC = () => {
       {/* ===== 篩選列 / Filter bar ===== */}
       <Box sx={{
         display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
         gap: 2,
         flexWrap: 'wrap',
         bgcolor: 'background.paper',
@@ -339,9 +342,9 @@ const ProductListPage: React.FC = () => {
           onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
           sx={{ flex: '1 1 260px' }}
         />
-        <Button variant="outlined" startIcon={<SearchIcon />} onClick={handleSearch}>搜尋</Button>
+        <Button variant="outlined" startIcon={<SearchIcon />} onClick={handleSearch} sx={{ minWidth: { sm: 104 } }}>搜尋</Button>
 
-        <FormControl size="small" sx={{ minWidth: 180 }}>
+        <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 180 } }}>
           <InputLabel>篩選分類</InputLabel>
           <Select
             label="篩選分類"

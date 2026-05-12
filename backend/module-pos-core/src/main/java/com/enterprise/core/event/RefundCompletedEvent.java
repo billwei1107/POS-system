@@ -19,13 +19,23 @@ public class RefundCompletedEvent extends ApplicationEvent {
     private final UUID orderId;
     private final UUID storeId;
     private final BigDecimal refundAmount;
+    private final BigDecimal orderGrandTotal;
+    private final String refundMethod;
 
     public RefundCompletedEvent(Object source, UUID refundId, UUID orderId,
                                 UUID storeId, BigDecimal refundAmount) {
+        this(source, refundId, orderId, storeId, refundAmount, null, null);
+    }
+
+    public RefundCompletedEvent(Object source, UUID refundId, UUID orderId,
+                                UUID storeId, BigDecimal refundAmount,
+                                BigDecimal orderGrandTotal, String refundMethod) {
         super(source);
         this.refundId = refundId;
         this.orderId = orderId;
         this.storeId = storeId;
         this.refundAmount = refundAmount;
+        this.orderGrandTotal = orderGrandTotal;
+        this.refundMethod = refundMethod;
     }
 }

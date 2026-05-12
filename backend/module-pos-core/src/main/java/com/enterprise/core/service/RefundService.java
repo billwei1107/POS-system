@@ -21,12 +21,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class RefundService {
+
+    private static final ZoneId POS_BUSINESS_ZONE = ZoneId.of("Asia/Taipei");
 
     private final OrderRefundRepository refundRepository;
     private final OrderRepository orderRepository;
@@ -88,14 +92,20 @@ public class RefundService {
 
         Order order = orderRepository.findById(refund.getOrderId()).orElseThrow();
         eventPublisher.publishEvent(new RefundCompletedEvent(
-            this, refund.getId(), refund.getOrderId(), order.getStoreId(), refund.getRefundAmount()
+            this,
+            refund.getId(),
+            refund.getOrderId(),
+            order.getStoreId(),
+            refund.getRefundAmount(),
+            order.getGrandTotal(),
+            refund.getRefundMethod()
         ));
 
         return refund;
     }
 
     private String generateRefundNo() {
-        return "RF-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
+        return "RF-" + ZonedDateTime.now(POS_BUSINESS_ZONE).format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
                + "-" + String.valueOf(System.nanoTime()).substring(10);
     }
 }

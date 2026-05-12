@@ -9,6 +9,7 @@ package com.enterprise.payment.service;
 import com.enterprise.common.exception.BusinessException;
 import com.enterprise.common.exception.ResourceNotFoundException;
 import com.enterprise.core.event.OrderCompletedEvent;
+import com.enterprise.core.event.RefundCompletedEvent;
 import com.enterprise.payment.dto.request.ProcessPaymentRequest;
 import com.enterprise.payment.dto.response.PaymentTransactionResponse;
 import com.enterprise.payment.entity.GatewayConfig;
@@ -95,7 +96,9 @@ public class PaymentService {
         transactionRepository.save(txn);
 
         if (!gatewayResp.success()) {
-            throw new BusinessException("Payment failed: " + gatewayResp.errorMessage());
+            log.warn("Payment failed for completed order {}, transaction saved as FAILED: {}",
+                event.getOrderId(), gatewayResp.errorMessage());
+            return;
         }
 
         eventPublisher.publishEvent(new PaymentProcessedEvent(
@@ -108,7 +111,7 @@ public class PaymentService {
     // ========================================
     // 手動發起支付 / Manual payment processing
     // ========================================
-    @Transactional
+    @Transactional(noRollbackFor = BusinessException.class)
     public PaymentTransactionResponse processPayment(ProcessPaymentRequest req) {
         PayMethod payMethod = payMethodRepository.findById(req.payMethodId())
             .orElseThrow(() -> new ResourceNotFoundException("PayMethod not found: " + req.payMethodId()));
@@ -157,6 +160,36 @@ public class PaymentService {
     }
 
     // ========================================
+    // 消費退款完成事件 / Consume refund completed event
+    // ========================================
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void onRefundCompleted(RefundCompletedEvent event) {
+        String gatewayRef = refundGatewayRef(event.getRefundId());
+        if (transactionRepository.existsByGatewayRef(gatewayRef)) {
+            log.debug("Refund payment transaction already exists for refund={}", event.getRefundId());
+            return;
+        }
+
+        PayMethod payMethod = resolveRefundPayMethod(event);
+        PaymentTransaction txn = new PaymentTransaction();
+        txn.setOrderId(event.getOrderId());
+        txn.setStoreId(event.getStoreId());
+        txn.setPayMethodId(payMethod.getId());
+        txn.setMethodType(payMethod.getMethodType().name());
+        txn.setAmount(event.getRefundAmount());
+        txn.setTendered(null);
+        txn.setChangeGiven(BigDecimal.ZERO);
+        txn.setStatus(PaymentTransaction.TxnStatus.REFUNDED);
+        txn.setGatewayRef(gatewayRef);
+        txn.setGatewayResp("{\"source\":\"RefundCompletedEvent\"}");
+        transactionRepository.save(txn);
+
+        log.info("Refund payment transaction recorded for refund={}, order={}",
+            event.getRefundId(), event.getOrderId());
+    }
+
+    // ========================================
     // 查詢訂單付款記錄 / Get transactions by order
     // ========================================
     @Transactional(readOnly = true)
@@ -183,6 +216,18 @@ public class PaymentService {
         String code = normalizePayMethodCode(payMethodCode);
         return payMethodRepository.findByStoreIdAndCode(storeId, code)
             .orElseGet(() -> createDefaultEventPayMethod(storeId, code));
+    }
+
+    private PayMethod resolveRefundPayMethod(RefundCompletedEvent event) {
+        return transactionRepository.findByOrderId(event.getOrderId()).stream()
+            .filter(txn -> txn.getStatus() == PaymentTransaction.TxnStatus.SUCCESS)
+            .findFirst()
+            .flatMap(txn -> payMethodRepository.findById(txn.getPayMethodId()))
+            .orElseGet(() -> resolveEventPayMethod(event.getStoreId(), event.getRefundMethod()));
+    }
+
+    private String refundGatewayRef(UUID refundId) {
+        return "REFUND-" + refundId;
     }
 
     private PayMethod createDefaultEventPayMethod(UUID storeId, String code) {

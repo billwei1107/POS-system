@@ -150,3 +150,10 @@ export interface AdjustStockPayload {
   operatedBy?: string;
   notes?: string;
 }
+
+export interface ReceiveStockPayload {
+  storeId: string;
+  operatedBy?: string;
+  notes?: string;
+  items: { itemId: string; receivedQty: number }[];
+}

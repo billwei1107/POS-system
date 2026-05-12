@@ -7,6 +7,7 @@
 package com.enterprise.payment.service;
 
 import com.enterprise.core.event.OrderCompletedEvent;
+import com.enterprise.core.event.RefundCompletedEvent;
 import com.enterprise.payment.entity.GatewayConfig;
 import com.enterprise.payment.entity.PayMethod;
 import com.enterprise.payment.entity.PaymentTransaction;
@@ -30,6 +31,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -143,6 +145,85 @@ class PaymentServiceTest {
 
         verify(transactionRepository, never()).save(any(PaymentTransaction.class));
         verify(payMethodRepository, never()).findByStoreIdAndCode(any(), any());
+    }
+
+    @Test
+    void onOrderCompleted_failedGateway_keepsFailedTransactionWithoutPublishingEvent() {
+        UUID orderId = UUID.randomUUID();
+        UUID storeId = UUID.randomUUID();
+        UUID payMethodId = UUID.randomUUID();
+        PayMethod cash = payMethod(storeId, payMethodId);
+
+        when(transactionRepository.findByOrderId(orderId)).thenReturn(List.of());
+        when(payMethodRepository.findByStoreIdAndCode(storeId, "CASH")).thenReturn(Optional.of(cash));
+        when(cashGateway.gatewayType()).thenReturn(GatewayConfig.GatewayType.CASH);
+        when(cashGateway.charge(any(GatewayRequest.class)))
+            .thenReturn(GatewayResponse.fail("DECLINED", "Gateway declined"));
+        when(transactionRepository.save(any(PaymentTransaction.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> paymentService.onOrderCompleted(new OrderCompletedEvent(
+            this,
+            orderId,
+            storeId,
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            "ORD-FAILED",
+            null,
+            new BigDecimal("126.00"),
+            new BigDecimal("6.00"),
+            "CASH",
+            new BigDecimal("126.00"),
+            new BigDecimal("130.00"),
+            new BigDecimal("4.00")
+        ))).doesNotThrowAnyException();
+
+        ArgumentCaptor<PaymentTransaction> txnCaptor = ArgumentCaptor.forClass(PaymentTransaction.class);
+        verify(transactionRepository).save(txnCaptor.capture());
+        assertThat(txnCaptor.getValue().getStatus()).isEqualTo(PaymentTransaction.TxnStatus.FAILED);
+        assertThat(txnCaptor.getValue().getErrorCode()).isEqualTo("DECLINED");
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void onRefundCompleted_createsRefundedTransactionForReconciliation() {
+        UUID orderId = UUID.randomUUID();
+        UUID storeId = UUID.randomUUID();
+        UUID refundId = UUID.randomUUID();
+        UUID payMethodId = UUID.randomUUID();
+        PayMethod cash = payMethod(storeId, payMethodId);
+        PaymentTransaction successTxn = new PaymentTransaction();
+        successTxn.setOrderId(orderId);
+        successTxn.setStoreId(storeId);
+        successTxn.setPayMethodId(payMethodId);
+        successTxn.setMethodType("CASH");
+        successTxn.setAmount(new BigDecimal("126.00"));
+        successTxn.setStatus(PaymentTransaction.TxnStatus.SUCCESS);
+
+        when(transactionRepository.existsByGatewayRef("REFUND-" + refundId)).thenReturn(false);
+        when(transactionRepository.findByOrderId(orderId)).thenReturn(List.of(successTxn));
+        when(payMethodRepository.findById(payMethodId)).thenReturn(Optional.of(cash));
+        when(transactionRepository.save(any(PaymentTransaction.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+
+        paymentService.onRefundCompleted(new RefundCompletedEvent(
+            this,
+            refundId,
+            orderId,
+            storeId,
+            new BigDecimal("126.00"),
+            new BigDecimal("126.00"),
+            "CASH"
+        ));
+
+        ArgumentCaptor<PaymentTransaction> txnCaptor = ArgumentCaptor.forClass(PaymentTransaction.class);
+        verify(transactionRepository).save(txnCaptor.capture());
+        PaymentTransaction txn = txnCaptor.getValue();
+        assertThat(txn.getOrderId()).isEqualTo(orderId);
+        assertThat(txn.getPayMethodId()).isEqualTo(payMethodId);
+        assertThat(txn.getStatus()).isEqualTo(PaymentTransaction.TxnStatus.REFUNDED);
+        assertThat(txn.getAmount()).isEqualByComparingTo("126.00");
+        assertThat(txn.getGatewayRef()).isEqualTo("REFUND-" + refundId);
     }
 
     private PayMethod payMethod(UUID storeId, UUID payMethodId) {

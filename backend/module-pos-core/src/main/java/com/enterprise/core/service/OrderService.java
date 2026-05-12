@@ -32,6 +32,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,6 +42,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class OrderService {
+
+    private static final ZoneId POS_BUSINESS_ZONE = ZoneId.of("Asia/Taipei");
 
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
@@ -221,7 +225,7 @@ public class OrderService {
 
     private String generateOrderNo(UUID storeId) {
         String prefix = storeId.toString().substring(0, 6).toUpperCase();
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        String timestamp = ZonedDateTime.now(POS_BUSINESS_ZONE).format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         String suffix = String.valueOf(System.nanoTime()).substring(10);
         String candidate = prefix + "-" + timestamp + "-" + suffix;
         if (orderRepository.existsByOrderNo(candidate)) {

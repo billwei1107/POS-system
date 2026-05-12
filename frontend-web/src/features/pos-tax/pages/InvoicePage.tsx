@@ -13,6 +13,7 @@ import {
 import { invoiceApi } from '../api/taxApi';
 import type { Invoice, InvoiceStatus, UploadStatus } from '../types';
 import { DEFAULT_STORE_ID } from '../../pos-orders/config';
+import { formatDateTime, toISODateString } from '@shared/utils';
 
 const STATUS_COLOR: Record<InvoiceStatus, 'default' | 'success' | 'error' | 'warning'> = {
   ISSUED: 'success',
@@ -42,7 +43,7 @@ const UPLOAD_LABEL: Record<UploadStatus, string> = {
 // 電子發票查詢頁 / E-invoice query page
 // ========================================
 const InvoicePage: React.FC = () => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = toISODateString(new Date());
   const [fromDate, setFromDate] = useState(today);
   const [toDate, setToDate] = useState(today);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -142,7 +143,7 @@ const InvoicePage: React.FC = () => {
               </Box>
               <Box>
                 <Typography variant="caption" color="text.secondary">開立時間</Typography>
-                <Typography variant="body2">{new Date(inv.issueAt).toLocaleString('zh-TW')}</Typography>
+                <Typography variant="body2">{formatDateTime(inv.issueAt)}</Typography>
               </Box>
             </Box>
 
@@ -187,7 +188,6 @@ const InvoicePage: React.FC = () => {
           value={fromDate}
           onChange={(e) => setFromDate(e.target.value)}
           InputLabelProps={{ shrink: true }}
-          size="small"
         />
         <TextField
           type="date"
@@ -195,7 +195,6 @@ const InvoicePage: React.FC = () => {
           value={toDate}
           onChange={(e) => setToDate(e.target.value)}
           InputLabelProps={{ shrink: true }}
-          size="small"
         />
         <Button variant="outlined" onClick={loadInvoices} disabled={loading}>
           {loading ? <CircularProgress size={20} /> : '查詢'}
@@ -240,7 +239,7 @@ const InvoicePage: React.FC = () => {
                 <TableCell>
                   <Chip label={UPLOAD_LABEL[inv.uploadStatus]} color={UPLOAD_COLOR[inv.uploadStatus]} size="small" variant="outlined" />
                 </TableCell>
-                <TableCell>{new Date(inv.issueAt).toLocaleString('zh-TW')}</TableCell>
+                <TableCell>{formatDateTime(inv.issueAt)}</TableCell>
                 <TableCell>
                   {inv.status === 'ISSUED' && (
                     <Button

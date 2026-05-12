@@ -41,6 +41,13 @@ public class ReconciliationService {
         List<PayMethod> methods = payMethodRepository.findByStoreIdAndIsActiveTrueOrderBySortOrder(storeId);
 
         return methods.stream().map(pm -> {
+            var existingRecon = reconciliationRepository
+                .findByStoreIdAndReconDateAndPayMethodId(storeId, date, pm.getId());
+            if (existingRecon.isPresent()
+                && existingRecon.get().getStatus() != Reconciliation.ReconStatus.PENDING) {
+                return existingRecon.get();
+            }
+
             var txns = transactionRepository.findByStoreAndDateRange(storeId, from, to)
                 .stream().filter(t -> pm.getId().equals(t.getPayMethodId())).toList();
 
@@ -58,9 +65,7 @@ public class ReconciliationService {
                 .map(com.enterprise.payment.entity.PaymentTransaction::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            Reconciliation recon = reconciliationRepository
-                .findByStoreIdAndReconDateAndPayMethodId(storeId, date, pm.getId())
-                .orElse(new Reconciliation());
+            Reconciliation recon = existingRecon.orElse(new Reconciliation());
 
             recon.setStoreId(storeId);
             recon.setReconDate(date);

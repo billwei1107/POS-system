@@ -197,7 +197,7 @@ const RegisterPage: React.FC = () => {
                             variant="outlined"
                             startIcon={action.icon}
                             sx={{
-                                minHeight: 44,
+                                minHeight: 52,
                                 color: 'text.primary',
                                 borderColor: 'rgba(255,255,255,0.12)',
                                 bgcolor: 'rgba(255,255,255,0.04)'
@@ -219,7 +219,6 @@ const RegisterPage: React.FC = () => {
                 <TextField
                     placeholder="搜尋商品、SKU 或條碼"
                     variant="outlined"
-                    size="small"
                     value={searchInput}
                     onChange={(event) => setSearchInput(event.target.value)}
                     onKeyDown={(event) => event.key === 'Enter' && handleSearch()}
@@ -251,7 +250,7 @@ const RegisterPage: React.FC = () => {
                                     borderRadius: 2,
                                     whiteSpace: 'nowrap',
                                     flexShrink: 0,
-                                    minHeight: 42,
+                                    minHeight: 52,
                                     bgcolor: isActive ? '#B2C6FF' : 'background.paper',
                                     color: isActive ? '#151821' : 'text.primary',
                                     fontWeight: isActive ? 800 : 600,
@@ -272,11 +271,12 @@ const RegisterPage: React.FC = () => {
 
                 <Tooltip title="掃描條碼">
                     <IconButton sx={{
-                    minWidth: 44,
-                    width: 44,
-                    minHeight: 44,
-                    justifySelf: { xs: 'start', md: 'stretch' },
-                    bgcolor: 'rgba(255,109,0,0.14)',
+                        minWidth: 52,
+                        width: 52,
+                        minHeight: 52,
+                        height: 52,
+                        justifySelf: { xs: 'stretch', md: 'stretch' },
+                        bgcolor: 'rgba(255,109,0,0.14)',
                         color: 'secondary.main',
                         borderRadius: 2,
                         '&:hover': { bgcolor: 'rgba(255,109,0,0.22)' }
@@ -299,7 +299,7 @@ const RegisterPage: React.FC = () => {
                 alignItems: 'stretch',
                 overflowY: 'auto',
                 pr: { xs: 0, md: 0.5 },
-                pb: 2,
+                pb: { xs: 12, md: 2 },
                 minHeight: 0
             }}>
                 {loading && (
@@ -454,8 +454,9 @@ const RegisterPage: React.FC = () => {
                                     </Typography>
                                 </Box>
                                 <Box sx={{
-                                    width: 44,
-                                    height: 44,
+                                    width: 52,
+                                    height: 52,
+                                    minWidth: 52,
                                     flexShrink: 0,
                                     borderRadius: 2,
                                     display: 'grid',

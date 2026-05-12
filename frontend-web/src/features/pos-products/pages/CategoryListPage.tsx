@@ -162,11 +162,12 @@ const CategoryListPage: React.FC = () => {
   };
 
   const renderCategoryActions = (category: Category) => (
-    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
+    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.75 }}>
       <IconButton
         aria-label={`編輯 ${category.name}`}
         size="small"
         onClick={() => { setEditTarget(category); setDialogOpen(true); }}
+        sx={{ width: 44, height: 44, borderRadius: 1.5, bgcolor: 'rgba(255,255,255,0.04)' }}
       >
         <EditIcon fontSize="small" />
       </IconButton>
@@ -175,6 +176,7 @@ const CategoryListPage: React.FC = () => {
         size="small"
         color="error"
         onClick={() => setDeleteTarget(category)}
+        sx={{ width: 44, height: 44, borderRadius: 1.5, bgcolor: 'rgba(255,82,82,0.1)' }}
       >
         <DeleteIcon fontSize="small" />
       </IconButton>

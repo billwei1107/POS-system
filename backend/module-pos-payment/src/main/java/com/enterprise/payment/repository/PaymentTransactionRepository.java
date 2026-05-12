@@ -19,6 +19,8 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
 
     List<PaymentTransaction> findByOrderId(UUID orderId);
 
+    boolean existsByGatewayRef(String gatewayRef);
+
     @Query("""
         SELECT t FROM PaymentTransaction t
         WHERE t.storeId = :storeId

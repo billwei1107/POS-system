@@ -7,8 +7,11 @@
 package com.enterprise.inventory;
 
 import com.enterprise.core.entity.OrderItem;
+import com.enterprise.core.entity.OrderRefund;
 import com.enterprise.core.event.OrderCompletedEvent;
+import com.enterprise.core.event.RefundCompletedEvent;
 import com.enterprise.core.repository.OrderItemRepository;
+import com.enterprise.core.repository.OrderRefundRepository;
 import com.enterprise.inventory.entity.StockMovement;
 import com.enterprise.inventory.repository.StockMovementRepository;
 import com.enterprise.inventory.service.InventoryEventListener;
@@ -35,6 +38,7 @@ class InventoryEventListenerTest {
     @Mock private StockDeductionService deductionService;
     @Mock private StockMovementRepository movementRepository;
     @Mock private OrderItemRepository orderItemRepository;
+    @Mock private OrderRefundRepository refundRepository;
     @Mock private ProductItemRepository productItemRepository;
 
     @InjectMocks private InventoryEventListener listener;
@@ -92,6 +96,68 @@ class InventoryEventListenerTest {
                 .thenReturn(Optional.of(new StockMovement()));
 
         listener.onOrderCompleted(event(orderId, storeId));
+
+        verifyNoInteractions(orderItemRepository, productItemRepository, deductionService);
+    }
+
+    @Test
+    @DisplayName("全額退款完成時應回補需追蹤庫存商品")
+    void onRefundCompleted_fullRefund_returnsTrackedItems() {
+        UUID orderId = UUID.randomUUID();
+        UUID storeId = UUID.randomUUID();
+        UUID refundId = UUID.randomUUID();
+        UUID itemId = UUID.randomUUID();
+        OrderItem orderItem = new OrderItem();
+        orderItem.setItemId(itemId);
+        orderItem.setQuantity(new BigDecimal("2"));
+        OrderRefund refund = new OrderRefund();
+        refund.setOrderId(orderId);
+        refund.setRefundAmount(new BigDecimal("120.00"));
+        refund.setStatus(OrderRefund.RefundStatus.COMPLETED);
+        ProductItem product = new ProductItem();
+        product.setTrackInventory(true);
+
+        when(movementRepository.findFirstByReferenceIdAndMovementType(refundId, StockMovement.MovementType.RETURN))
+                .thenReturn(Optional.empty());
+        when(refundRepository.findByOrderId(orderId)).thenReturn(List.of(refund));
+        when(orderItemRepository.findByOrderIdOrderBySortOrder(orderId)).thenReturn(List.of(orderItem));
+        when(productItemRepository.findById(itemId)).thenReturn(Optional.of(product));
+
+        listener.onRefundCompleted(new RefundCompletedEvent(
+                this,
+                refundId,
+                orderId,
+                storeId,
+                new BigDecimal("120.00"),
+                new BigDecimal("120.00"),
+                "CASH"));
+
+        verify(deductionService).returnForRefund(storeId, itemId, new BigDecimal("2"), refundId);
+    }
+
+    @Test
+    @DisplayName("部分退款完成時不應在缺少品項資訊下回補整單庫存")
+    void onRefundCompleted_partialRefund_skipsStockReturn() {
+        UUID orderId = UUID.randomUUID();
+        UUID storeId = UUID.randomUUID();
+        UUID refundId = UUID.randomUUID();
+        OrderRefund refund = new OrderRefund();
+        refund.setOrderId(orderId);
+        refund.setRefundAmount(new BigDecimal("60.00"));
+        refund.setStatus(OrderRefund.RefundStatus.COMPLETED);
+
+        when(movementRepository.findFirstByReferenceIdAndMovementType(refundId, StockMovement.MovementType.RETURN))
+                .thenReturn(Optional.empty());
+        when(refundRepository.findByOrderId(orderId)).thenReturn(List.of(refund));
+
+        listener.onRefundCompleted(new RefundCompletedEvent(
+                this,
+                refundId,
+                orderId,
+                storeId,
+                new BigDecimal("60.00"),
+                new BigDecimal("120.00"),
+                "CASH"));
 
         verifyNoInteractions(orderItemRepository, productItemRepository, deductionService);
     }

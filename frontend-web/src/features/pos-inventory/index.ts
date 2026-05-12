@@ -5,6 +5,7 @@
  * @description_zh pos-inventory feature 頁面與 API 的統一匯出入口
  */
 export { default as StockOverviewPage } from './pages/StockOverviewPage';
+export { default as ReceivingPage } from './pages/ReceivingPage';
 export { default as TransferPage } from './pages/TransferPage';
 export { default as StockTakePage } from './pages/StockTakePage';
 export { stockApi, transferApi, alertApi, stockTakeApi } from './api/inventoryApi';

@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -84,18 +85,54 @@ public class StockDeductionService {
     // ========================================
     @Transactional
     public void receive(UUID storeId, UUID itemId, BigDecimal qty, UUID referenceId, String notes) {
+        receiveOne(storeId, itemId, qty, referenceId, "transfer", null, notes);
+    }
+
+    // ========================================
+    // 驗收入庫 / Receiving stock from counted inbound goods
+    // ========================================
+    @Transactional
+    public void receive(UUID storeId, UUID itemId, BigDecimal qty, UUID referenceId,
+                        String referenceType, UUID operatedBy, String notes) {
+        receiveOne(storeId, itemId, qty, referenceId, referenceType, operatedBy, notes);
+    }
+
+    // ========================================
+    // 批次驗收入庫 / Batch receiving stock
+    // ========================================
+    @Transactional
+    public void receiveBatch(UUID storeId, List<ReceivingLine> lines, UUID referenceId,
+                             String referenceType, UUID operatedBy, String notes) {
+        lines.forEach(line -> receiveOne(
+                storeId,
+                line.itemId(),
+                line.receivedQty(),
+                referenceId,
+                referenceType,
+                operatedBy,
+                notes
+        ));
+    }
+
+    public record ReceivingLine(UUID itemId, BigDecimal receivedQty) {}
+
+    private void receiveOne(UUID storeId, UUID itemId, BigDecimal qty, UUID referenceId,
+                            String referenceType, UUID operatedBy, String notes) {
         StoreStock stock = getOrCreateStock(storeId, itemId);
         stock.setQuantity(stock.getQuantity().add(qty));
         stockRepository.save(stock);
+
         StockMovement movement = new StockMovement();
         movement.setStoreId(storeId);
         movement.setItemId(itemId);
         movement.setQuantityChange(qty);
         movement.setMovementType(StockMovement.MovementType.RECEIVING);
         movement.setReferenceId(referenceId);
-        movement.setReferenceType("transfer");
+        movement.setReferenceType(referenceType);
+        movement.setOperatedBy(operatedBy);
         movement.setNotes(notes);
         movementRepository.save(movement);
+        alertService.checkAndRaiseAlert(stock);
     }
 
     // ========================================

@@ -12,7 +12,7 @@ import {
 import { DeleteOutline, Add, Remove, PersonAdd, LocalOffer, PauseCircleOutline } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { calculateCartTotals, calculateItemCount, useCartStore, type HeldOrder } from '../store/cartStore';
-import { formatMoney } from '@shared/utils';
+import { formatMoney, formatTime } from '@shared/utils';
 import { DEFAULT_STORE_ID, DEFAULT_TERMINAL_ID, DEMO_POS_MEMBERS } from '../config';
 import { heldOrderApi } from '../api/orderApi';
 import type { HeldOrderResponse } from '../types';
@@ -177,8 +177,7 @@ const Cart: React.FC = () => {
         }
     };
 
-    const formatHeldTime = (createdAt: string) =>
-        new Intl.DateTimeFormat('zh-TW', { hour: '2-digit', minute: '2-digit' }).format(new Date(createdAt));
+    const formatHeldTime = (createdAt: string) => formatTime(createdAt);
     
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', p: 2.5, minHeight: 0 }}>
@@ -194,18 +193,16 @@ const Cart: React.FC = () => {
                 <Box sx={{ display: 'flex', gap: 1 }}>
                     <IconButton
                         aria-label="掛單與取單"
-                        size="small"
                         onClick={() => setHoldOpen(true)}
-                        sx={{ color: heldOrders.length > 0 ? 'secondary.main' : 'text.secondary', bgcolor: 'rgba(255,255,255,0.04)', borderRadius: 1.5 }}
+                        sx={{ color: heldOrders.length > 0 ? 'secondary.main' : 'text.secondary', bgcolor: 'rgba(255,255,255,0.04)', borderRadius: 1.5, width: 44, height: 44 }}
                     >
                         <PauseCircleOutline fontSize="small" />
                     </IconButton>
                     <IconButton
                         aria-label="清空購物車"
-                        size="small"
                         disabled={lines.length === 0}
                         onClick={clear}
-                        sx={{ color: 'error.main', bgcolor: 'rgba(255,82,82,0.1)', borderRadius: 1.5 }}
+                        sx={{ color: 'error.main', bgcolor: 'rgba(255,82,82,0.1)', borderRadius: 1.5, width: 44, height: 44 }}
                     >
                         <DeleteOutline fontSize="small" />
                     </IconButton>
@@ -257,27 +254,24 @@ const Cart: React.FC = () => {
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 <IconButton
                                     aria-label={`減少 ${item.name}`}
-                                    size="small"
                                     onClick={() => decrease(item.itemId)}
-                                    sx={{ bgcolor: 'rgba(255,255,255,0.06)', borderRadius: 1.5, width: 32, height: 32 }}
+                                    sx={{ bgcolor: 'rgba(255,255,255,0.06)', borderRadius: 1.5, width: 44, height: 44 }}
                                 >
                                     <Remove fontSize="small" />
                                 </IconButton>
-                                <Typography sx={{ minWidth: 20, textAlign: 'center', fontWeight: 'bold' }}>{item.quantity}</Typography>
+                                <Typography sx={{ minWidth: 28, textAlign: 'center', fontWeight: 'bold', fontSize: '1.05rem' }}>{item.quantity}</Typography>
                                 <IconButton
                                     aria-label={`增加 ${item.name}`}
-                                    size="small"
                                     onClick={() => increase(item.itemId)}
-                                    sx={{ bgcolor: 'rgba(255,255,255,0.06)', borderRadius: 1.5, width: 32, height: 32 }}
+                                    sx={{ bgcolor: 'rgba(255,255,255,0.06)', borderRadius: 1.5, width: 44, height: 44 }}
                                 >
                                     <Add fontSize="small" />
                                 </IconButton>
                             </Box>
                             <IconButton
                                 aria-label={`移除 ${item.name}`}
-                                size="small"
                                 onClick={() => remove(item.itemId)}
-                                sx={{ color: 'error.main' }}
+                                sx={{ color: 'error.main', width: 44, height: 44 }}
                             >
                                 <DeleteOutline fontSize="small" />
                             </IconButton>
@@ -360,9 +354,9 @@ const Cart: React.FC = () => {
             </Button>
 
             <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button variant="outlined" fullWidth sx={{ color: 'text.primary', borderColor: 'rgba(255,255,255,0.1)', bgcolor: 'rgba(255,255,255,0.02)' }}>$10</Button>
-                <Button variant="outlined" fullWidth sx={{ color: 'text.primary', borderColor: 'rgba(255,255,255,0.1)', bgcolor: 'rgba(255,255,255,0.02)' }}>$20</Button>
-                <Button variant="outlined" fullWidth sx={{ color: 'text.primary', borderColor: 'rgba(255,255,255,0.1)', bgcolor: 'rgba(255,255,255,0.02)' }}>$50</Button>
+                <Button variant="outlined" fullWidth sx={{ minHeight: 56, color: 'text.primary', borderColor: 'rgba(255,255,255,0.1)', bgcolor: 'rgba(255,255,255,0.02)' }}>$10</Button>
+                <Button variant="outlined" fullWidth sx={{ minHeight: 56, color: 'text.primary', borderColor: 'rgba(255,255,255,0.1)', bgcolor: 'rgba(255,255,255,0.02)' }}>$20</Button>
+                <Button variant="outlined" fullWidth sx={{ minHeight: 56, color: 'text.primary', borderColor: 'rgba(255,255,255,0.1)', bgcolor: 'rgba(255,255,255,0.02)' }}>$50</Button>
             </Box>
 
             <Dialog

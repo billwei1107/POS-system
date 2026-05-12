@@ -71,3 +71,17 @@ bash scripts/setup-module-reference.sh
 - 不確定需求時先向使用者確認。
 - 完成功能後必須測試並更新 devlog。
 - 遇到問題必須記錄在 `devlog/troubleshooting.md`；若解決通用問題，依知識庫規則寫入 Obsidian raw errors。
+
+## 端口與服務啟動規則
+
+- POS 本地服務必須優先使用 `需求/系統規格表.md` 定義的原本端口：Backend `38080`、Frontend `38082`、PostgreSQL `5432`、Redis `6379`。
+- 每次啟動 Docker、Vite、Spring Boot、Playwright/瀏覽器測試服務，或修改任何端口設定前，必須先檢查目標端口是否已被佔用：
+
+```bash
+lsof -nP -iTCP:38080 -sTCP:LISTEN
+lsof -nP -iTCP:38082 -sTCP:LISTEN
+docker ps --format 'table {{.Names}}\t{{.Ports}}\t{{.Status}}'
+```
+
+- 若原本端口被其他專案或未知服務佔用，不得任意改用臨時端口繞過，也不得直接停止無關容器；必須先回報佔用者、影響範圍與建議處理方式。
+- 只有在使用者明確同意臨時替代端口時，才可使用替代端口；替代端口必須記錄在當日 devlog，任務完成後清理臨時服務。

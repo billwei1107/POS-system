@@ -9,6 +9,7 @@ import type { ApiResponse } from '../../../shared/types';
 import type {
   AdjustStockPayload,
   CreateTransferRequestPayload,
+  ReceiveStockPayload,
   StockAlert,
   StockMovement,
   StockTake,
@@ -31,6 +32,9 @@ export const stockApi = {
   adjust: (payload: AdjustStockPayload) =>
     axiosInstance.post<unknown, ApiResponse<string>>(`${BASE}/stock/adjust`, payload),
 
+  receive: (payload: ReceiveStockPayload) =>
+    axiosInstance.post<unknown, ApiResponse<string>>(`${BASE}/stock/receive`, payload),
+
   listMovements: (storeId: string, itemId: string) =>
     axiosInstance.get<unknown, ApiResponse<StockMovement[]>>(
       `${BASE}/stores/${storeId}/items/${itemId}/movements`
@@ -42,29 +46,29 @@ export const stockApi = {
 // ========================================
 export const transferApi = {
   create: (payload: CreateTransferRequestPayload) =>
-    axiosInstance.post<{ data: TransferRequest }>(`${BASE}/transfers`, payload),
+    axiosInstance.post<unknown, ApiResponse<TransferRequest>>(`${BASE}/transfers`, payload),
 
   listByStore: (storeId: string) =>
-    axiosInstance.get<{ data: TransferRequest[] }>(`${BASE}/transfers/stores/${storeId}`),
+    axiosInstance.get<unknown, ApiResponse<TransferRequest[]>>(`${BASE}/transfers/stores/${storeId}`),
 
   getById: (transferId: string) =>
-    axiosInstance.get<{ data: TransferRequest }>(`${BASE}/transfers/${transferId}`),
+    axiosInstance.get<unknown, ApiResponse<TransferRequest>>(`${BASE}/transfers/${transferId}`),
 
   approve: (transferId: string, approvedBy?: string) =>
-    axiosInstance.post<{ data: TransferRequest }>(
+    axiosInstance.post<unknown, ApiResponse<TransferRequest>>(
       `${BASE}/transfers/${transferId}/approve`,
       null,
       { params: { approvedBy } }
     ),
 
   ship: (transferId: string) =>
-    axiosInstance.post<{ data: TransferRequest }>(`${BASE}/transfers/${transferId}/ship`),
+    axiosInstance.post<unknown, ApiResponse<TransferRequest>>(`${BASE}/transfers/${transferId}/ship`),
 
   receive: (transferId: string) =>
-    axiosInstance.post<{ data: TransferRequest }>(`${BASE}/transfers/${transferId}/receive`),
+    axiosInstance.post<unknown, ApiResponse<TransferRequest>>(`${BASE}/transfers/${transferId}/receive`),
 
   cancel: (transferId: string) =>
-    axiosInstance.post<{ data: TransferRequest }>(`${BASE}/transfers/${transferId}/cancel`),
+    axiosInstance.post<unknown, ApiResponse<TransferRequest>>(`${BASE}/transfers/${transferId}/cancel`),
 };
 
 // ========================================
@@ -87,28 +91,28 @@ export const alertApi = {
 // ========================================
 export const stockTakeApi = {
   start: (storeId: string, createdBy?: string) =>
-    axiosInstance.post<{ data: StockTake }>(
+    axiosInstance.post<unknown, ApiResponse<StockTake>>(
       `${BASE}/stock-takes/start`,
       null,
       { params: { storeId, createdBy } }
     ),
 
   listByStore: (storeId: string) =>
-    axiosInstance.get<{ data: StockTake[] }>(`${BASE}/stock-takes/stores/${storeId}`),
+    axiosInstance.get<unknown, ApiResponse<StockTake[]>>(`${BASE}/stock-takes/stores/${storeId}`),
 
   getById: (stockTakeId: string) =>
-    axiosInstance.get<{ data: StockTake }>(`${BASE}/stock-takes/${stockTakeId}`),
+    axiosInstance.get<unknown, ApiResponse<StockTake>>(`${BASE}/stock-takes/${stockTakeId}`),
 
   submitCount: (stockTakeId: string, itemId: string, countedQty: number) =>
-    axiosInstance.post<{ data: StockTake }>(
+    axiosInstance.post<unknown, ApiResponse<StockTake>>(
       `${BASE}/stock-takes/${stockTakeId}/items/${itemId}/count`,
       null,
       { params: { countedQty } }
     ),
 
   complete: (stockTakeId: string) =>
-    axiosInstance.post<{ data: StockTake }>(`${BASE}/stock-takes/${stockTakeId}/complete`),
+    axiosInstance.post<unknown, ApiResponse<StockTake>>(`${BASE}/stock-takes/${stockTakeId}/complete`),
 
   cancel: (stockTakeId: string) =>
-    axiosInstance.post<{ data: StockTake }>(`${BASE}/stock-takes/${stockTakeId}/cancel`),
+    axiosInstance.post<unknown, ApiResponse<StockTake>>(`${BASE}/stock-takes/${stockTakeId}/cancel`),
 };

@@ -6,6 +6,7 @@
  */
 package com.enterprise.inventory.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.enterprise.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -20,6 +21,7 @@ import java.util.UUID;
 @Getter @Setter @NoArgsConstructor
 public class StockTakeItem extends BaseEntity {
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "stock_take_id", nullable = false)
     private StockTake stockTake;

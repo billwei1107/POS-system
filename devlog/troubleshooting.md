@@ -5,6 +5,77 @@
 
 ---
 
+# 2026-05-13 本地端口被其他專案佔用
+
+## Issue
+
+- 場景：POS 盤點單瀏覽器驗證時，原本 Docker 端口 `38080`、`38082` 無法由 POS 服務使用。
+- 檢查結果：
+  - `financial-accounting-backend` 佔用 `38080`。
+  - `financial-accounting-frontend` 佔用 `38082`。
+  - `pos-postgres`、`pos-redis` 仍在 `5432`、`6379`。
+
+## Root Cause
+
+- 多專案並行開發時，不同專案使用同一組 localhost 對外端口，OrbStack 轉發已綁定 `38080`、`38082`。
+- 若 AI 任意改用臨時端口，容易讓瀏覽器驗證與專案規格脫節，也會讓使用者不知道目前實際服務跑在哪裡。
+
+## Solution
+
+- 已新增規則：啟動 Docker、Vite、Spring Boot、瀏覽器測試服務或修改端口前，必須先執行 `lsof` 與 `docker ps` 檢查端口佔用。
+- 若原本端口被其他專案佔用，先回報佔用者與影響；不得直接停止無關容器，也不得自行切換臨時端口繞過。
+- 已同步更新 `AGENTS.md`、`ai-project-start.md`、`需求/系統規格表.md`、`需求/功能檢驗流程書.md`，並寫入 ai-kb 記憶。
+
+---
+
+# 2026-05-12 POS 盤點單列表 JSON 無限遞迴
+
+## Issue
+
+- 場景：盤點頁已有一張 `IN_PROGRESS` 盤點單後，使用者進入 `/pos/inventory/stock-takes`。
+- 問題：
+  - `GET /api/v1/inventory/stock-takes/stores/{storeId}` 回傳 500。
+  - 錯誤訊息為 `Could not write JSON: Infinite recursion (StackOverflowError)`。
+  - 前端因列表載入失敗顯示「尚無盤點單」，再點「建立盤點單」時後端又正確擋下第二張進行中盤點單，造成看起來像建立後沒有跳出盤點單。
+
+## Solution
+
+- `StockTakeItem.stockTake` 加上 `@JsonIgnore`，避免 `StockTake -> items -> stockTake -> items` 循環序列化。
+- 新增 `StockTakeControllerTest`，確認盤點單列表可序列化，且 item 不回傳父層 `stockTake`。
+- 前端建立盤點單失敗後重新載入列表並顯示後端實際錯誤訊息，避免畫面停在錯誤空狀態。
+
+## Verification
+
+- `mvn -pl module-pos-inventory -am test -Dtest=StockControllerTest,StockTakeControllerTest -Dsurefire.failIfNoSpecifiedTests=false`：通過。
+- `npm run lint && npx tsc -b && npm run build`：通過。
+- Docker backend/frontend 重建後，`GET /stock-takes/stores/{storeId}` 回 200，既有 `IN_PROGRESS` 盤點單含 4 個品項。
+- Chrome CDP 驗證 `/pos/inventory/stock-takes` 顯示「已有進行中盤點」、盤點基準與 4 個實盤輸入欄，未再顯示空狀態或載入錯誤。
+
+---
+
+# 2026-05-12 POS 庫存頁瀏覽器測試 API 403
+
+## Issue
+
+- 場景：重建 Docker backend/frontend 後，以瀏覽器自動測試 `/pos/inventory`。
+- 問題：
+  - 直接在 localStorage 寫入假的 `local-dev-token` 可通過前端 route guard，但後端 API 仍回 403。
+  - 庫存頁因此顯示「載入庫存資料失敗」或「載入商品或庫存失敗」。
+
+## Solution
+
+- 瀏覽器測試不再偽造 token，改先呼叫 `POST /api/v1/pos/auth/pin-login`，使用 demo terminal `DEMO-T-001` 與 PIN `1234` 取得真實 JWT。
+- 將真實 token 寫入 `auth-storage`，再進入 `/pos/inventory`、`/pos/inventory/receiving`、`/pos/inventory/stock-takes` 測試。
+
+## Verification
+
+- `curl` 帶入真實 `Authorization: Bearer <token>` 後，庫存與商品 API 皆回 200。
+- Chrome CDP 測試 Docker `http://127.0.0.1:38082`：
+  - 庫存總覽、進貨驗收、盤點單皆正常載入。
+  - 手機尺寸無水平溢出。
+
+---
+
 # 2026-05-11 POS inventory 訂單完成未扣庫存與超賣問題
 
 ## Issue
@@ -510,3 +581,171 @@ waiting for locator('button').filter({ has: locator('svg[data-testid="ShoppingCa
   - invoice `status=ISSUED`、`tax_amount=5.40`、`total_amount=113.00`
   - inventory `quantity=91.000`、`reserved_quantity=0.000`
   - reconciliation `CASH`、`transaction_count=15`、`total_amount=1864.00`
+
+---
+
+# 2026-05-11 POS 退款後庫存、付款與對帳資料不同步
+
+## Issue
+
+- 場景：CLI 完成 POS payment / inventory / staff / reconciliation 後進行 review。
+- 問題：
+  - `RefundCompletedEvent` 已發布，但庫存模組只 log，未呼叫 `returnForRefund()` 回補庫存。
+  - 退款完成後未建立 `PaymentTransaction.TxnStatus.REFUNDED` 交易，訂單列表與每日對帳看不到退款。
+  - 多班次/多終端機同時開放時，staff listener 只取門店第一個 open shift，可能把銷售或退款累計到錯誤班次。
+  - 已確認的 reconciliation 重新產生時會被重設成 `PENDING`。
+  - `OrderCompletedEvent` 支付失敗時先保存 `FAILED` 交易後丟例外，同一個新交易可能被 rollback，導致失敗紀錄遺失。
+
+## Root Cause
+
+- 退款事件原本只帶 `refundId`、`orderId`、`storeId`、`refundAmount`，下游模組缺少訂單總額與退款方式，無法安全判斷是否應回補整單庫存或用哪個支付方式記退款交易。
+- 目前退款請求沒有 item-level refund 明細，若部分退款直接回補整單品項會造成庫存錯加。
+- staff 模組的事件歸屬未使用 `terminalId` / `employeeId`。
+- reconciliation 產生流程沒有保護已人工確認狀態。
+
+## Solution
+
+- `RefundCompletedEvent` 補 `orderGrandTotal` 與 `refundMethod`，`RefundService` 發事件時帶入。
+- `InventoryEventListener` 改為累計已完成退款總額達訂單總額時才回補整單庫存；部分退款先跳過庫存回補。
+- `PaymentService` 新增 refund completed listener，依原成功付款方式建立 `REFUNDED` 交易，並用 `REFUND-{refundId}` 避免重複建立。
+- `PaymentService.onOrderCompleted` 在 gateway 失敗時保存 `FAILED` 交易後 return，不發布付款成功事件。
+- `processPayment` 設定 `noRollbackFor = BusinessException.class`，保留手動支付失敗交易。
+- `ReconciliationService.generateDaily` 遇到非 `PENDING` 的既有紀錄直接回傳，不覆蓋人工確認結果。
+- `StaffEventListener` 改用 terminal / employee context 找班次；多班次且缺上下文時跳過並記 warn。
+
+## Verification
+
+- `mvn -pl module-pos-core,module-pos-payment,module-pos-inventory,module-pos-staff -am test`：通過。
+- `mvn -pl app -am test`：通過。
+
+---
+
+# 2026-05-11 POS 前端日期使用 UTC 導致營業日可能偏移
+
+## Issue
+
+- 場景：POS 系統在台灣門市使用，系統日期與營業日期應固定以 GMT+8 為準。
+- 問題：
+  - 多個前端頁面使用 `new Date().toISOString().split('T')[0]` 初始化日期欄位，該方法以 UTC 日期輸出。
+  - 多個頁面直接使用 `toLocaleString('zh-TW')` 或未指定 `timeZone` 的 `Intl.DateTimeFormat`，不同執行環境可能顯示非台灣時間。
+  - 登入頁原本顯示英文 AM/PM 時間，無法確認目前營業時區。
+
+## Root Cause
+
+- 日期格式化分散在各頁面，未統一走共用工具。
+- `toISOString()` 是 UTC 時間，台灣凌晨時段可能會把日期算成前一天，影響發票查詢、每日對帳、Z 報表等營業日功能。
+
+## Solution
+
+- 在 `frontend-web/src/shared/utils/dateFormat.ts` 定義 `POS_TIME_ZONE = 'Asia/Taipei'`。
+- `formatDate`、`formatDateTime`、`formatTime` 全部指定 `timeZone: POS_TIME_ZONE`。
+- `toISODateString()` 改用 `Intl.DateTimeFormat('en-CA', { timeZone: POS_TIME_ZONE })` 取出台灣日期。
+- 新增 `parseApiDate()`，後端無時區的 `LocalDateTime` 字串先視為 UTC，再轉為台灣時間顯示。
+- `formatDateTime()` 與 `formatTime()` 改為 24 小時制，避免 `上午/下午` 在表格中造成誤讀。
+- 訂單編號與退款編號的業務時間戳改用 `ZonedDateTime.now(Asia/Taipei)`。
+- POS 頁面統一改用共用工具：
+  - 登入頁時鐘顯示 `GMT+8`。
+  - 對帳、發票、Z 報表日期預設使用台灣日期。
+  - 訂單、盤點、調撥、班次、掛單時間使用台灣時間格式化。
+
+## Verification
+
+- `npm run lint`：通過。
+- `npm run build`：通過，僅保留 Vite chunk size warning。
+- `npm test`：通過，4 files / 8 tests passed。
+- Docker frontend 重建並啟動成功。
+- Playwright 驗證：
+  - `/pos/login` 顯示 `GMT+8`。
+  - `/pos/reconciliation` 日期為 `2026-05-11`。
+  - `/pos/invoices` 起訖日期皆為 `2026-05-11`。
+  - `/pos/orders` 最新訂單 `000000-20260511083417-87443` 的建立時間由 `08:34` 修正為 `2026/05/11 16:34`。
+
+---
+
+# 2026-05-11 POS 手機收銀台商品卡底部被裁切
+
+## Issue
+
+- 場景：POS 收銀台切到手機版 viewport 後檢查商品列表。
+- 問題：
+  - 商品卡右下角加入購物車按鈕被卡片底部裁掉。
+  - 商品列表靠近底部導航時，最後幾張卡容易被固定底部導航遮住。
+
+## Root Cause
+
+- 手機商品卡 `minHeight` 被調低為 `184px`，但卡片內容自然高度約需 216px 以上。
+- 商品卡本身使用 `overflow: hidden`，內容超出卡片高度時會被裁切。
+- 商品列表是內部 scroll container，底部 padding 不足時，最後商品卡會靠近固定底部導航。
+
+## Solution
+
+- `frontend-web/src/features/pos-orders/pages/RegisterPage.tsx`
+  - 商品卡 `minHeight` 恢復為 `232px`，確保 SKU、品名、價格、條碼與加入購物車按鈕都留在卡片內。
+  - 商品列表手機版 bottom padding 改為 `pb: { xs: 12, md: 2 }`，讓最後商品可滾到手機底部導航上方。
+
+## Verification
+
+- `npm run lint`：通過。
+- `npm run build`：通過，僅保留 Vite chunk size warning。
+- `npm test -- --run`：通過，5 files / 10 tests passed。
+- Docker frontend 重建並啟動成功。
+- Playwright 手機 viewport `390x844` 驗證：
+  - 商品卡高度為 `232px`。
+  - 第一張卡片 `maxChildBottom=682`、`cardBottom=683`，`clipped=false`。
+  - 加入購物車按鈕 `52x52`，`clipped=false`。
+  - 列表滾到底時最後一張卡 `bottom=656`，底部導航 `top=768`，`lastAboveNav=true`。
+
+---
+
+# 2026-05-13 POS 盤點單完成後庫存未同步更新
+
+## Issue
+
+- 場景：POS 庫存盤點單頁面輸入實盤數後，直接點擊「完成盤點」。
+- 問題：若使用者尚未逐項點擊「登記」，後端完成盤點時只會處理已保存的 `countedQty`，畫面上未登記的輸入值不會同步進庫存。
+
+## Root Cause
+
+- 後端 `StockTakeService.complete()` 僅根據已保存的 `StockTakeItem.countedQty` 校正庫存，這是正確的資料一致性設計。
+- 前端原本把「輸入實盤數」與「登記實盤數」拆成兩步，使用者直覺上會以為完成盤點會採用畫面上已輸入的數字。
+- 觸控裝置或快速點擊情境下，僅依 React state 讀取輸入值仍可能漏掉畫面上的即時 DOM value。
+
+## Solution
+
+- 完成盤點前先收集畫面上尚未登記的實盤輸入，逐筆呼叫 `submitCount` 後再呼叫 `complete`。
+- 實盤輸入框加上穩定 `data-stock-count-key`，完成盤點時以 DOM 即時值作為保險來源，確保使用者看見的數字就是會送出的數字。
+- 完成中停用相關按鈕，避免重複送出。
+- 新增 `StockTakeServiceTest`，驗證完成盤點會將門店庫存校正為實盤數，並建立 `ADJUSTMENT` 異動。
+
+## Verification
+
+- `mvn -pl module-pos-inventory -am test -Dtest=StockControllerTest,StockTakeControllerTest,StockTakeServiceTest -Dsurefire.failIfNoSpecifiedTests=false`：通過。
+- `npm run lint`、`npx tsc -b`、`npm run build`：通過。
+- Docker frontend 重建成功。
+- Chrome CDP 實測：只輸入 `42`、不按「登記」、直接完成盤點後，盤點單 `COMPLETED`，品項庫存由 `100` 更新為 `42`。
+
+---
+
+# 2026-05-13 Chrome CDP 測試腳本混用 require 與 top-level await
+
+## Issue
+
+- 場景：使用 Node 腳本透過 Chrome DevTools Protocol 測試 POS 盤點單列表分頁與時間搜尋。
+- 錯誤訊息：`ReferenceError: Cannot determine intended module format because both 'require' and top-level await are present.`
+
+## Root Cause
+
+- Node 25 在同一段 stdin 腳本中同時看到 CommonJS `require()` 與 top-level `await`，無法判定要以 CommonJS 或 ESM 執行。
+
+## Solution
+
+- 改用 `node --input-type=module` 執行測試腳本。
+- 將 `const fs = require('node:fs')` 改為 `import fs from 'node:fs'`。
+- 重新執行後完成瀏覽器驗證，確認盤點單列表每頁最多 5 筆、時間搜尋與翻頁皆正常。
+
+## Verification
+
+- Chrome CDP 測試輸出：
+  - 初始列表：`目前顯示 1-5 筆，共 10 筆`。
+  - 搜尋 `02:24`：`目前顯示 1-1 筆，共 1 筆`。
+  - 翻頁後：`第 2 / 2 頁`，列表仍最多 5 筆。

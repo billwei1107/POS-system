@@ -8,6 +8,7 @@ package com.enterprise.inventory.controller;
 
 import com.enterprise.common.dto.ApiResponse;
 import com.enterprise.inventory.dto.request.AdjustStockRequest;
+import com.enterprise.inventory.dto.request.ReceiveStockRequest;
 import com.enterprise.inventory.dto.response.StoreStockResponse;
 import com.enterprise.inventory.entity.StockAlert;
 import com.enterprise.inventory.entity.StockMovement;
@@ -63,6 +64,26 @@ public class StockController {
         deductionService.adjust(req.storeId(), req.itemId(), req.adjustQty(),
                 req.operatedBy(), req.notes());
         return ResponseEntity.ok(ApiResponse.success("庫存調整成功"));
+    }
+
+    // ========================================
+    // 進貨驗收入庫 / Receive counted inbound goods
+    // ========================================
+    @PostMapping("/stock/receive")
+    public ResponseEntity<ApiResponse<String>> receive(@Valid @RequestBody ReceiveStockRequest req) {
+        UUID receiptId = UUID.randomUUID();
+        List<StockDeductionService.ReceivingLine> lines = req.items().stream()
+                .map(item -> new StockDeductionService.ReceivingLine(item.itemId(), item.receivedQty()))
+                .toList();
+        deductionService.receiveBatch(
+                req.storeId(),
+                lines,
+                receiptId,
+                "purchase_receiving",
+                req.operatedBy(),
+                req.notes()
+        );
+        return ResponseEntity.ok(ApiResponse.success("進貨驗收入庫成功：" + receiptId));
     }
 
     // ========================================

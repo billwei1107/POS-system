@@ -13,6 +13,7 @@ import {
 import { reportApi } from '../api/staffApi';
 import type { GenerateZReportPayload, ZReport } from '../types';
 import { DEFAULT_EMPLOYEE_ID, DEFAULT_STORE_ID } from '../../pos-orders/config';
+import { formatDateTime, toISODateString } from '@shared/utils';
 
 
 // ========================================
@@ -25,7 +26,7 @@ const ZReportPage: React.FC = () => {
   const [success, setSuccess] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<GenerateZReportPayload>({
-    reportDate: new Date().toISOString().split('T')[0],
+    reportDate: toISODateString(new Date()),
     cashInDrawer: 0,
     generatedBy: DEFAULT_EMPLOYEE_ID,
   });
@@ -114,7 +115,7 @@ const ZReportPage: React.FC = () => {
                   />
                 </Tooltip>
               </TableCell>
-              <TableCell>{new Date(r.generatedAt).toLocaleString('zh-TW')}</TableCell>
+              <TableCell>{formatDateTime(r.generatedAt)}</TableCell>
             </TableRow>
           ))}
           {reports.length === 0 && (

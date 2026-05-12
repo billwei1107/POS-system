@@ -11,6 +11,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuthStore } from '../../../shared/store/authStore';
 import { pinLoginApi } from '../api/posAuthApi';
+import { formatPosClock } from '@shared/utils';
 
 const DEFAULT_TERMINAL_CODE = import.meta.env.VITE_DEFAULT_TERMINAL_CODE || 'DEMO-T-001';
 const DEFAULT_REDIRECT_PATH = '/pos/register';
@@ -91,10 +92,6 @@ const PosLoginPage: React.FC = () => {
         }
     };
 
-    const formatDate = (date: Date) => {
-        return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) + ' • ' + date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    };
-
     if (!hasHydrated) {
         return null;
     }
@@ -126,7 +123,7 @@ const PosLoginPage: React.FC = () => {
                 </Box>
                 <Box sx={{ bgcolor: 'rgba(255,255,255,0.05)', px: 2, py: 1, borderRadius: 2 }}>
                     <Typography variant="body2" color="text.secondary" fontWeight="500">
-                        {formatDate(currentTime)}
+                        {formatPosClock(currentTime)}
                     </Typography>
                 </Box>
             </Box>

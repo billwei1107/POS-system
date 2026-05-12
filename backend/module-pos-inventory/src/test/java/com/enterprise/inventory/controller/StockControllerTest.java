@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -24,8 +25,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isA;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -75,6 +81,43 @@ class StockControllerTest {
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.quantity").value(98.000))
                 .andExpect(jsonPath("$.data.availableQuantity").value(95.000));
+    }
+
+    @Test
+    void receiveStock_receivesCountedInboundItems() throws Exception {
+        UUID storeId = UUID.randomUUID();
+        UUID operatorId = UUID.randomUUID();
+        UUID itemA = UUID.randomUUID();
+        UUID itemB = UUID.randomUUID();
+
+        String body = """
+                {
+                  "storeId": "%s",
+                  "operatedBy": "%s",
+                  "notes": "進貨驗收 PO-001",
+                  "items": [
+                    { "itemId": "%s", "receivedQty": 3.000 },
+                    { "itemId": "%s", "receivedQty": 5.500 }
+                  ]
+                }
+                """.formatted(storeId, operatorId, itemA, itemB);
+
+        mockMvc.perform(post("/api/v1/inventory/stock/receive")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data").value(org.hamcrest.Matchers.startsWith("進貨驗收入庫成功：")));
+
+        verify(deductionService).receiveBatch(
+                eq(storeId),
+                argThat(lines -> lines.size() == 2
+                        && lines.get(0).itemId().equals(itemA)
+                        && lines.get(0).receivedQty().compareTo(new BigDecimal("3.000")) == 0
+                        && lines.get(1).itemId().equals(itemB)
+                        && lines.get(1).receivedQty().compareTo(new BigDecimal("5.500")) == 0),
+                isA(UUID.class),
+                eq("purchase_receiving"), eq(operatorId), eq("進貨驗收 PO-001"));
     }
 
     private StoreStock createStock(UUID storeId, UUID itemId) {

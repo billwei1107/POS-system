@@ -19,6 +19,7 @@ import { paymentApi } from '../../pos-payment/api/paymentApi';
 import type { PaymentTransaction } from '../../pos-payment/types';
 import { invoiceApi } from '../../pos-tax/api/taxApi';
 import type { Invoice } from '../../pos-tax/types';
+import { formatDateTime } from '@shared/utils';
 
 // ========================================
 // 狀態顏色映射 / Status color mapping
@@ -31,6 +32,16 @@ const STATUS_COLOR: Record<OrderStatus, 'default' | 'primary' | 'secondary' | 'e
   COMPLETED: 'success',
   CLOSED: 'default',
   VOIDED: 'error',
+};
+
+const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
+  DRAFT: '草稿',
+  CONFIRMED: '已確認',
+  PREPARING: '製作中',
+  READY: '待取餐',
+  COMPLETED: '已完成',
+  CLOSED: '已關帳',
+  VOIDED: '已作廢',
 };
 
 type PaymentStatusSummary = 'PAID' | 'UNPAID' | 'REFUNDED' | 'FAILED';
@@ -214,9 +225,6 @@ const OrderListPage: React.FC = () => {
     }
   };
 
-  const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
-
   const getPaymentSummary = (order: Order) =>
     paymentStatusByOrder[order.id] ?? (order.paidTotal > 0 ? 'PAID' : 'UNPAID');
 
@@ -288,7 +296,7 @@ const OrderListPage: React.FC = () => {
         <Button
           variant="contained"
           color="secondary"
-          sx={{ minHeight: 44, px: 3, fontWeight: 900 }}
+          sx={{ minHeight: 52, px: 3, fontWeight: 900 }}
         >
           新增訂單
         </Button>
@@ -314,13 +322,23 @@ const OrderListPage: React.FC = () => {
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', bgcolor: 'background.paper', p: 2, borderRadius: 3, border: '1px solid rgba(255,255,255,0.06)' }}>
-        <FormControl size="small" sx={{ minWidth: 160 }}>
+      <Box sx={{
+        display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
+        gap: 2,
+        alignItems: { xs: 'stretch', sm: 'center' },
+        flexWrap: 'wrap',
+        bgcolor: 'background.paper',
+        p: 2,
+        borderRadius: 3,
+        border: '1px solid rgba(255,255,255,0.06)',
+      }}>
+        <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 160 } }}>
           <InputLabel>訂單狀態</InputLabel>
           <Select value={status} label="訂單狀態" onChange={e => { setStatus(e.target.value as OrderStatus | ''); setPage(1); }}>
             <MenuItem value="">全部</MenuItem>
             {(['DRAFT','CONFIRMED','PREPARING','READY','COMPLETED','CLOSED','VOIDED'] as OrderStatus[]).map(s => (
-              <MenuItem key={s} value={s}>{s}</MenuItem>
+              <MenuItem key={s} value={s}>{ORDER_STATUS_LABEL[s]}</MenuItem>
             ))}
           </Select>
         </FormControl>
@@ -357,7 +375,7 @@ const OrderListPage: React.FC = () => {
                     {order.orderNo}
                   </Typography>
                 </Box>
-                <Chip label={order.status} color={STATUS_COLOR[order.status]} size="small" sx={{ flexShrink: 0 }} />
+                <Chip label={ORDER_STATUS_LABEL[order.status]} color={STATUS_COLOR[order.status]} size="small" sx={{ flexShrink: 0 }} />
               </Box>
               <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
                 <Box>
@@ -374,7 +392,7 @@ const OrderListPage: React.FC = () => {
                 </Box>
                 <Box>
                   <Typography variant="caption" color="text.secondary">建立時間</Typography>
-                  <Typography variant="body2">{formatDate(order.createdAt)}</Typography>
+                  <Typography variant="body2">{formatDateTime(order.createdAt)}</Typography>
                 </Box>
               </Box>
               {renderClosureChips(order)}
@@ -417,7 +435,7 @@ const OrderListPage: React.FC = () => {
               <TableRow key={order.id} hover>
                 <TableCell><Typography variant="body2" fontFamily="monospace">{order.orderNo}</Typography></TableCell>
                 <TableCell>
-                  <Chip label={order.status} color={STATUS_COLOR[order.status]} size="small" />
+                  <Chip label={ORDER_STATUS_LABEL[order.status]} color={STATUS_COLOR[order.status]} size="small" />
                 </TableCell>
                 <TableCell>{order.orderType}</TableCell>
                 <TableCell>{order.items?.length ?? 0}</TableCell>
@@ -444,7 +462,7 @@ const OrderListPage: React.FC = () => {
                   )}
                 </TableCell>
                 <TableCell align="right">{formatMoney(order.grandTotal)}</TableCell>
-                <TableCell>{formatDate(order.createdAt)}</TableCell>
+                <TableCell>{formatDateTime(order.createdAt)}</TableCell>
                 <TableCell>
                   {renderOrderActions(order)}
                 </TableCell>
@@ -515,7 +533,7 @@ const OrderListPage: React.FC = () => {
                         {txn.gatewayRef ?? '-'}
                       </Typography>
                     </TableCell>
-                    <TableCell>{formatDate(txn.processedAt)}</TableCell>
+                    <TableCell>{formatDateTime(txn.processedAt)}</TableCell>
                   </TableRow>
                 ))}
                 {paymentTransactions.length === 0 && (
