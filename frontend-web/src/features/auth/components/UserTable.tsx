@@ -7,6 +7,8 @@ import type { User } from '../types';
  * @file UserTable.tsx
  * @description 使用者資料表格組件 / User datatable component
  */
+type ListPayload<T> = T[] | { content?: T[] };
+
 export const UserTable = () => {
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
@@ -14,9 +16,8 @@ export const UserTable = () => {
     useEffect(() => {
         const fetchUsers = async () => {
             try {
-                const res = await axiosInstance.get('/v1/users');
-                if (res && (res as any).data) {
-                    const payload = (res as any).data;
+                const payload = await axiosInstance.get<unknown, ListPayload<User>>('/v1/users');
+                if (payload) {
                     setUsers(Array.isArray(payload) ? payload : payload.content || []);
                 }
             } catch (err) {

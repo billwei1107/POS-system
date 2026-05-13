@@ -1,0 +1,36 @@
+# =========================================================
+# 業態預設：正式餐廳 / Restaurant Profile
+# 適用：中高檔餐廳，有桌位、點餐、廚房出餐流程
+# =========================================================
+
+modules:
+  auth: true
+  organization: true
+  workflow: true
+  notification: true
+  attendance: false
+
+pos:
+  auth:
+    pin-login: true
+    quick-switch: true
+    auto-lock-minutes: 10
+    manager-override: true
+  organization:
+    multi-region: false
+    multi-store: true
+    terminal-monitor: true
+  features:
+    barcode-scan: false
+    quick-buttons: false
+    member-lookup: true
+    split-payment: true
+    hold-order: true
+    refund: true
+    void-with-approval: true
+    gift-card: false
+    receipt-print: true
+    kitchen-display: true
+    table-management: true
+    reservation: true
+    delivery: false

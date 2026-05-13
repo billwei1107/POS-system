@@ -40,3 +40,6 @@ Thumbs.db
 
 # Exclude Canonical Library as requested
 模塊化組件/
+
+# AI reference sources
+reference/模塊化組件/

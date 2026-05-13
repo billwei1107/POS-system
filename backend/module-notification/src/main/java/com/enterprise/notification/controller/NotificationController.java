@@ -11,6 +11,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -50,6 +51,14 @@ public class NotificationController {
     public ApiResponse<Void> markAllAsRead() {
         String userId = SecurityUtils.getCurrentUserId();
         notificationService.markAllAsRead(userId);
+        return ApiResponse.success(null);
+    }
+
+    @PostMapping("/test-push")
+    public ApiResponse<Void> testPush() {
+        String userId = SecurityUtils.getCurrentUserId();
+        notificationService.send(userId, "SYS_TEST", "WEBSOCKET", "SYSTEM",
+                Map.of("message", "WebSocket 推播測試成功！"));
         return ApiResponse.success(null);
     }
 }

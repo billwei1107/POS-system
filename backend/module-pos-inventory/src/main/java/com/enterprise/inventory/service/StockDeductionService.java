@@ -1,0 +1,172 @@
+/**
+ * @file StockDeductionService.java
+ * @description 庫存扣減服務 / Stock deduction service
+ * @description_en Handles concurrent-safe stock deduction using pessimistic locking
+ * @description_zh 使用悲觀鎖確保高併發安全的庫存扣減
+ */
+package com.enterprise.inventory.service;
+
+import com.enterprise.common.exception.BusinessException;
+import com.enterprise.inventory.entity.StockMovement;
+import com.enterprise.inventory.entity.StoreStock;
+import com.enterprise.inventory.repository.StockMovementRepository;
+import com.enterprise.inventory.repository.StoreStockRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class StockDeductionService {
+
+    private final StoreStockRepository stockRepository;
+    private final StockMovementRepository movementRepository;
+    private final StockAlertService alertService;
+
+    // ========================================
+    // 庫存扣減（售出）/ Deduct stock on sale
+    // ========================================
+    @Transactional
+    public void deductForSale(UUID storeId, UUID itemId, BigDecimal qty, UUID orderId) {
+        StoreStock stock = getExistingStockForSale(storeId, itemId, qty);
+        BigDecimal availableQty = stock.getAvailableQuantity();
+        if (availableQty.compareTo(qty) < 0) {
+            log.warn("Insufficient stock: storeId={}, itemId={}, available={}, requested={}",
+                     storeId, itemId, availableQty, qty);
+            throw new BusinessException(409,
+                    "庫存不足，商品 " + itemId + " 可用庫存 " + availableQty.stripTrailingZeros().toPlainString()
+                            + "，需求 " + qty.stripTrailingZeros().toPlainString());
+        }
+        stock.setQuantity(stock.getQuantity().subtract(qty));
+        stockRepository.save(stock);
+        recordMovement(storeId, itemId, qty.negate(), StockMovement.MovementType.SALE, orderId, "pos_orders");
+        alertService.checkAndRaiseAlert(stock);
+    }
+
+    // ========================================
+    // 庫存回補（退款）/ Return stock on refund
+    // ========================================
+    @Transactional
+    public void returnForRefund(UUID storeId, UUID itemId, BigDecimal qty, UUID refundId) {
+        StoreStock stock = getOrCreateStock(storeId, itemId);
+        stock.setQuantity(stock.getQuantity().add(qty));
+        stockRepository.save(stock);
+        recordMovement(storeId, itemId, qty, StockMovement.MovementType.RETURN, refundId, "pos_refunds");
+    }
+
+    // ========================================
+    // 手動調整庫存 / Manual stock adjustment
+    // ========================================
+    @Transactional
+    public void adjust(UUID storeId, UUID itemId, BigDecimal adjustQty, UUID operatedBy, String notes) {
+        StoreStock stock = getOrCreateStock(storeId, itemId);
+        stock.setQuantity(stock.getQuantity().add(adjustQty));
+        stockRepository.save(stock);
+
+        StockMovement movement = new StockMovement();
+        movement.setStoreId(storeId);
+        movement.setItemId(itemId);
+        movement.setQuantityChange(adjustQty);
+        movement.setMovementType(StockMovement.MovementType.ADJUSTMENT);
+        movement.setOperatedBy(operatedBy);
+        movement.setNotes(notes);
+        movementRepository.save(movement);
+        alertService.checkAndRaiseAlert(stock);
+    }
+
+    // ========================================
+    // 入庫 / Receiving stock
+    // ========================================
+    @Transactional
+    public void receive(UUID storeId, UUID itemId, BigDecimal qty, UUID referenceId, String notes) {
+        receiveOne(storeId, itemId, qty, referenceId, "transfer", null, notes);
+    }
+
+    // ========================================
+    // 驗收入庫 / Receiving stock from counted inbound goods
+    // ========================================
+    @Transactional
+    public void receive(UUID storeId, UUID itemId, BigDecimal qty, UUID referenceId,
+                        String referenceType, UUID operatedBy, String notes) {
+        receiveOne(storeId, itemId, qty, referenceId, referenceType, operatedBy, notes);
+    }
+
+    // ========================================
+    // 批次驗收入庫 / Batch receiving stock
+    // ========================================
+    @Transactional
+    public void receiveBatch(UUID storeId, List<ReceivingLine> lines, UUID referenceId,
+                             String referenceType, UUID operatedBy, String notes) {
+        lines.forEach(line -> receiveOne(
+                storeId,
+                line.itemId(),
+                line.receivedQty(),
+                referenceId,
+                referenceType,
+                operatedBy,
+                notes
+        ));
+    }
+
+    public record ReceivingLine(UUID itemId, BigDecimal receivedQty) {}
+
+    private void receiveOne(UUID storeId, UUID itemId, BigDecimal qty, UUID referenceId,
+                            String referenceType, UUID operatedBy, String notes) {
+        StoreStock stock = getOrCreateStock(storeId, itemId);
+        stock.setQuantity(stock.getQuantity().add(qty));
+        stockRepository.save(stock);
+
+        StockMovement movement = new StockMovement();
+        movement.setStoreId(storeId);
+        movement.setItemId(itemId);
+        movement.setQuantityChange(qty);
+        movement.setMovementType(StockMovement.MovementType.RECEIVING);
+        movement.setReferenceId(referenceId);
+        movement.setReferenceType(referenceType);
+        movement.setOperatedBy(operatedBy);
+        movement.setNotes(notes);
+        movementRepository.save(movement);
+        alertService.checkAndRaiseAlert(stock);
+    }
+
+    // ========================================
+    // 取得或建立庫存紀錄（悲觀鎖）/ Get or create stock record with pessimistic lock
+    // ========================================
+    private StoreStock getOrCreateStock(UUID storeId, UUID itemId) {
+        return stockRepository.findByStoreIdAndItemIdForUpdate(storeId, itemId)
+                .orElseGet(() -> {
+                    StoreStock s = new StoreStock();
+                    s.setStoreId(storeId);
+                    s.setItemId(itemId);
+                    return stockRepository.save(s);
+                });
+    }
+
+    // ========================================
+    // 銷售扣庫必須有既有庫存 / Sale deduction requires existing stock
+    // ========================================
+    private StoreStock getExistingStockForSale(UUID storeId, UUID itemId, BigDecimal qty) {
+        return stockRepository.findByStoreIdAndItemIdForUpdate(storeId, itemId)
+                .orElseThrow(() -> new BusinessException(409,
+                        "庫存不足，商品 " + itemId + " 尚未建立庫存，需求 "
+                                + qty.stripTrailingZeros().toPlainString()));
+    }
+
+    private void recordMovement(UUID storeId, UUID itemId, BigDecimal change,
+                                 StockMovement.MovementType type, UUID refId, String refType) {
+        StockMovement m = new StockMovement();
+        m.setStoreId(storeId);
+        m.setItemId(itemId);
+        m.setQuantityChange(change);
+        m.setMovementType(type);
+        m.setReferenceId(refId);
+        m.setReferenceType(refType);
+        movementRepository.save(m);
+    }
+}

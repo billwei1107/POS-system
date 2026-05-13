@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { Badge, IconButton, Popover, List, ListItem, ListItemText, Typography, Box, Button } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import { useWebSocket } from '../hooks/useWebSocket';
@@ -22,13 +22,19 @@ export const NotificationBell: React.FC = () => {
         }
     }, [anchorEl]);
 
+    const handleUnreadCountUpdate = useCallback((count: number) => {
+        setUnreadCount(count);
+    }, []);
+
+    const handleNewNotification = useCallback((noti: NotificationDTO) => {
+            // Push incoming alert to the top if user keeps dropdown open
+        setNotifications(prev => [noti, ...prev].slice(0, 10));
+    }, []);
+
     // WebSocket pushing hook connection
     useWebSocket({
-        onUnreadCountUpdate: (count) => setUnreadCount(count),
-        onNewNotification: (noti) => {
-            // Push incoming alert to the top if user keeps dropdown open
-            setNotifications(prev => [noti, ...prev].slice(0, 10));
-        }
+        onUnreadCountUpdate: handleUnreadCountUpdate,
+        onNewNotification: handleNewNotification,
     });
 
     const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {

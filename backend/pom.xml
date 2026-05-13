@@ -20,6 +20,7 @@
     <properties>
         <java.version>21</java.version>
         <jjwt.version>0.12.5</jjwt.version>
+        <lombok.version>1.18.32</lombok.version>
     </properties>
 
     <modules>
@@ -29,8 +30,34 @@
         <module>module-workflow</module>
         <module>module-notification</module>
         <module>module-attendance</module>
+        <module>module-leave</module>
+        <module>module-pos-product</module>
+        <module>module-pos-core</module>
+        <module>module-pos-payment</module>
+        <module>module-pos-tax</module>
+        <module>module-pos-inventory</module>
+        <module>module-pos-staff</module>
         <module>app</module>
     </modules>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 
     <dependencyManagement>
         <dependencies>

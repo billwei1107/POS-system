@@ -1,0 +1,62 @@
+---
+alwaysApply: true
+---
+
+# POS 專案特定規範 (Project-Specific Rules)
+
+> 此文件定義 POS 專案獨有規範，與 `mainrule.mdc` 互補。POS 專案根目錄固定為 `/Users/wei/Desktop/code/POS/`，不得把 舊模板資料夾 或 `reference/模塊化組件/` 當作專案根目錄。
+
+---
+
+## 語言規範
+
+| 項目 | 設定 |
+|------|------|
+| 溝通語言 | 繁體中文 |
+| 代碼註釋 | 中英雙語，依 `AGENTS.md` 的文件頭與功能模塊註釋規範 |
+| 變數命名 | English；依 Java/TypeScript camelCase、資料庫 snake_case |
+
+## 技術棧
+
+| 層級 | 技術 | 版本 |
+|------|------|------|
+| 後端框架 | Spring Boot | 3.x |
+| 後端語言 | Java | 21 |
+| 前端框架 | React | 19 |
+| 前端語言 | TypeScript | 專案鎖定版本 |
+| 前端 UI 庫 | MUI | 7 |
+| 前端建構 | Vite | 8 |
+| 行動端 | Flutter | Phase 3 起建立 |
+| 資料庫 | PostgreSQL | 依 Docker/env 設定 |
+| 快取 | Redis | 依 Docker/env 設定 |
+| ORM | JPA / Hibernate | Spring Boot 管理 |
+
+## API 規範
+
+| 項目 | 設定 |
+|------|------|
+| API 版本 | v1 |
+| Base URL | `/api/v1` |
+| 認證方式 | JWT |
+
+## Docker 配置
+
+| 項目 | 設定 |
+|------|------|
+| 是否使用開發網關 | 是，依 Docker/Nginx 設定 |
+| 網關路徑前綴 | `/` 與 `/api` 反向代理 |
+| 容器命名前綴 | `pos` |
+
+## 部署配置
+
+| 項目 | 設定 |
+|------|------|
+| 測試伺服器 IP | 依 `需求/系統規格表.md` 補齊 |
+| 部署方式 | Docker Compose |
+
+## 版本鎖定
+
+- Java 21
+- Spring Boot 3.x
+- React 19 / MUI 7 / Vite 8
+- 模塊 reference tag：`module-v2026.05.10.2`

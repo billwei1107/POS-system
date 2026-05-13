@@ -7,6 +7,10 @@
     <title>frontend-web</title>
   </head>
   <body>
+    <script>
+      // Polyfill for global object required by some dependencies (e.g. sockjs-client, stompjs)
+      window.global = window;
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

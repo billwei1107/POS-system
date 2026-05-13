@@ -6,7 +6,6 @@ import com.enterprise.attendance.dto.CorrectionRequest;
 import com.enterprise.attendance.entity.AttendanceCorrection;
 import com.enterprise.attendance.entity.AttendanceRecord;
 import com.enterprise.attendance.entity.Geofence;
-import com.enterprise.attendance.entity.ShiftAssignment;
 import com.enterprise.attendance.entity.ShiftSchedule;
 import com.enterprise.attendance.repository.*;
 import com.enterprise.attendance.service.AttendanceService;
@@ -39,7 +38,6 @@ public class AttendanceServiceImpl implements AttendanceService {
     private final ShiftAssignmentRepository shiftAssignmentRepository;
     private final ShiftScheduleRepository shiftScheduleRepository;
     private final GeofenceRepository geofenceRepository;
-    private final HolidayRepository holidayRepository;
 
     // ========================================
     // 打卡上班 / Clock In

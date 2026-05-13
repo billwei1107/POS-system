@@ -4,6 +4,8 @@ import com.enterprise.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -33,6 +35,7 @@ public class Terminal extends BaseEntity {
     private String deviceModel;
 
     @Column(name = "hardware_profile_json", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
     private String hardwareProfileJson;
 
     @Column(name = "ip_address", length = 50)

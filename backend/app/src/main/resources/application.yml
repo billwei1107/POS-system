@@ -12,7 +12,20 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
-    locations: classpath:db/migration,classpath:db/migration/organization,classpath:db/migration/workflow
+    out-of-order: true
+    locations: >-
+      classpath:db/migration,
+      classpath:db/migration/organization,
+      classpath:db/migration/workflow,
+      classpath:db/migration/notification,
+      classpath:db/migration/attendance,
+      classpath:db/migration/leave,
+      classpath:db/migration/pos/product,
+      classpath:db/migration/pos/core,
+      classpath:db/migration/pos/payment,
+      classpath:db/migration/pos/tax,
+      classpath:db/migration/pos/inventory,
+      classpath:db/migration/pos/staff
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -33,10 +46,19 @@ modules:
   workflow: true
   notification: false
   attendance: false
-  leave: false
+  product: true
+  pos-core: true
+  pos-payment: true
+  pos-tax: true
+  pos-inventory: true
+  pos-staff: true
+  leave: true
   finance: false
 
 pos:
+  invoice:
+    seller-id: ${POS_SELLER_ID:12345678}
+    seller-name: ${POS_SELLER_NAME:企業商店}
   auth:
     pin-login: true
     quick-switch: true
@@ -46,3 +68,15 @@ pos:
     multi-region: true
     multi-store: true
     terminal-monitor: true
+  inventory:
+    multi-store-sync: true
+    bopis: false
+    batch-tracking: false
+    serial-tracking: false
+    auto-reorder: true
+    inter-store-transfer: true
+  staff:
+    blind-close-enabled: true
+    x-report-enabled: true
+    z-report-enabled: true
+    swap-request-enabled: true

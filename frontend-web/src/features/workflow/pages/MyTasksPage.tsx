@@ -1,27 +1,30 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Box, Typography, Card, CardContent, CircularProgress, Button, Stack, TextField } from '@mui/material';
 import { workflowApi } from '../api/workflowApi';
 import type { WorkflowTask } from '../types';
 
 export const MyTasksPage = () => {
     const [tasks, setTasks] = useState<WorkflowTask[]>([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [comment, setComment] = useState('');
 
     // 未來應與認證模塊 Token 繫結以取得此 operatorId
     const currentUserId = 'd290f1ee-6c54-4b01-90e6-d701748f0851';
 
-    const fetchTasks = () => {
-        setLoading(true);
+    const fetchTasks = useCallback((showLoading = true) => {
+        if (showLoading) setLoading(true);
         workflowApi.getMyTasks(currentUserId)
             .then(res => setTasks(res.data.data || []))
             .catch(console.error)
             .finally(() => setLoading(false));
-    };
+    }, [currentUserId]);
 
     useEffect(() => {
-        fetchTasks();
-    }, []);
+        workflowApi.getMyTasks(currentUserId)
+            .then(res => setTasks(res.data.data || []))
+            .catch(console.error)
+            .finally(() => setLoading(false));
+    }, [currentUserId]);
 
     const handleApprove = (taskId: string) => {
         workflowApi.approveTask(taskId, { operatorId: currentUserId, comment })

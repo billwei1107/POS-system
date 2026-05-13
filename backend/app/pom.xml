@@ -48,6 +48,48 @@
             <version>${project.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.enterprise</groupId>
+            <artifactId>module-leave</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.enterprise</groupId>
+            <artifactId>module-pos-product</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.enterprise</groupId>
+            <artifactId>module-pos-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.enterprise</groupId>
+            <artifactId>module-pos-payment</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.enterprise</groupId>
+            <artifactId>module-pos-tax</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.enterprise</groupId>
+            <artifactId>module-pos-inventory</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.enterprise</groupId>
+            <artifactId>module-pos-staff</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- Database Driver -->
         <dependency>
             <groupId>org.postgresql</groupId>
@@ -59,6 +101,12 @@
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
+        </dependency>
+
+        <!-- Health Check / 健康檢查端點 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
         <!-- Testing -->

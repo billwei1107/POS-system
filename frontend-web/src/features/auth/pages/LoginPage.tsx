@@ -1,11 +1,35 @@
 import { Box, Paper, Typography } from '@mui/material';
+import { Navigate, useLocation } from 'react-router-dom';
+import { useAuthStore } from '@shared/store/authStore';
 import { LoginForm } from '../components/LoginForm';
+
+const DEFAULT_REDIRECT_PATH = '/pos/register';
+
+const resolveRedirectPath = (search: string) => {
+    const redirect = new URLSearchParams(search).get('redirect');
+    if (!redirect || !redirect.startsWith('/') || redirect.startsWith('//')) {
+        return DEFAULT_REDIRECT_PATH;
+    }
+    return redirect;
+};
 
 /**
  * @file LoginPage.tsx
  * @description 獨立全螢幕登入視圖 / Fullscreen login view
  */
 export const LoginPage = () => {
+    const location = useLocation();
+    const hasHydrated = useAuthStore((state) => state.hasHydrated);
+    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+    if (!hasHydrated) {
+        return null;
+    }
+
+    if (isAuthenticated) {
+        return <Navigate to={resolveRedirectPath(location.search)} replace />;
+    }
+
     return (
         <Box sx={{
             minHeight: '100vh',

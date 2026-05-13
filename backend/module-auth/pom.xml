@@ -23,6 +23,13 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- Resolve POS terminal codes during PIN login. -->
+        <dependency>
+            <groupId>com.enterprise</groupId>
+            <artifactId>module-organization</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- Validation -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -1,0 +1,36 @@
+# =========================================================
+# 業態預設：零售門市 / Retail Store Profile
+# 適用：單店或多店型零售（服飾、3C、超商等）
+# =========================================================
+
+modules:
+  auth: true
+  organization: true
+  workflow: true
+  notification: true
+  attendance: false
+
+pos:
+  auth:
+    pin-login: true
+    quick-switch: true
+    auto-lock-minutes: 5
+    manager-override: true
+  organization:
+    multi-region: true
+    multi-store: true
+    terminal-monitor: true
+  features:
+    barcode-scan: true
+    quick-buttons: true
+    member-lookup: true
+    split-payment: true
+    hold-order: true
+    refund: true
+    void-with-approval: true
+    gift-card: true
+    receipt-print: true
+    kitchen-display: false
+    table-management: false
+    reservation: false
+    delivery: false

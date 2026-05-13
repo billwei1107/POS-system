@@ -7,6 +7,8 @@ import type { Role } from '../types';
  * @file RolePermissionTree.tsx
  * @description 角色清單與權限樹 / Roles and permission tree
  */
+type ListPayload<T> = T[] | { content?: T[] };
+
 export const RolePermissionTree = () => {
     const [roles, setRoles] = useState<Role[]>([]);
     const [loading, setLoading] = useState(true);
@@ -14,9 +16,8 @@ export const RolePermissionTree = () => {
     useEffect(() => {
         const fetchRoles = async () => {
             try {
-                const res = await axiosInstance.get('/v1/roles');
-                if (res && (res as any).data) {
-                    const payload = (res as any).data;
+                const payload = await axiosInstance.get<unknown, ListPayload<Role>>('/v1/roles');
+                if (payload) {
                     setRoles(Array.isArray(payload) ? payload : payload.content || []);
                 }
             } catch (error) {
