@@ -4,20 +4,22 @@ import type { WorkflowDefinition, WorkflowTask, StartWorkflowRequest, ApprovalRe
 
 export const workflowApi = {
     getDefinitions: () =>
-        axiosInstance.get<ApiResponse<WorkflowDefinition[]>>('/v1/workflow/definitions'),
+        axiosInstance.get<unknown, ApiResponse<WorkflowDefinition[]>>('/v1/workflow/definitions'),
 
     startWorkflow: (request: StartWorkflowRequest) =>
-        axiosInstance.post<ApiResponse<string>>('/v1/workflow/start', request),
+        axiosInstance.post<unknown, ApiResponse<string>>('/v1/workflow/start', request),
 
     getMyTasks: (operatorId: string) =>
-        axiosInstance.get<ApiResponse<WorkflowTask[]>>(`/v1/workflow/tasks/my-pending?operatorId=${operatorId}`),
+        axiosInstance.get<unknown, ApiResponse<WorkflowTask[]>>('/v1/workflow/tasks/my-pending', {
+            params: { operatorId },
+        }),
 
     approveTask: (taskId: string, request: ApprovalRequest) =>
-        axiosInstance.post<ApiResponse<void>>(`/v1/workflow/tasks/${taskId}/approve`, request),
+        axiosInstance.post<unknown, ApiResponse<void>>(`/v1/workflow/tasks/${taskId}/approve`, request),
 
     rejectTask: (taskId: string, request: ApprovalRequest) =>
-        axiosInstance.post<ApiResponse<void>>(`/v1/workflow/tasks/${taskId}/reject`, request),
+        axiosInstance.post<unknown, ApiResponse<void>>(`/v1/workflow/tasks/${taskId}/reject`, request),
 
     forwardTask: (taskId: string, request: ForwardRequest) =>
-        axiosInstance.post<ApiResponse<void>>(`/v1/workflow/tasks/${taskId}/forward`, request)
+        axiosInstance.post<unknown, ApiResponse<void>>(`/v1/workflow/tasks/${taskId}/forward`, request)
 };

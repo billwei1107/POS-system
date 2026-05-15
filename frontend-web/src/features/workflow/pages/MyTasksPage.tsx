@@ -1,48 +1,151 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Box, Typography, Card, CardContent, CircularProgress, Button, Stack, TextField } from '@mui/material';
+import {
+    Alert,
+    Box,
+    Button,
+    Card,
+    CardContent,
+    Chip,
+    CircularProgress,
+    Stack,
+    TextField,
+    Tooltip,
+    Typography,
+} from '@mui/material';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import UndoIcon from '@mui/icons-material/Undo';
+import { organizationApi } from '../../organization/api/organizationApi';
 import { workflowApi } from '../api/workflowApi';
 import type { WorkflowTask } from '../types';
 
+const getErrorMessage = (error: unknown) => error instanceof Error ? error.message : '作業失敗，請稍後再試';
+
 export const MyTasksPage = () => {
     const [tasks, setTasks] = useState<WorkflowTask[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [comment, setComment] = useState('');
+    const [employeeId, setEmployeeId] = useState('');
+    const [employeeName, setEmployeeName] = useState('');
+    const [loadingEmployee, setLoadingEmployee] = useState(true);
+    const [loadingTasks, setLoadingTasks] = useState(false);
+    const [commentByTask, setCommentByTask] = useState<Record<string, string>>({});
+    const [actionTaskId, setActionTaskId] = useState('');
+    const [message, setMessage] = useState('');
 
-    // 未來應與認證模塊 Token 繫結以取得此 operatorId
-    const currentUserId = 'd290f1ee-6c54-4b01-90e6-d701748f0851';
-
-    const fetchTasks = useCallback((showLoading = true) => {
-        if (showLoading) setLoading(true);
-        workflowApi.getMyTasks(currentUserId)
-            .then(res => setTasks(res.data.data || []))
-            .catch(console.error)
-            .finally(() => setLoading(false));
-    }, [currentUserId]);
+    const fetchTasks = useCallback(async (targetEmployeeId: string, showLoading = true) => {
+        if (!targetEmployeeId) return;
+        if (showLoading) setLoadingTasks(true);
+        setMessage('');
+        try {
+            const response = await workflowApi.getMyTasks(targetEmployeeId);
+            setTasks(response.data || []);
+        } catch (err) {
+            setMessage(getErrorMessage(err));
+        } finally {
+            if (showLoading) setLoadingTasks(false);
+        }
+    }, []);
 
     useEffect(() => {
-        workflowApi.getMyTasks(currentUserId)
-            .then(res => setTasks(res.data.data || []))
-            .catch(console.error)
-            .finally(() => setLoading(false));
-    }, [currentUserId]);
+        let ignore = false;
 
-    const handleApprove = (taskId: string) => {
-        workflowApi.approveTask(taskId, { operatorId: currentUserId, comment })
-            .then(() => fetchTasks())
-            .catch(console.error);
+        const loadPage = async () => {
+            setLoadingEmployee(true);
+            setLoadingTasks(true);
+            setMessage('');
+            try {
+                const employee = await organizationApi.getCurrentEmployee();
+                if (ignore) return;
+                setEmployeeId(employee.id);
+                setEmployeeName(employee.name);
+                await fetchTasks(employee.id, false);
+            } catch (err) {
+                if (!ignore) setMessage(`無法取得目前登入者的員工資料，請手動輸入員工 ID 後重新整理。${getErrorMessage(err)}`);
+            } finally {
+                if (!ignore) {
+                    setLoadingEmployee(false);
+                    setLoadingTasks(false);
+                }
+            }
+        };
+
+        loadPage();
+        return () => {
+            ignore = true;
+        };
+    }, [fetchTasks]);
+
+    const handleApprove = async (taskId: string) => {
+        if (!employeeId) return;
+        setActionTaskId(taskId);
+        setMessage('');
+        try {
+            await workflowApi.approveTask(taskId, { operatorId: employeeId, comment: commentByTask[taskId] });
+            setMessage('待辦已核准');
+            await fetchTasks(employeeId);
+        } catch (err) {
+            setMessage(getErrorMessage(err));
+        } finally {
+            setActionTaskId('');
+        }
     };
 
-    const handleReject = (taskId: string) => {
-        workflowApi.rejectTask(taskId, { operatorId: currentUserId, comment })
-            .then(() => fetchTasks())
-            .catch(console.error);
+    const handleReject = async (taskId: string) => {
+        if (!employeeId) return;
+        setActionTaskId(taskId);
+        setMessage('');
+        try {
+            await workflowApi.rejectTask(taskId, { operatorId: employeeId, comment: commentByTask[taskId] });
+            setMessage('待辦已駁回');
+            await fetchTasks(employeeId);
+        } catch (err) {
+            setMessage(getErrorMessage(err));
+        } finally {
+            setActionTaskId('');
+        }
     };
 
-    if (loading) return <CircularProgress />;
+    const loading = loadingEmployee || loadingTasks;
 
     return (
         <Box sx={{ p: 4, maxWidth: 800, margin: '0 auto' }}>
-            <Typography variant="h4" sx={{ mb: 4, fontWeight: 'bold' }}>首頁 / 我的待辦簽核</Typography>
+            <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2} sx={{ mb: 3 }}>
+                <Box>
+                    <Typography variant="h4" sx={{ mb: 1, fontWeight: 'bold' }}>首頁 / 我的待辦簽核</Typography>
+                    <Chip
+                        label={employeeName ? `審核人：${employeeName}` : (loadingEmployee ? '正在讀取審核人' : '未自動帶入審核人')}
+                        color={employeeName ? 'primary' : 'default'}
+                        variant={employeeName ? 'filled' : 'outlined'}
+                    />
+                    <TextField
+                        size="small"
+                        label="審核員工 ID"
+                        value={employeeId}
+                        onChange={(event) => {
+                            setEmployeeId(event.target.value);
+                            setEmployeeName('');
+                        }}
+                        sx={{ mt: 1, minWidth: { xs: '100%', sm: 360 } }}
+                    />
+                </Box>
+                <Tooltip title="重新整理待辦">
+                    <span>
+                        <Button
+                            variant="outlined"
+                            startIcon={<RefreshIcon />}
+                            disabled={!employeeId || loading}
+                            onClick={() => fetchTasks(employeeId)}
+                        >
+                            重新整理
+                        </Button>
+                    </span>
+                </Tooltip>
+            </Stack>
+            {message && (
+                <Alert severity={message.includes('已') ? 'success' : 'warning'} sx={{ mb: 2 }}>
+                    {message}
+                </Alert>
+            )}
+            {loading && <CircularProgress size={28} sx={{ mb: 2 }} />}
             <Stack spacing={3}>
                 {tasks.map(task => (
                     <Card key={task.id} variant="outlined">
@@ -56,8 +159,8 @@ export const MyTasksPage = () => {
                                 rows={2}
                                 label="審核意見 (選填)"
                                 variant="outlined"
-                                value={comment}
-                                onChange={(e) => setComment(e.target.value)}
+                                value={commentByTask[task.id] || ''}
+                                onChange={(e) => setCommentByTask(prev => ({ ...prev, [task.id]: e.target.value }))}
                                 sx={{ mb: 2 }}
                             />
 
@@ -65,13 +168,17 @@ export const MyTasksPage = () => {
                                 <Button
                                     variant="contained"
                                     color="success"
+                                    startIcon={<CheckCircleIcon />}
+                                    disabled={Boolean(actionTaskId)}
                                     onClick={() => handleApprove(task.id)}
                                 >
-                                    同意過卡
+                                    {actionTaskId === task.id ? '處理中' : '同意過卡'}
                                 </Button>
                                 <Button
                                     variant="contained"
                                     color="error"
+                                    startIcon={<UndoIcon />}
+                                    disabled={Boolean(actionTaskId)}
                                     onClick={() => handleReject(task.id)}
                                 >
                                     退件駁回
@@ -80,7 +187,7 @@ export const MyTasksPage = () => {
                         </CardContent>
                     </Card>
                 ))}
-                {tasks.length === 0 && (
+                {!loading && tasks.length === 0 && (
                     <Card variant="outlined">
                         <CardContent>
                             <Typography color="text.secondary" align="center">
