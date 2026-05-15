@@ -38,6 +38,11 @@ public class EmployeeController {
         return ApiResponse.success(employeeService.getById(id));
     }
 
+    @GetMapping("/me")
+    public ApiResponse<Employee> getCurrentEmployee() {
+        return ApiResponse.success(employeeService.getCurrentEmployee());
+    }
+
     @GetMapping
     @RequirePermission("system:organization:read")
     public ApiResponse<List<Employee>> listByCompany(@RequestParam(required = false) UUID companyId, 

@@ -8,6 +8,7 @@ public interface EmployeeService {
     Employee create(Employee employee);
     Employee update(UUID id, Employee employee);
     Employee getById(UUID id);
+    Employee getCurrentEmployee();
     List<Employee> listAll();
     List<Employee> listByCompany(UUID companyId);
     List<Employee> listByDepartment(UUID departmentId);

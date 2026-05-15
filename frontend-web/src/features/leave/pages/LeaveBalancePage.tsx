@@ -6,17 +6,20 @@
  */
 import { useEffect, useState } from 'react';
 import {
-  Box, Button, Card, CardContent, Chip, Grid, LinearProgress,
+  Alert, Box, Button, Card, CardContent, Chip, Grid, LinearProgress,
   Stack, TextField, Typography,
 } from '@mui/material';
 import { fetchLeaveBalances, fetchLeaveTypes } from '../api/leaveApi';
 import type { LeaveBalance, LeaveType } from '../types';
+import { organizationApi } from '../../organization/api/organizationApi';
 
 export default function LeaveBalancePage() {
   const [employeeId, setEmployeeId] = useState('');
+  const [employeeName, setEmployeeName] = useState('');
   const [balances, setBalances] = useState<LeaveBalance[]>([]);
   const [types, setTypes] = useState<Record<string, LeaveType>>({});
   const [loading, setLoading] = useState(false);
+  const [employeeError, setEmployeeError] = useState('');
 
   useEffect(() => {
     fetchLeaveTypes().then(list => {
@@ -26,11 +29,29 @@ export default function LeaveBalancePage() {
     }).catch(() => {});
   }, []);
 
-  const handleSearch = async () => {
-    if (!employeeId.trim()) return;
+  useEffect(() => {
+    const loadCurrentEmployee = async () => {
+      try {
+        setLoading(true);
+        const employee = await organizationApi.getCurrentEmployee();
+        setEmployeeId(employee.id);
+        setEmployeeName(employee.name);
+        setBalances(await fetchLeaveBalances(employee.id));
+      } catch {
+        setEmployeeError('無法取得目前登入者的員工資料，請手動輸入員工 ID。');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCurrentEmployee();
+  }, []);
+
+  const handleSearch = async (targetEmployeeId = employeeId) => {
+    if (!targetEmployeeId.trim()) return;
     setLoading(true);
     try {
-      setBalances(await fetchLeaveBalances(employeeId.trim()));
+      setBalances(await fetchLeaveBalances(targetEmployeeId.trim()));
     } catch {
       setBalances([]);
     } finally {
@@ -44,9 +65,21 @@ export default function LeaveBalancePage() {
           標題與查詢列 / Header and search
           ======================================== */}
       <Typography variant="h5" mb={2}>員工餘假查詢</Typography>
-      <Stack direction="row" spacing={2} mb={3}>
-        <TextField label="員工 ID" value={employeeId} onChange={e => setEmployeeId(e.target.value)} size="small" sx={{ width: 320 }} placeholder="輸入員工 UUID" />
-        <Button variant="contained" onClick={handleSearch} disabled={loading}>查詢</Button>
+      {employeeError && <Alert severity="warning" sx={{ mb: 2 }}>{employeeError}</Alert>}
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mb={3} alignItems={{ xs: 'stretch', sm: 'center' }}>
+        <TextField
+          label="員工 ID"
+          value={employeeId}
+          onChange={e => {
+            setEmployeeId(e.target.value);
+            setEmployeeName('');
+          }}
+          size="small"
+          sx={{ width: { xs: '100%', sm: 320 } }}
+          placeholder={loading ? '讀取目前員工資料...' : '輸入員工 UUID'}
+        />
+        {employeeName && <Chip label={employeeName} color="primary" variant="outlined" />}
+        <Button variant="contained" onClick={() => handleSearch()} disabled={loading || !employeeId.trim()}>查詢</Button>
       </Stack>
 
       {/* ========================================

@@ -1,6 +1,8 @@
 package com.enterprise.organization.service.impl;
 
+import com.enterprise.common.exception.BusinessException;
 import com.enterprise.common.exception.ResourceNotFoundException;
+import com.enterprise.common.security.SecurityUtils;
 import com.enterprise.organization.entity.Employee;
 import com.enterprise.organization.event.EmployeeCreatedEvent;
 import com.enterprise.organization.repository.EmployeeRepository;
@@ -8,6 +10,7 @@ import com.enterprise.organization.service.EmployeeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -54,6 +57,16 @@ public class EmployeeServiceImpl implements EmployeeService {
     public Employee getById(UUID id) {
         return employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + id));
+    }
+
+    @Override
+    public Employee getCurrentEmployee() {
+        String currentUserId = SecurityUtils.getCurrentUserId();
+        if (!StringUtils.hasText(currentUserId)) {
+            throw new BusinessException(401, "Authentication is required");
+        }
+        return employeeRepository.findByUserId(UUID.fromString(currentUserId))
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found for current user"));
     }
 
     @Override

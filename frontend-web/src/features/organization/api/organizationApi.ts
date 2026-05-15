@@ -18,6 +18,7 @@ export const organizationApi = {
     // Employees
     getEmployees: (params?: { companyId?: string; departmentId?: string }) =>
         axiosInstance.get<ApiResponse<Employee[]>>('/v1/employees', { params }).then(res => res.data),
+    getCurrentEmployee: () => axiosInstance.get<unknown, ApiResponse<Employee>>('/v1/employees/me').then(res => res.data),
     createEmployee: (data: Partial<Employee>) => axiosInstance.post<ApiResponse<Employee>>('/v1/employees', data).then(res => res.data),
     resignEmployee: (id: string) => axiosInstance.post<ApiResponse<void>>(`/v1/employees/${id}/resign`).then(res => res.data)
 };

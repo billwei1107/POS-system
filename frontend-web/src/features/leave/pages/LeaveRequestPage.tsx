@@ -6,7 +6,7 @@
  */
 import { useEffect, useState } from 'react';
 import {
-  Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
+  Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
   FormControl, InputLabel, MenuItem, Paper, Select, Stack, Table,
   TableBody, TableCell, TableContainer, TableHead, TableRow, TextField,
   Typography,
@@ -14,6 +14,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import { fetchLeaveRequests, submitLeaveRequest, cancelLeaveRequest, fetchLeaveTypes } from '../api/leaveApi';
 import type { LeaveRequest, LeaveType, HalfDay, SubmitLeaveRequestPayload } from '../types';
+import { organizationApi } from '../../organization/api/organizationApi';
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING: '待審核', APPROVED: '已核准', REJECTED: '已拒絕', CANCELLED: '已取消',
@@ -30,18 +31,39 @@ const emptyForm: SubmitLeaveRequestPayload = {
 
 export default function LeaveRequestPage() {
   const [employeeId, setEmployeeId] = useState('');
+  const [employeeName, setEmployeeName] = useState('');
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [types, setTypes] = useState<LeaveType[]>([]);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<SubmitLeaveRequestPayload>(emptyForm);
+  const [loadingEmployee, setLoadingEmployee] = useState(true);
+  const [employeeError, setEmployeeError] = useState('');
 
   useEffect(() => {
     fetchLeaveTypes().then(setTypes).catch(() => {});
   }, []);
 
-  const load = async () => {
-    if (!employeeId.trim()) return;
-    try { setRequests(await fetchLeaveRequests(employeeId.trim())); } catch { setRequests([]); }
+  useEffect(() => {
+    const loadCurrentEmployee = async () => {
+      try {
+        setLoadingEmployee(true);
+        const employee = await organizationApi.getCurrentEmployee();
+        setEmployeeId(employee.id);
+        setEmployeeName(employee.name);
+        setRequests(await fetchLeaveRequests(employee.id));
+      } catch {
+        setEmployeeError('無法取得目前登入者的員工資料，請手動輸入員工 ID。');
+      } finally {
+        setLoadingEmployee(false);
+      }
+    };
+
+    loadCurrentEmployee();
+  }, []);
+
+  const load = async (targetEmployeeId = employeeId) => {
+    if (!targetEmployeeId.trim()) return;
+    try { setRequests(await fetchLeaveRequests(targetEmployeeId.trim())); } catch { setRequests([]); }
   };
 
   const handleSubmit = async () => {
@@ -64,10 +86,22 @@ export default function LeaveRequestPage() {
           標題與員工查詢 / Header and employee search
           ======================================== */}
       <Typography variant="h5" mb={2}>請假申請</Typography>
-      <Stack direction="row" spacing={2} mb={2}>
-        <TextField label="員工 ID" value={employeeId} onChange={e => setEmployeeId(e.target.value)} size="small" sx={{ width: 320 }} placeholder="輸入員工 UUID" />
-        <Button variant="outlined" onClick={load}>查詢記錄</Button>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)} disabled={!employeeId.trim()}>申請請假</Button>
+      {employeeError && <Alert severity="warning" sx={{ mb: 2 }}>{employeeError}</Alert>}
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mb={2} alignItems={{ xs: 'stretch', sm: 'center' }}>
+        <TextField
+          label="員工 ID"
+          value={employeeId}
+          onChange={e => {
+            setEmployeeId(e.target.value);
+            setEmployeeName('');
+          }}
+          size="small"
+          sx={{ width: { xs: '100%', sm: 320 } }}
+          placeholder={loadingEmployee ? '讀取目前員工資料...' : '輸入員工 UUID'}
+        />
+        {employeeName && <Chip label={employeeName} color="primary" variant="outlined" />}
+        <Button variant="outlined" onClick={() => load()} disabled={loadingEmployee || !employeeId.trim()}>查詢記錄</Button>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)} disabled={loadingEmployee || !employeeId.trim()}>申請請假</Button>
       </Stack>
 
       {/* ========================================
@@ -106,7 +140,7 @@ export default function LeaveRequestPage() {
               );
             })}
             {requests.length === 0 && (
-              <TableRow><TableCell colSpan={7} align="center">輸入員工 ID 後點擊查詢</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} align="center">{loadingEmployee ? '正在載入目前員工請假記錄' : '目前沒有請假記錄'}</TableCell></TableRow>
             )}
           </TableBody>
         </Table>

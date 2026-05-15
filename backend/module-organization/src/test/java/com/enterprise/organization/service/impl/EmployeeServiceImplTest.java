@@ -3,6 +3,7 @@ package com.enterprise.organization.service.impl;
 import com.enterprise.organization.entity.Employee;
 import com.enterprise.organization.event.EmployeeCreatedEvent;
 import com.enterprise.organization.repository.EmployeeRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -10,8 +11,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -29,6 +33,11 @@ public class EmployeeServiceImplTest {
 
     @InjectMocks
     private EmployeeServiceImpl employeeService;
+
+    @AfterEach
+    public void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
 
     @Test
     public void testCreateEmployee_generatesEmpNoAndPublishesEvent() {
@@ -64,5 +73,22 @@ public class EmployeeServiceImplTest {
         assertEquals(2, result.size(), "Unfiltered employee list should return all visible employees");
         assertEquals("Alice", result.get(0).getName());
         verify(employeeRepository).findAll();
+    }
+
+    @Test
+    public void testGetCurrentEmployeeReturnsEmployeeLinkedToCurrentUser() {
+        UUID userId = UUID.randomUUID();
+        Employee employee = new Employee();
+        employee.setId(UUID.randomUUID());
+        employee.setUserId(userId);
+        employee.setName("Alice");
+
+        SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken(userId, null));
+        when(employeeRepository.findByUserId(userId)).thenReturn(Optional.of(employee));
+
+        Employee result = employeeService.getCurrentEmployee();
+
+        assertEquals(employee.getId(), result.getId());
+        verify(employeeRepository).findByUserId(userId);
     }
 }

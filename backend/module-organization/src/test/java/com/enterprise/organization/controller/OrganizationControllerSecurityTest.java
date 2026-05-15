@@ -17,6 +17,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  * @file OrganizationControllerSecurityTest.java
@@ -66,6 +67,8 @@ class OrganizationControllerSecurityTest {
         assertPermission(EmployeeController.class.getDeclaredMethod("listByCompany", UUID.class, UUID.class),
                 "system:organization:read");
         assertPermission(EmployeeController.class.getDeclaredMethod("getById", UUID.class), "system:organization:read");
+        assertNull(EmployeeController.class.getDeclaredMethod("getCurrentEmployee").getAnnotation(RequirePermission.class),
+                "Self employee endpoint should require authentication but not organization admin permission");
         assertMutation(EmployeeController.class.getDeclaredMethod("create", Employee.class),
                 "organization-employee", "create");
         assertMutation(EmployeeController.class.getDeclaredMethod("update", UUID.class, Employee.class),
