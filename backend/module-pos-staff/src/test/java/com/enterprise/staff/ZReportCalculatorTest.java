@@ -6,6 +6,8 @@
  */
 package com.enterprise.staff;
 
+import com.enterprise.payment.entity.PaymentTransaction;
+import com.enterprise.payment.repository.PaymentTransactionRepository;
 import com.enterprise.staff.entity.StaffShift;
 import com.enterprise.staff.entity.ZReport;
 import com.enterprise.staff.repository.StaffShiftRepository;
@@ -22,6 +24,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
@@ -37,6 +40,7 @@ class ZReportCalculatorTest {
 
     @Mock private StaffShiftRepository shiftRepository;
     @Mock private ZReportRepository zReportRepository;
+    @Mock private PaymentTransactionRepository transactionRepository;
 
     @InjectMocks private ZReportCalculator calculator;
 
@@ -78,6 +82,11 @@ class ZReportCalculatorTest {
         lenient().when(zReportRepository.findByStoreIdAndReportDate(storeId, reportDate)).thenReturn(Optional.empty());
         lenient().when(shiftRepository.findByStoreIdAndDateRange(eq(storeId), any(Instant.class), any(Instant.class)))
                 .thenReturn(List.of(shift1, shift2));
+        lenient().when(transactionRepository.findByStoreAndDateRange(
+                eq(storeId),
+                any(LocalDateTime.class),
+                any(LocalDateTime.class)
+        )).thenReturn(List.of());
         lenient().when(zReportRepository.save(any(ZReport.class))).thenAnswer(inv -> inv.getArgument(0));
     }
 
@@ -135,6 +144,43 @@ class ZReportCalculatorTest {
     }
 
     // ========================================
+    // Z Report 支付方式明細正確 / Verify payment breakdown
+    // ========================================
+    @Test
+    @DisplayName("Z Report 應依當日支付交易彙總 cash/card/other 淨額")
+    void generate_paymentBreakdown_aggregatesNetAmountByMethodType() {
+        when(transactionRepository.findByStoreAndDateRange(
+                eq(storeId),
+                any(LocalDateTime.class),
+                any(LocalDateTime.class)
+        )).thenReturn(List.of(
+                transaction("CASH", "3000.00", PaymentTransaction.TxnStatus.SUCCESS),
+                transaction("CASH", "200.00", PaymentTransaction.TxnStatus.REFUNDED),
+                transaction("CARD", "1500.00", PaymentTransaction.TxnStatus.SUCCESS),
+                transaction("QR_CODE", "500.00", PaymentTransaction.TxnStatus.SUCCESS),
+                transaction("CARD", "99.00", PaymentTransaction.TxnStatus.FAILED)
+        ));
+
+        ZReport report = calculator.generate(storeId, reportDate, new BigDecimal("4300.00"), generatedBy);
+
+        assertThat(report.getCashSales()).isEqualByComparingTo("2800.00");
+        assertThat(report.getCardSales()).isEqualByComparingTo("1500.00");
+        assertThat(report.getOtherSales()).isEqualByComparingTo("500.00");
+    }
+
+    @Test
+    @DisplayName("Z Report 應以台北時區的營業日區間查詢支付交易")
+    void generate_paymentBreakdown_queriesReportDateRange() {
+        calculator.generate(storeId, reportDate, new BigDecimal("4300.00"), generatedBy);
+
+        verify(transactionRepository).findByStoreAndDateRange(
+                eq(storeId),
+                eq(reportDate.atStartOfDay(ZoneId.of("Asia/Taipei")).toLocalDateTime()),
+                eq(reportDate.plusDays(1).atStartOfDay(ZoneId.of("Asia/Taipei")).toLocalDateTime())
+        );
+    }
+
+    // ========================================
     // Z Report Hash 計算並通過驗證 / Hash computed and verifiable
     // ========================================
     @Test
@@ -156,6 +202,14 @@ class ZReportCalculatorTest {
         assertThat(calculator.verifyHash(report)).isFalse();
     }
 
+    @Test
+    @DisplayName("篡改支付方式明細後 verifyHash 應回傳 false")
+    void verifyHash_tamperedPaymentBreakdown_returnsFalse() {
+        ZReport report = calculator.generate(storeId, reportDate, new BigDecimal("4300.00"), generatedBy);
+        report.setCashSales(new BigDecimal("9999.00"));
+        assertThat(calculator.verifyHash(report)).isFalse();
+    }
+
     // ========================================
     // 同日重複產生 Z Report 應拋例外 / Duplicate Z Report throws exception
     // ========================================
@@ -166,5 +220,20 @@ class ZReportCalculatorTest {
                 .thenReturn(Optional.of(new ZReport()));
         assertThatThrownBy(() -> calculator.generate(storeId, reportDate, new BigDecimal("4300.00"), generatedBy))
                 .hasMessageContaining("Z_REPORT_EXISTS");
+    }
+
+    private PaymentTransaction transaction(
+            String methodType,
+            String amount,
+            PaymentTransaction.TxnStatus status
+    ) {
+        PaymentTransaction txn = new PaymentTransaction();
+        txn.setStoreId(storeId);
+        txn.setOrderId(UUID.randomUUID());
+        txn.setPayMethodId(UUID.randomUUID());
+        txn.setMethodType(methodType);
+        txn.setAmount(new BigDecimal(amount));
+        txn.setStatus(status);
+        return txn;
     }
 }

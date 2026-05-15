@@ -7,6 +7,8 @@
 package com.enterprise.staff.service;
 
 import com.enterprise.common.exception.BusinessException;
+import com.enterprise.payment.entity.PaymentTransaction;
+import com.enterprise.payment.repository.PaymentTransactionRepository;
 import com.enterprise.staff.entity.StaffShift;
 import com.enterprise.staff.entity.ZReport;
 import com.enterprise.staff.repository.StaffShiftRepository;
@@ -22,6 +24,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -37,6 +40,7 @@ public class ZReportCalculator {
 
     private final StaffShiftRepository shiftRepository;
     private final ZReportRepository zReportRepository;
+    private final PaymentTransactionRepository transactionRepository;
 
     private static final ZoneId TW_ZONE = ZoneId.of("Asia/Taipei");
     private static final DateTimeFormatter REPORT_NO_FMT = DateTimeFormatter.ofPattern("yyyyMMdd").withZone(TW_ZONE);
@@ -96,9 +100,7 @@ public class ZReportCalculator {
         report.setTotalTax(totalTax);
         report.setNetSales(netSales);
         report.setGrossSales(grossSales);
-        report.setCashSales(BigDecimal.ZERO);
-        report.setCardSales(BigDecimal.ZERO);
-        report.setOtherSales(BigDecimal.ZERO);
+        applyPaymentBreakdown(report, storeId, dayStart, dayEnd);
         report.setCashInDrawer(cashInDrawer);
         report.setExpectedCash(expectedCash);
         report.setCashVariance(cashVariance);
@@ -129,6 +131,48 @@ public class ZReportCalculator {
     }
 
     // ========================================
+    // 支付方式彙總 / Payment method aggregation
+    // ========================================
+    private void applyPaymentBreakdown(ZReport report, UUID storeId, Instant dayStart, Instant dayEnd) {
+        LocalDateTime from = LocalDateTime.ofInstant(dayStart, TW_ZONE);
+        LocalDateTime to = LocalDateTime.ofInstant(dayEnd, TW_ZONE);
+
+        BigDecimal cash = BigDecimal.ZERO;
+        BigDecimal card = BigDecimal.ZERO;
+        BigDecimal other = BigDecimal.ZERO;
+
+        for (PaymentTransaction txn : transactionRepository.findByStoreAndDateRange(storeId, from, to)) {
+            BigDecimal signedAmount = signedAmount(txn);
+            if (signedAmount == null) {
+                continue;
+            }
+
+            String methodType = txn.getMethodType() == null ? "" : txn.getMethodType();
+            if ("CASH".equals(methodType)) {
+                cash = cash.add(signedAmount);
+            } else if ("CARD".equals(methodType)) {
+                card = card.add(signedAmount);
+            } else {
+                other = other.add(signedAmount);
+            }
+        }
+
+        report.setCashSales(cash);
+        report.setCardSales(card);
+        report.setOtherSales(other);
+    }
+
+    private BigDecimal signedAmount(PaymentTransaction txn) {
+        if (txn.getStatus() == PaymentTransaction.TxnStatus.SUCCESS) {
+            return txn.getAmount();
+        }
+        if (txn.getStatus() == PaymentTransaction.TxnStatus.REFUNDED) {
+            return txn.getAmount().negate();
+        }
+        return null;
+    }
+
+    // ========================================
     // 查詢歷史 Z Report / List recent Z Reports
     // ========================================
     @Transactional(readOnly = true)
@@ -155,6 +199,9 @@ public class ZReportCalculator {
                 report.getTotalRefunds().toPlainString(),
                 report.getTotalTax().toPlainString(),
                 report.getNetSales().toPlainString(),
+                report.getCashSales().toPlainString(),
+                report.getCardSales().toPlainString(),
+                report.getOtherSales().toPlainString(),
                 report.getCashInDrawer().toPlainString(),
                 String.valueOf(report.getTransactionCount())
         );
