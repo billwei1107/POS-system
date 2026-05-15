@@ -84,6 +84,11 @@ describe('CheckoutPage cash payment', () => {
 
   it('creates and completes an order with CASH tendered amount and clears the cart', async () => {
     const user = userEvent.setup();
+    window.localStorage.setItem('pos-session', JSON.stringify({
+      storeId: 'store-from-session',
+      terminalId: 'terminal-from-session',
+      employeeId: 'employee-from-session',
+    }));
     orderApiMock.create.mockResolvedValue({
       success: true,
       message: 'created',
@@ -105,6 +110,9 @@ describe('CheckoutPage cash payment', () => {
 
     await waitFor(() => expect(screen.getByText('付款完成')).toBeInTheDocument());
     expect(orderApiMock.create).toHaveBeenCalledWith(expect.objectContaining({
+      storeId: 'store-from-session',
+      terminalId: 'terminal-from-session',
+      employeeId: 'employee-from-session',
       taxIncluded: false,
       discountAmount: 0,
       items: [expect.objectContaining({

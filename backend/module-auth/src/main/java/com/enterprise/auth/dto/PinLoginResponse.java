@@ -19,5 +19,6 @@ public class PinLoginResponse {
     private String username;
     private String storeId;
     private String terminalId;
+    private String employeeId;
     private String role;
 }

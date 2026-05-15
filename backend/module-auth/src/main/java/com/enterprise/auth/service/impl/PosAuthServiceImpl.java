@@ -15,6 +15,7 @@ import com.enterprise.auth.service.PosAuthService;
 import com.enterprise.auth.service.RoleResolverService;
 import com.enterprise.common.exception.BusinessException;
 import com.enterprise.common.security.JwtTokenProvider;
+import com.enterprise.organization.repository.EmployeeRepository;
 import com.enterprise.organization.repository.TerminalRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -41,6 +42,7 @@ public class PosAuthServiceImpl implements PosAuthService {
     private final RoleRepository roleRepository;
     private final UserRoleRepository userRoleRepository;
     private final TerminalRepository terminalRepository;
+    private final EmployeeRepository employeeRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final RoleResolverService roleResolverService;
@@ -92,6 +94,9 @@ public class PosAuthServiceImpl implements PosAuthService {
                     role = "CASHIER";
                 }
                 String token = jwtTokenProvider.generateToken(user.getId(), role);
+                String employeeId = employeeRepository.findByUserId(user.getId())
+                        .map(employee -> employee.getId().toString())
+                        .orElse(null);
 
                 return PinLoginResponse.builder()
                         .token(token)
@@ -100,6 +105,7 @@ public class PosAuthServiceImpl implements PosAuthService {
                         .username(user.getUsername())
                         .storeId(terminalToken.getStoreId().toString())
                         .terminalId(terminalId.toString())
+                        .employeeId(employeeId)
                         .role(role)
                         .build();
             }

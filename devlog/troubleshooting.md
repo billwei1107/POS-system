@@ -1163,3 +1163,4 @@ services:
 
 - 會員管理頁：新增會員、調整點數、搜尋與流水顯示均由 DOM snapshot 確認。
 - 收銀台：CRM 會員搜尋、綁定、折扣與結帳頁會員資訊均由 DOM snapshot 確認。
+- POS session context：PIN 登入、收銀結帳、付款完成與 PostgreSQL 最新訂單 `employee_id` 落庫均由 DOM snapshot 與資料庫查詢確認；截圖管線仍回同一個 `Page.captureScreenshot` timeout。

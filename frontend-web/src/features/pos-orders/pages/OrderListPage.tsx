@@ -13,13 +13,13 @@ import {
 } from '@mui/material';
 import { orderApi } from '../api/orderApi';
 import type { Order, OrderStatus, OrderListParams } from '../types';
-import { DEFAULT_STORE_ID } from '../config';
 import { useNavigate } from 'react-router-dom';
 import { paymentApi } from '../../pos-payment/api/paymentApi';
 import type { PaymentTransaction } from '../../pos-payment/types';
 import { invoiceApi } from '../../pos-tax/api/taxApi';
 import type { Invoice } from '../../pos-tax/types';
 import { formatDateTime } from '@shared/utils';
+import { getActivePosContext } from '../posSession';
 
 // ========================================
 // 狀態顏色映射 / Status color mapping
@@ -100,7 +100,7 @@ const OrderListPage: React.FC = () => {
   const [voidDialog, setVoidDialog] = useState(false);
   const [voidTarget, setVoidTarget] = useState<Order | null>(null);
   const [voidReason, setVoidReason] = useState('');
-  const [voidedBy] = useState('00000000-0000-0000-0000-000000000001');
+  const posContext = useMemo(() => getActivePosContext(), []);
   const [paymentDialog, setPaymentDialog] = useState(false);
   const [paymentTarget, setPaymentTarget] = useState<Order | null>(null);
   const [paymentTransactions, setPaymentTransactions] = useState<PaymentTransaction[]>([]);
@@ -159,10 +159,10 @@ const OrderListPage: React.FC = () => {
   }, []);
 
   const fetchOrders = useCallback(async () => {
-    if (!DEFAULT_STORE_ID) {
+    if (!posContext.storeId) {
       setOrders([]);
       setTotal(0);
-      setError('尚未設定預設門店。請設定 VITE_DEFAULT_STORE_ID 後載入即時訂單。');
+      setError('尚未取得 POS 門店資訊。請重新登入收銀台後載入即時訂單。');
       return;
     }
 
@@ -170,7 +170,7 @@ const OrderListPage: React.FC = () => {
     setError('');
     try {
       const params: OrderListParams = {
-        storeId: DEFAULT_STORE_ID,
+        storeId: posContext.storeId,
         page: page - 1,
         size: 20,
         ...(status ? { status } : {}),
@@ -187,7 +187,7 @@ const OrderListPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [loadOrderClosureStatuses, page, status]);
+  }, [loadOrderClosureStatuses, page, posContext.storeId, status]);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
@@ -197,7 +197,7 @@ const OrderListPage: React.FC = () => {
   const handleVoid = async () => {
     if (!voidTarget) return;
     try {
-      await orderApi.void(voidTarget.id, voidedBy, voidReason);
+      await orderApi.void(voidTarget.id, posContext.employeeId, voidReason);
       setVoidDialog(false);
       setVoidReason('');
       fetchOrders();

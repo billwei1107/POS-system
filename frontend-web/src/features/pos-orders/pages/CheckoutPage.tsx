@@ -14,13 +14,8 @@ import { calculateCartTotals, useCartStore } from '../store/cartStore';
 import { formatMoney } from '@shared/utils';
 import { orderApi } from '../api/orderApi';
 import type { Order, OrderType } from '../types';
-import {
-    DEFAULT_EMPLOYEE_ID,
-    DEFAULT_GUEST_COUNT,
-    DEFAULT_STORE_ID,
-    DEFAULT_TABLE_NO,
-    DEFAULT_TERMINAL_ID,
-} from '../config';
+import { DEFAULT_GUEST_COUNT, DEFAULT_TABLE_NO } from '../config';
+import { getActivePosContext } from '../posSession';
 
 const PAYMENT_METHOD_LABEL: Record<string, string> = {
     cash: 'CASH',
@@ -47,6 +42,7 @@ const CheckoutPage: React.FC = () => {
     const discountAmount = useCartStore((state) => state.discountAmount);
     const selectedMember = useCartStore((state) => state.selectedMember);
     const clearCart = useCartStore((state) => state.clear);
+    const posContext = useMemo(() => getActivePosContext(), []);
     const totals = useMemo(() => calculateCartTotals(orderItems, taxRate, discountAmount), [discountAmount, orderItems, taxRate]);
     const cashTenderedAmount = useMemo(() => {
         const value = Number(cashTendered);
@@ -92,9 +88,9 @@ const CheckoutPage: React.FC = () => {
         setCompletedOrder(null);
         try {
             const createResponse = await orderApi.create({
-                storeId: DEFAULT_STORE_ID,
-                terminalId: DEFAULT_TERMINAL_ID,
-                employeeId: DEFAULT_EMPLOYEE_ID,
+                storeId: posContext.storeId,
+                terminalId: posContext.terminalId,
+                employeeId: posContext.employeeId,
                 orderType: 'DINE_IN' as OrderType,
                 tableNo: DEFAULT_TABLE_NO,
                 guestCount: DEFAULT_GUEST_COUNT,

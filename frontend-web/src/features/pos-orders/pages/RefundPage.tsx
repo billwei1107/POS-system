@@ -17,8 +17,8 @@ import {
 import { useSearchParams } from 'react-router-dom';
 import { orderApi, refundApi } from '../api/orderApi';
 import type { CreateRefundRequest, Order, OrderRefund } from '../types';
-import { DEFAULT_EMPLOYEE_ID } from '../config';
 import { formatMoney } from '@shared/utils';
+import { getActivePosContext } from '../posSession';
 
 interface RefundMethodOption {
   value: string;
@@ -67,11 +67,12 @@ const RefundPage: React.FC = () => {
   const initialOrderId = searchParams.get('orderId') ?? '';
   const initialAmount = parseAmount(searchParams.get('amount'));
   const orderNo = searchParams.get('orderNo');
+  const posContext = useMemo(() => getActivePosContext(), []);
   const [form, setForm] = useState<Partial<CreateRefundRequest>>({
     orderId: initialOrderId,
     refundAmount: initialAmount,
     refundMethod: 'CASH',
-    approvedBy: DEFAULT_EMPLOYEE_ID,
+    approvedBy: posContext.employeeId,
   });
   const [order, setOrder] = useState<Order | null>(null);
   const [orderLoading, setOrderLoading] = useState(false);

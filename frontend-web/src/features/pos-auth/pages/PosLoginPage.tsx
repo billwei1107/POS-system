@@ -75,6 +75,7 @@ const PosLoginPage: React.FC = () => {
             localStorage.setItem('pos-session', JSON.stringify({
                 storeId: response.storeId,
                 terminalId: response.terminalId,
+                employeeId: response.employeeId,
                 terminalCode: DEFAULT_TERMINAL_CODE,
                 userId: response.userId,
                 username: response.username,

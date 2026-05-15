@@ -13,11 +13,11 @@ import { DeleteOutline, Add, Remove, PersonAdd, LocalOffer, PauseCircleOutline }
 import { useNavigate } from 'react-router-dom';
 import { calculateCartTotals, calculateItemCount, useCartStore, type CartMember, type HeldOrder } from '../store/cartStore';
 import { formatMoney, formatTime } from '@shared/utils';
-import { DEFAULT_STORE_ID, DEFAULT_TERMINAL_ID } from '../config';
 import { heldOrderApi } from '../api/orderApi';
 import type { HeldOrderResponse } from '../types';
 import { memberApi } from '../../pos-crm/api/memberApi';
 import type { Member } from '../../pos-crm/types';
+import { getActivePosContext } from '../posSession';
 
 const mapMemberToCartMember = (member: Member): CartMember => ({
     id: member.id,
@@ -57,6 +57,7 @@ const Cart: React.FC = () => {
     const [memberCandidates, setMemberCandidates] = useState<CartMember[]>([]);
     const [memberLoading, setMemberLoading] = useState(false);
     const [memberError, setMemberError] = useState('');
+    const posContext = useMemo(() => getActivePosContext(), []);
     const totals = useMemo(() => calculateCartTotals(lines, taxRate, discountAmount), [discountAmount, lines, taxRate]);
     const itemCount = useMemo(() => calculateItemCount(lines), [lines]);
 
@@ -169,7 +170,7 @@ const Cart: React.FC = () => {
         if (!holdOpen) return;
         let cancelled = false;
 
-        heldOrderApi.list(DEFAULT_STORE_ID, DEFAULT_TERMINAL_ID)
+        heldOrderApi.list(posContext.storeId, posContext.terminalId)
             .then((response) => {
                 if (cancelled || !response.success || !response.data) return;
                 const mapped = response.data
@@ -184,7 +185,7 @@ const Cart: React.FC = () => {
         return () => {
             cancelled = true;
         };
-    }, [holdOpen, replaceHeldOrders]);
+    }, [holdOpen, posContext.storeId, posContext.terminalId, replaceHeldOrders]);
 
     // ========================================
     // 掛單與取單 / Hold And Restore Orders
@@ -195,8 +196,8 @@ const Cart: React.FC = () => {
 
         try {
             const response = await heldOrderApi.create({
-                storeId: DEFAULT_STORE_ID,
-                terminalId: DEFAULT_TERMINAL_ID,
+                storeId: posContext.storeId,
+                terminalId: posContext.terminalId,
                 label: heldOrder.displayNo,
                 payload: JSON.stringify(heldOrder),
             });

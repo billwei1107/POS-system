@@ -18,5 +18,6 @@ export interface PinLoginResponse {
     username: string;
     storeId: string;
     terminalId: string;
+    employeeId?: string | null;
     role: string;
 }
