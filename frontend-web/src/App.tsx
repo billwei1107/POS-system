@@ -49,6 +49,7 @@ import ZReportPage from './features/pos-staff/pages/ZReportPage';
 import ReconciliationPage from './features/pos-payment/pages/ReconciliationPage';
 import PayMethodSettingsPage from './features/pos-payment/pages/PayMethodSettingsPage';
 import GatewayConfigPage from './features/pos-payment/pages/GatewayConfigPage';
+import MemberPage from './features/pos-crm/pages/MemberPage';
 
 function App() {
   return (
@@ -66,6 +67,7 @@ function App() {
             <Route path="pos/categories" element={<CategoryListPage />} />
             <Route path="pos/orders" element={<OrderListPage />} />
             <Route path="pos/refunds" element={<RefundPage />} />
+            <Route path="pos/members" element={<MemberPage />} />
             <Route path="inventory/overview" element={<StockOverviewPage />} />
             <Route path="inventory/receiving" element={<ReceivingPage />} />
             <Route path="inventory/stock-takes" element={<StockTakePage />} />
@@ -123,6 +125,7 @@ function App() {
           <Route path="/reconciliation" element={<Navigate to="/admin/operations/reconciliation" replace />} />
           <Route path="/pay-methods" element={<Navigate to="/admin/operations/pay-methods" replace />} />
           <Route path="/gateways" element={<Navigate to="/admin/operations/gateways" replace />} />
+          <Route path="/members" element={<Navigate to="/admin/pos/members" replace />} />
 
           {/* 預設導向登入頁面 */}
           <Route path="/" element={<Navigate to="/pos/register" replace />} />
@@ -134,6 +137,7 @@ function App() {
               <Route path="register" element={<RegisterPage />} />
               <Route path="orders" element={<OrderListPage />} />
               <Route path="refunds" element={<RefundPage />} />
+              <Route path="members" element={<MemberPage />} />
               <Route path="products" element={<ProductListPage />} />
               <Route path="categories" element={<CategoryListPage />} />
               <Route path="checkout" element={<CheckoutPage />} />

@@ -13,7 +13,7 @@ import {
 import {
   PointOfSale, Receipt, Inventory, Settings, Category, LocalCafe, Replay,
   LockOutlined, Menu as MenuIcon, ShoppingCart, Wifi, Circle, ReceiptLong,
-  Badge, FactCheck, KeyboardArrowDown, KeyboardArrowRight
+  Badge, FactCheck, KeyboardArrowDown, KeyboardArrowRight, PeopleAlt
 } from '@mui/icons-material';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@shared/store/authStore';
@@ -88,6 +88,7 @@ const PosLayout: React.FC = () => {
       ],
     },
     { text: '發票', icon: <ReceiptLong />, path: '/pos/invoices' },
+    { text: '會員', icon: <PeopleAlt />, path: '/pos/members' },
     { text: '班次', icon: <Badge />, path: '/pos/shifts' },
     { text: '對帳', icon: <FactCheck />, path: '/pos/reconciliation' },
   ];

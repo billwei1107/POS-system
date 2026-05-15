@@ -27,6 +27,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import ManageSearchIcon from '@mui/icons-material/ManageSearch';
 import PaymentsIcon from '@mui/icons-material/Payments';
+import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import RestaurantMenuIcon from '@mui/icons-material/RestaurantMenu';
 import StorefrontIcon from '@mui/icons-material/Storefront';
@@ -51,6 +52,7 @@ const navGroups = [
       { label: '分類管理', path: '/admin/pos/categories', icon: <RestaurantMenuIcon /> },
       { label: '訂單列表', path: '/admin/pos/orders', icon: <ReceiptLongIcon /> },
       { label: '退款處理', path: '/admin/pos/refunds', icon: <ReceiptLongIcon /> },
+      { label: '會員管理', path: '/admin/pos/members', icon: <PeopleAltIcon /> },
     ],
   },
   {
