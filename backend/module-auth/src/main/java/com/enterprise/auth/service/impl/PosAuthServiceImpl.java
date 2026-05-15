@@ -9,8 +9,10 @@ import com.enterprise.auth.event.UserSwitchedEvent;
 import com.enterprise.auth.repository.PinCodeRepository;
 import com.enterprise.auth.repository.RoleRepository;
 import com.enterprise.auth.repository.TerminalTokenRepository;
+import com.enterprise.auth.repository.UserRoleRepository;
 import com.enterprise.auth.repository.UserRepository;
 import com.enterprise.auth.service.PosAuthService;
+import com.enterprise.auth.service.RoleResolverService;
 import com.enterprise.common.exception.BusinessException;
 import com.enterprise.common.security.JwtTokenProvider;
 import com.enterprise.organization.repository.TerminalRepository;
@@ -37,18 +39,18 @@ public class PosAuthServiceImpl implements PosAuthService {
     private final TerminalTokenRepository terminalTokenRepository;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final UserRoleRepository userRoleRepository;
     private final TerminalRepository terminalRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final RoleResolverService roleResolverService;
     private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 檢查用戶是否擁有指定角色 / Check if user has a specific role
      */
     private boolean userRoleExists(UUID userId, UUID roleId) {
-        return userRepository.findById(userId)
-                .map(u -> roleRepository.findById(roleId).isPresent())
-                .orElse(false);
+        return userRoleRepository.existsByUserIdAndRoleId(userId, roleId);
     }
 
     @Override
@@ -85,7 +87,11 @@ public class PosAuthServiceImpl implements PosAuthService {
                 pinCodeRepository.save(pinCode);
 
                 // 產生 JWT / Generate JWT token
-                String token = jwtTokenProvider.generateToken(user.getId(), "CASHIER");
+                String role = roleResolverService.resolvePrimaryRoleCode(user.getId());
+                if ("USER".equals(role)) {
+                    role = "CASHIER";
+                }
+                String token = jwtTokenProvider.generateToken(user.getId(), role);
 
                 return PinLoginResponse.builder()
                         .token(token)
@@ -94,7 +100,7 @@ public class PosAuthServiceImpl implements PosAuthService {
                         .username(user.getUsername())
                         .storeId(terminalToken.getStoreId().toString())
                         .terminalId(terminalId.toString())
-                        .role("CASHIER")
+                        .role(role)
                         .build();
             }
         }
@@ -193,7 +199,7 @@ public class PosAuthServiceImpl implements PosAuthService {
         // 管理者角色驗證 / Manager Role Verification
         // ========================================
         final User verifiedManager = manager;
-        List<String> managerRoleCodes = List.of("STORE_MANAGER", "SHIFT_MANAGER");
+        List<String> managerRoleCodes = List.of("SUPER_ADMIN", "AREA_MANAGER", "STORE_MANAGER", "SHIFT_MANAGER");
         boolean isManager = roleRepository.findAll().stream()
                 .filter(role -> managerRoleCodes.contains(role.getCode()))
                 .anyMatch(role -> userRoleExists(verifiedManager.getId(), role.getId()));

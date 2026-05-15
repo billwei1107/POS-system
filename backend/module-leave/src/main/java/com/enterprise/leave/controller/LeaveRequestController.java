@@ -6,6 +6,8 @@
  */
 package com.enterprise.leave.controller;
 
+import com.enterprise.common.annotation.Auditable;
+import com.enterprise.common.annotation.RequirePermission;
 import com.enterprise.common.dto.ApiResponse;
 import com.enterprise.leave.dto.LeaveRequestDTO;
 import com.enterprise.leave.entity.LeaveRequest;
@@ -30,6 +32,8 @@ public class LeaveRequestController {
     // 提交請假 / Submit leave request
     // ========================================
     @PostMapping
+    @RequirePermission("system:leave:request")
+    @Auditable(module = "leave-request", action = "submit")
     public ApiResponse<LeaveRequest> submit(@Valid @RequestBody LeaveRequestDTO dto) {
         return ApiResponse.success(leaveRequestService.submitRequest(dto));
     }
@@ -38,6 +42,7 @@ public class LeaveRequestController {
     // 查詢員工請假記錄 / List requests by employee
     // ========================================
     @GetMapping
+    @RequirePermission("system:leave:read")
     public ApiResponse<List<LeaveRequest>> list(@RequestParam UUID employeeId) {
         return ApiResponse.success(leaveRequestService.listByEmployee(employeeId));
     }
@@ -46,6 +51,8 @@ public class LeaveRequestController {
     // 銷假 / Cancel request
     // ========================================
     @PostMapping("/{id}/cancel")
+    @RequirePermission("system:leave:request")
+    @Auditable(module = "leave-request", action = "cancel")
     public ApiResponse<LeaveRequest> cancel(@PathVariable UUID id) {
         return ApiResponse.success(leaveRequestService.cancelRequest(id));
     }
@@ -54,6 +61,7 @@ public class LeaveRequestController {
     // 部門請假日曆 / Department leave calendar
     // ========================================
     @GetMapping("/calendar")
+    @RequirePermission("system:leave:read")
     public ApiResponse<List<LeaveRequest>> calendar(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {

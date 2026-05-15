@@ -16,19 +16,19 @@ docker compose -f docker/local/docker-compose.yml up -d --build backend frontend
 |------|------|--------|
 | PostgreSQL | `pos-postgres` | `5432` |
 | Redis | `pos-redis` | `6379` |
-| Backend | `pos-backend` | `38080` |
-| Frontend | `pos-frontend` | `38082` |
+| Backend | `pos-backend` | `38180` |
+| Frontend | `pos-frontend` | `38182` |
 
 ## 驗證
 
 ```bash
-curl http://localhost:38080/actuator/health
+curl http://localhost:38180/actuator/health
 ```
 
 前端開啟：
 
 ```text
-http://localhost:38082
+http://localhost:38182
 ```
 
 POS demo PIN：

@@ -6,7 +6,10 @@
  */
 package com.enterprise.tax.controller;
 
+import com.enterprise.common.annotation.Auditable;
+import com.enterprise.common.annotation.RequirePermission;
 import com.enterprise.common.dto.ApiResponse;
+import com.enterprise.organization.service.StoreAccessService;
 import com.enterprise.tax.dto.request.CreateTaxClassRequest;
 import com.enterprise.tax.entity.TaxClass;
 import com.enterprise.tax.service.TaxClassService;
@@ -24,19 +27,28 @@ import java.util.UUID;
 public class TaxClassController {
 
     private final TaxClassService taxClassService;
+    private final StoreAccessService storeAccessService;
 
     @GetMapping
+    @RequirePermission("pos:tax:read")
     public ResponseEntity<ApiResponse<List<TaxClass>>> list(@RequestParam UUID storeId) {
+        storeAccessService.requireReadableStore(storeId);
         return ResponseEntity.ok(ApiResponse.success(taxClassService.listByStore(storeId)));
     }
 
     @PostMapping
+    @RequirePermission("pos:tax:manage")
+    @Auditable(module = "pos-tax-class", action = "create")
     public ResponseEntity<ApiResponse<TaxClass>> create(@Valid @RequestBody CreateTaxClassRequest req) {
+        storeAccessService.requireOperableStore(req.storeId());
         return ResponseEntity.ok(ApiResponse.success(taxClassService.create(req)));
     }
 
     @DeleteMapping("/{id}")
+    @RequirePermission("pos:tax:manage")
+    @Auditable(module = "pos-tax-class", action = "deactivate")
     public ResponseEntity<ApiResponse<Void>> deactivate(@PathVariable UUID id) {
+        storeAccessService.requireOperableStore(taxClassService.findStoreId(id));
         taxClassService.deactivate(id);
         return ResponseEntity.ok(ApiResponse.success(null));
     }

@@ -16,6 +16,7 @@ COPY backend/module-pos-inventory/pom.xml backend/module-pos-inventory/
 COPY backend/module-pos-payment/pom.xml backend/module-pos-payment/
 COPY backend/module-pos-tax/pom.xml backend/module-pos-tax/
 COPY backend/module-pos-staff/pom.xml backend/module-pos-staff/
+COPY backend/module-pos-crm/pom.xml backend/module-pos-crm/
 COPY backend/app/pom.xml backend/app/
 
 # 複製主要代碼並編譯 / Copy source and build

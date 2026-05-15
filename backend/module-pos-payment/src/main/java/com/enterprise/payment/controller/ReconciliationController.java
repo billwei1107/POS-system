@@ -6,7 +6,10 @@
  */
 package com.enterprise.payment.controller;
 
+import com.enterprise.common.annotation.Auditable;
+import com.enterprise.common.annotation.RequirePermission;
 import com.enterprise.common.dto.ApiResponse;
+import com.enterprise.organization.service.StoreAccessService;
 import com.enterprise.payment.entity.Reconciliation;
 import com.enterprise.payment.service.ReconciliationService;
 import lombok.RequiredArgsConstructor;
@@ -25,14 +28,18 @@ import java.util.UUID;
 public class ReconciliationController {
 
     private final ReconciliationService reconciliationService;
+    private final StoreAccessService storeAccessService;
 
     // ========================================
     // 產生每日對帳 / Generate daily reconciliation
     // ========================================
     @PostMapping("/generate")
+    @RequirePermission("pos:reconciliation:manage")
+    @Auditable(module = "pos-reconciliation", action = "generate")
     public ResponseEntity<ApiResponse<List<Reconciliation>>> generate(
             @RequestParam UUID storeId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        storeAccessService.requireOperableStore(storeId);
         return ResponseEntity.ok(ApiResponse.success(
             reconciliationService.generateDaily(storeId, date)
         ));
@@ -42,9 +49,11 @@ public class ReconciliationController {
     // 查詢對帳記錄 / Query reconciliation
     // ========================================
     @GetMapping
+    @RequirePermission("pos:reconciliation:read")
     public ResponseEntity<ApiResponse<List<Reconciliation>>> list(
             @RequestParam UUID storeId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        storeAccessService.requireReadableStore(storeId);
         return ResponseEntity.ok(ApiResponse.success(
             reconciliationService.listByStoreAndDate(storeId, date)
         ));
@@ -54,10 +63,13 @@ public class ReconciliationController {
     // 確認對帳 / Confirm reconciliation
     // ========================================
     @PostMapping("/{id}/confirm")
+    @RequirePermission("pos:reconciliation:manage")
+    @Auditable(module = "pos-reconciliation", action = "confirm")
     public ResponseEntity<ApiResponse<Reconciliation>> confirm(
             @PathVariable UUID id,
             @RequestParam BigDecimal gatewayAmount,
             @RequestParam UUID reconciledBy) {
+        storeAccessService.requireOperableStore(reconciliationService.findStoreId(id));
         return ResponseEntity.ok(ApiResponse.success(
             reconciliationService.confirm(id, gatewayAmount, reconciledBy)
         ));

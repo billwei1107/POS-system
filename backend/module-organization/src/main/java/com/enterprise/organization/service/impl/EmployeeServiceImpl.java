@@ -57,6 +57,11 @@ public class EmployeeServiceImpl implements EmployeeService {
     }
 
     @Override
+    public List<Employee> listAll() {
+        return employeeRepository.findAll();
+    }
+
+    @Override
     public List<Employee> listByCompany(UUID companyId) {
         return employeeRepository.findByCompanyId(companyId);
     }

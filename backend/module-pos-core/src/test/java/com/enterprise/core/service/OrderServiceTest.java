@@ -7,8 +7,12 @@
 package com.enterprise.core.service;
 
 import com.enterprise.core.dto.response.OrderResponse;
+import com.enterprise.core.dto.request.CreateOrderRequest;
+import com.enterprise.core.dto.request.OrderItemRequest;
+import com.enterprise.core.dto.response.PricingResult;
 import com.enterprise.core.entity.Order;
 import com.enterprise.core.entity.OrderPayment;
+import com.enterprise.core.entity.OrderItem;
 import com.enterprise.core.repository.OrderItemRepository;
 import com.enterprise.core.repository.OrderPaymentRepository;
 import com.enterprise.core.repository.OrderRepository;
@@ -27,6 +31,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -46,6 +51,9 @@ class OrderServiceTest {
     private PricingEngine pricingEngine;
 
     @Mock
+    private PriceRuleResolver priceRuleResolver;
+
+    @Mock
     private ApplicationEventPublisher eventPublisher;
 
     private OrderService orderService;
@@ -57,9 +65,54 @@ class OrderServiceTest {
             orderItemRepository,
             orderPaymentRepository,
             pricingEngine,
+            priceRuleResolver,
             new OrderStateMachine(),
             eventPublisher
         );
+    }
+
+    // ========================================
+    // 建立訂單 / Create order
+    // ========================================
+    @Test
+    void createOrder_repricesItemsBeforeCalculatingAndSavingLines() {
+        UUID storeId = UUID.randomUUID();
+        UUID itemId = UUID.randomUUID();
+        UUID memberId = UUID.randomUUID();
+        OrderItemRequest originalItem = new OrderItemRequest(
+            itemId, null, "Client Name", "CLIENT-SKU",
+            new BigDecimal("120.00"), new BigDecimal("2.00"),
+            BigDecimal.ZERO, null, List.of()
+        );
+        OrderItemRequest pricedItem = new OrderItemRequest(
+            itemId, null, "Master Name", "MASTER-SKU",
+            new BigDecimal("90.00"), new BigDecimal("2.00"),
+            BigDecimal.ZERO, null, List.of()
+        );
+        CreateOrderRequest request = new CreateOrderRequest(
+            storeId, UUID.randomUUID(), UUID.randomUUID(), Order.OrderType.DINE_IN,
+            List.of(originalItem), BigDecimal.ZERO, memberId, null, 1, null, false
+        );
+        PricingResult pricing = new PricingResult(
+            new BigDecimal("180.00"), BigDecimal.ZERO, new BigDecimal("9.00"),
+            BigDecimal.ZERO, new BigDecimal("189.00")
+        );
+
+        when(priceRuleResolver.resolveOrderItems(any(), any(), any(), any())).thenReturn(List.of(pricedItem));
+        when(pricingEngine.calculate(List.of(pricedItem), BigDecimal.ZERO, false)).thenReturn(pricing);
+        when(orderItemRepository.save(any(OrderItem.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        OrderResponse response = orderService.createOrder(request);
+
+        ArgumentCaptor<OrderItem> itemCaptor = ArgumentCaptor.forClass(OrderItem.class);
+        verify(orderItemRepository).save(itemCaptor.capture());
+        assertThat(itemCaptor.getValue().getItemNameSnapshot()).isEqualTo("Master Name");
+        assertThat(itemCaptor.getValue().getSkuSnapshot()).isEqualTo("MASTER-SKU");
+        assertThat(itemCaptor.getValue().getUnitPrice()).isEqualByComparingTo("90.00");
+        assertThat(itemCaptor.getValue().getLineTotal()).isEqualByComparingTo("180.00");
+        assertThat(response.grandTotal()).isEqualByComparingTo("189.00");
+        verify(priceRuleResolver).resolveOrderItems(eq(List.of(originalItem)), eq(storeId), eq(memberId), any());
+        verify(eventPublisher).publishEvent(any());
     }
 
     // ========================================

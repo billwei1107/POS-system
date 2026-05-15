@@ -8,18 +8,25 @@ package com.enterprise.core.service;
 
 import com.enterprise.common.exception.BusinessException;
 import com.enterprise.core.dto.request.CreateRefundRequest;
+import com.enterprise.core.dto.response.RefundResponse;
 import com.enterprise.core.entity.Order;
 import com.enterprise.core.entity.OrderRefund;
+import com.enterprise.core.event.RefundCompletedEvent;
 import com.enterprise.core.repository.OrderRefundRepository;
 import com.enterprise.core.repository.OrderRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -110,7 +117,9 @@ class RefundServiceTest {
     void completeRefund_approvedRefund_marksCompletedAndPublishesEvent() {
         UUID refundId = UUID.randomUUID();
         UUID orderId = UUID.randomUUID();
+        UUID memberId = UUID.randomUUID();
         Order order = createCompletedOrder(orderId, new BigDecimal("126.00"));
+        order.setMemberId(memberId);
         OrderRefund refund = new OrderRefund();
         refund.setId(refundId);
         refund.setOrderId(orderId);
@@ -121,13 +130,68 @@ class RefundServiceTest {
 
         when(refundRepository.findById(refundId)).thenReturn(Optional.of(refund));
         when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+        when(refundRepository.findByOrderId(orderId)).thenReturn(List.of(refund));
 
         OrderRefund completed = refundService.completeRefund(refundId);
 
         assertThat(completed.getStatus()).isEqualTo(OrderRefund.RefundStatus.COMPLETED);
         assertThat(completed.getProcessedAt()).isNotNull();
         verify(refundRepository).save(refund);
-        verify(eventPublisher).publishEvent(any());
+        ArgumentCaptor<RefundCompletedEvent> eventCaptor = ArgumentCaptor.forClass(RefundCompletedEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        RefundCompletedEvent event = eventCaptor.getValue();
+        assertThat(event.getRefundId()).isEqualTo(refundId);
+        assertThat(event.getOrderId()).isEqualTo(orderId);
+        assertThat(event.getMemberId()).isEqualTo(memberId);
+        assertThat(event.getCompletedRefundTotal()).isEqualByComparingTo("50.00");
+    }
+
+    // ========================================
+    // 查詢退款 / Query refunds
+    // ========================================
+    @Test
+    void listByStore_filtersRefundsAndMapsPageResponse() {
+        UUID storeId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+        OrderRefund refund = refund(UUID.randomUUID(), orderId);
+        LocalDateTime from = LocalDateTime.now().minusDays(1);
+        LocalDateTime to = LocalDateTime.now();
+        PageRequest pageable = PageRequest.of(0, 10);
+        when(refundRepository.findAll(
+                org.mockito.ArgumentMatchers.<Specification<OrderRefund>>any(),
+                org.mockito.ArgumentMatchers.eq(pageable)
+        ))
+                .thenReturn(new PageImpl<>(List.of(refund), pageable, 1));
+
+        var response = refundService.listByStore(
+                storeId,
+                orderId,
+                OrderRefund.RefundStatus.COMPLETED,
+                from,
+                to,
+                pageable
+        );
+
+        assertThat(response.getTotalElements()).isEqualTo(1);
+        assertThat(response.getContent()).hasSize(1);
+        RefundResponse row = response.getContent().get(0);
+        assertThat(row.id()).isEqualTo(refund.getId());
+        assertThat(row.orderId()).isEqualTo(orderId);
+        assertThat(row.status()).isEqualTo(OrderRefund.RefundStatus.APPROVED);
+    }
+
+    @Test
+    void getById_existingRefund_returnsResponse() {
+        UUID refundId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+        OrderRefund refund = refund(refundId, orderId);
+        when(refundRepository.findById(refundId)).thenReturn(Optional.of(refund));
+
+        RefundResponse response = refundService.getById(refundId);
+
+        assertThat(response.id()).isEqualTo(refundId);
+        assertThat(response.orderId()).isEqualTo(orderId);
+        assertThat(response.refundAmount()).isEqualByComparingTo("50");
     }
 
     private Order createCompletedOrder(UUID orderId, BigDecimal grandTotal) {
@@ -138,5 +202,16 @@ class RefundServiceTest {
         order.setStatus(Order.OrderStatus.COMPLETED);
         order.setGrandTotal(grandTotal);
         return order;
+    }
+
+    private OrderRefund refund(UUID refundId, UUID orderId) {
+        OrderRefund refund = new OrderRefund();
+        refund.setId(refundId);
+        refund.setOrderId(orderId);
+        refund.setRefundNo("RF-TEST");
+        refund.setRefundAmount(BigDecimal.valueOf(50));
+        refund.setRefundMethod("CASH");
+        refund.setStatus(OrderRefund.RefundStatus.APPROVED);
+        return refund;
     }
 }

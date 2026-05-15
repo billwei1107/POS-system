@@ -1,6 +1,7 @@
 package com.enterprise.common.security;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.UUID;
@@ -27,5 +28,27 @@ public class SecurityUtils {
             }
         }
         return null;
+    }
+
+    /**
+     * 從 Spring Security Context 中取得目前 JWT 角色
+     * Resolve current JWT role from Spring Security authorities.
+     */
+    public static String getCurrentRole() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getAuthorities() == null) {
+            return null;
+        }
+
+        return auth.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .filter(authority -> !authority.startsWith("ROLE_"))
+                .findFirst()
+                .orElseGet(() -> auth.getAuthorities().stream()
+                        .map(GrantedAuthority::getAuthority)
+                        .filter(authority -> authority.startsWith("ROLE_"))
+                        .map(authority -> authority.substring("ROLE_".length()))
+                        .findFirst()
+                        .orElse(null));
     }
 }

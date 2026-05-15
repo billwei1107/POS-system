@@ -11,10 +11,11 @@ import {
   CircularProgress, Collapse,
 } from '@mui/material';
 import { formatDateTime } from '@shared/utils';
+import { DEFAULT_STORE_ID } from '../../pos-orders/config';
 import { transferApi } from '../api/inventoryApi';
 import type { CreateTransferRequestPayload, TransferRequest, TransferStatus } from '../types';
 
-const STORE_ID = import.meta.env.VITE_DEFAULT_STORE_ID as string;
+const STORE_ID = DEFAULT_STORE_ID;
 
 const STATUS_LABEL: Record<TransferStatus, string> = {
   REQUESTED: '待核准',

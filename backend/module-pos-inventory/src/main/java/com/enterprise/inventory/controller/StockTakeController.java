@@ -6,9 +6,12 @@
  */
 package com.enterprise.inventory.controller;
 
+import com.enterprise.common.annotation.Auditable;
+import com.enterprise.common.annotation.RequirePermission;
 import com.enterprise.common.dto.ApiResponse;
 import com.enterprise.inventory.entity.StockTake;
 import com.enterprise.inventory.service.StockTakeService;
+import com.enterprise.organization.service.StoreAccessService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,14 +26,18 @@ import java.util.UUID;
 public class StockTakeController {
 
     private final StockTakeService stockTakeService;
+    private final StoreAccessService storeAccessService;
 
     // ========================================
     // 開始盤點 / Start stock take
     // ========================================
     @PostMapping("/start")
+    @RequirePermission("pos:inventory:stock-take")
+    @Auditable(module = "inventory-stock-take", action = "start")
     public ResponseEntity<ApiResponse<StockTake>> start(
             @RequestParam UUID storeId,
             @RequestParam(required = false) UUID createdBy) {
+        storeAccessService.requireOperableStore(storeId);
         return ResponseEntity.ok(ApiResponse.success(stockTakeService.start(storeId, createdBy)));
     }
 
@@ -38,7 +45,9 @@ public class StockTakeController {
     // 查詢門店盤點紀錄 / List stock takes for store
     // ========================================
     @GetMapping("/stores/{storeId}")
+    @RequirePermission("pos:inventory:read")
     public ResponseEntity<ApiResponse<List<StockTake>>> listByStore(@PathVariable UUID storeId) {
+        storeAccessService.requireReadableStore(storeId);
         return ResponseEntity.ok(ApiResponse.success(stockTakeService.listByStore(storeId)));
     }
 
@@ -46,18 +55,25 @@ public class StockTakeController {
     // 查詢單次盤點 / Get stock take by ID
     // ========================================
     @GetMapping("/{stockTakeId}")
+    @RequirePermission("pos:inventory:read")
     public ResponseEntity<ApiResponse<StockTake>> getById(@PathVariable UUID stockTakeId) {
-        return ResponseEntity.ok(ApiResponse.success(stockTakeService.findById(stockTakeId)));
+        StockTake stockTake = stockTakeService.findById(stockTakeId);
+        storeAccessService.requireReadableStore(stockTake.getStoreId());
+        return ResponseEntity.ok(ApiResponse.success(stockTake));
     }
 
     // ========================================
     // 登記盤點數量 / Submit count for item
     // ========================================
     @PostMapping("/{stockTakeId}/items/{itemId}/count")
+    @RequirePermission("pos:inventory:stock-take")
+    @Auditable(module = "inventory-stock-take", action = "submit-count")
     public ResponseEntity<ApiResponse<StockTake>> submitCount(
             @PathVariable UUID stockTakeId,
             @PathVariable UUID itemId,
             @RequestParam BigDecimal countedQty) {
+        StockTake stockTake = stockTakeService.findById(stockTakeId);
+        storeAccessService.requireOperableStore(stockTake.getStoreId());
         return ResponseEntity.ok(ApiResponse.success(stockTakeService.submitCount(stockTakeId, itemId, countedQty)));
     }
 
@@ -65,7 +81,11 @@ public class StockTakeController {
     // 完成盤點 / Complete stock take
     // ========================================
     @PostMapping("/{stockTakeId}/complete")
+    @RequirePermission("pos:inventory:stock-take")
+    @Auditable(module = "inventory-stock-take", action = "complete")
     public ResponseEntity<ApiResponse<StockTake>> complete(@PathVariable UUID stockTakeId) {
+        StockTake stockTake = stockTakeService.findById(stockTakeId);
+        storeAccessService.requireOperableStore(stockTake.getStoreId());
         return ResponseEntity.ok(ApiResponse.success(stockTakeService.complete(stockTakeId)));
     }
 
@@ -73,7 +93,11 @@ public class StockTakeController {
     // 取消盤點 / Cancel stock take
     // ========================================
     @PostMapping("/{stockTakeId}/cancel")
+    @RequirePermission("pos:inventory:stock-take")
+    @Auditable(module = "inventory-stock-take", action = "cancel")
     public ResponseEntity<ApiResponse<StockTake>> cancel(@PathVariable UUID stockTakeId) {
+        StockTake stockTake = stockTakeService.findById(stockTakeId);
+        storeAccessService.requireOperableStore(stockTake.getStoreId());
         return ResponseEntity.ok(ApiResponse.success(stockTakeService.cancel(stockTakeId)));
     }
 }

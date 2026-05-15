@@ -7,9 +7,12 @@ import { UserTable } from '../components/UserTable';
  */
 export const UserListPage = () => {
     return (
-        <Box sx={{ p: 4, maxWidth: 1200, margin: '0 auto' }}>
-            <Typography variant="h4" gutterBottom sx={{ fontWeight: 800, color: '#0f172a', mb: 4 }}>
-                系統使用者管理
+        <Box>
+            <Typography variant="h3" gutterBottom sx={{ fontWeight: 900, color: '#FFFFFF', mb: 1 }}>
+                帳號管理
+            </Typography>
+            <Typography sx={{ color: '#AEB4C4', fontWeight: 700, mb: 4 }}>
+                檢視後台登入帳號與角色指派，角色權限請至角色權限頁調整。
             </Typography>
             <UserTable />
         </Box>

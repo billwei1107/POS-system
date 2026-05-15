@@ -11,6 +11,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -47,5 +48,21 @@ public class EmployeeServiceImplTest {
 
         EmployeeCreatedEvent publishedEvent = eventCaptor.getValue();
         assertEquals(result, publishedEvent.getEmployee(), "Published event should attach the new employee");
+    }
+
+    @Test
+    public void testListAllReturnsRepositoryEmployees() {
+        Employee alice = new Employee();
+        alice.setName("Alice");
+        Employee bob = new Employee();
+        bob.setName("Bob");
+
+        when(employeeRepository.findAll()).thenReturn(List.of(alice, bob));
+
+        List<Employee> result = employeeService.listAll();
+
+        assertEquals(2, result.size(), "Unfiltered employee list should return all visible employees");
+        assertEquals("Alice", result.get(0).getName());
+        verify(employeeRepository).findAll();
     }
 }

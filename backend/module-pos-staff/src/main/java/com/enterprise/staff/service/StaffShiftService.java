@@ -148,6 +148,14 @@ public class StaffShiftService {
     }
 
     // ========================================
+    // 查詢班次門店 / Find shift store
+    // ========================================
+    @Transactional(readOnly = true)
+    public UUID findStoreId(UUID shiftId) {
+        return findOrThrow(shiftId).getStoreId();
+    }
+
+    // ========================================
     // 累計銷售到班次 / Accumulate sale to shift
     // ========================================
     @Transactional

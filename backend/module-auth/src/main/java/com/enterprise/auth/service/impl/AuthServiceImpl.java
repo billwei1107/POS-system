@@ -5,6 +5,7 @@ import com.enterprise.auth.dto.LoginResponse;
 import com.enterprise.auth.entity.User;
 import com.enterprise.auth.repository.UserRepository;
 import com.enterprise.auth.service.AuthService;
+import com.enterprise.auth.service.RoleResolverService;
 import com.enterprise.auth.service.UserService;
 import com.enterprise.common.exception.BusinessException;
 import com.enterprise.common.security.JwtTokenProvider;
@@ -21,13 +22,15 @@ public class AuthServiceImpl implements AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
     private final UserService userService;
+    private final RoleResolverService roleResolverService;
 
     public AuthServiceImpl(UserRepository userRepository, JwtTokenProvider jwtTokenProvider,
-            PasswordEncoder passwordEncoder, UserService userService) {
+            PasswordEncoder passwordEncoder, UserService userService, RoleResolverService roleResolverService) {
         this.userRepository = userRepository;
         this.jwtTokenProvider = jwtTokenProvider;
         this.passwordEncoder = passwordEncoder;
         this.userService = userService;
+        this.roleResolverService = roleResolverService;
     }
 
     @Override
@@ -50,7 +53,8 @@ public class AuthServiceImpl implements AuthService {
 
         userService.handleLoginSuccess(user);
 
-        String token = jwtTokenProvider.generateToken(user.getId(), "USER");
+        String role = roleResolverService.resolvePrimaryRoleCode(user.getId());
+        String token = jwtTokenProvider.generateToken(user.getId(), role);
 
         return LoginResponse.builder()
                 .token(token)
@@ -77,7 +81,8 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException(403, "帳號已停用 / User account is suspended");
         }
 
-        String newToken = jwtTokenProvider.generateToken(user.getId(), "USER");
+        String role = roleResolverService.resolvePrimaryRoleCode(user.getId());
+        String newToken = jwtTokenProvider.generateToken(user.getId(), role);
 
         return LoginResponse.builder()
                 .token(newToken)

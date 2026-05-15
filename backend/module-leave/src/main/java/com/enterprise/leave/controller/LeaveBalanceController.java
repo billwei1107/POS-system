@@ -6,6 +6,7 @@
  */
 package com.enterprise.leave.controller;
 
+import com.enterprise.common.annotation.RequirePermission;
 import com.enterprise.common.dto.ApiResponse;
 import com.enterprise.leave.entity.LeaveBalance;
 import com.enterprise.leave.service.LeaveBalanceService;
@@ -24,6 +25,7 @@ public class LeaveBalanceController {
     private final LeaveBalanceService leaveBalanceService;
 
     @GetMapping
+    @RequirePermission("system:leave:read")
     public ApiResponse<List<LeaveBalance>> list(
             @RequestParam UUID employeeId,
             @RequestParam(required = false) Integer year) {

@@ -13,6 +13,7 @@ public interface StoreService {
     Store update(UUID id, Store store);
     Store getById(UUID id);
     Store getByStoreCode(String storeCode);
+    List<Store> listAll();
     List<Store> listByCompany(UUID companyId);
     List<Store> listByRegion(UUID regionId);
     void updateStatus(UUID id, String status);

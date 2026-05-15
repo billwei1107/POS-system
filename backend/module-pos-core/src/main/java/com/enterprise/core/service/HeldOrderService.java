@@ -50,13 +50,22 @@ public class HeldOrderService {
         return heldOrders.stream().map(HeldOrderResponse::from).toList();
     }
 
+    @Transactional(readOnly = true)
+    public UUID findStoreId(UUID id) {
+        return getOrThrow(id).getStoreId();
+    }
+
     // ========================================
     // 刪除掛單 / Delete held order
     // ========================================
     @Transactional
     public void delete(UUID id) {
-        HeldOrder heldOrder = heldOrderRepository.findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("Held order not found: " + id));
+        HeldOrder heldOrder = getOrThrow(id);
         heldOrderRepository.delete(heldOrder);
+    }
+
+    private HeldOrder getOrThrow(UUID id) {
+        return heldOrderRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Held order not found: " + id));
     }
 }

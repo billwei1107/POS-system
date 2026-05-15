@@ -2,6 +2,7 @@ package com.enterprise.auth.controller;
 
 import com.enterprise.auth.entity.Permission;
 import com.enterprise.auth.service.PermissionService;
+import com.enterprise.common.annotation.RequirePermission;
 import com.enterprise.common.dto.ApiResponse;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,11 +19,13 @@ public class PermissionController {
     }
 
     @GetMapping
+    @RequirePermission("system:rbac:read")
     public ApiResponse<List<Permission>> getAllPermissions() {
         return ApiResponse.success(permissionService.getAllPermissions());
     }
 
     @GetMapping("/{id}")
+    @RequirePermission("system:rbac:read")
     public ApiResponse<Permission> getPermission(@PathVariable UUID id) {
         return ApiResponse.success(permissionService.getPermissionById(id));
     }

@@ -6,6 +6,8 @@
  */
 package com.enterprise.product.controller;
 
+import com.enterprise.common.annotation.Auditable;
+import com.enterprise.common.annotation.RequirePermission;
 import com.enterprise.common.dto.ApiResponse;
 import com.enterprise.product.dto.CategoryRequest;
 import com.enterprise.product.dto.CategoryResponse;
@@ -30,21 +32,25 @@ public class ProductCategoryController {
     // ========================================
 
     @GetMapping
+    @RequirePermission("pos:product:read")
     public ApiResponse<List<CategoryResponse>> listAll() {
         return ApiResponse.success(categoryService.findAllActive());
     }
 
     @GetMapping("/roots")
+    @RequirePermission("pos:product:read")
     public ApiResponse<List<CategoryResponse>> listRoots() {
         return ApiResponse.success(categoryService.findRootCategories());
     }
 
     @GetMapping("/{id}/children")
+    @RequirePermission("pos:product:read")
     public ApiResponse<List<CategoryResponse>> listChildren(@PathVariable UUID id) {
         return ApiResponse.success(categoryService.findChildren(id));
     }
 
     @GetMapping("/{id}")
+    @RequirePermission("pos:product:read")
     public ApiResponse<CategoryResponse> getById(@PathVariable UUID id) {
         return ApiResponse.success(categoryService.findById(id));
     }
@@ -55,17 +61,23 @@ public class ProductCategoryController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @RequirePermission("pos:product:manage")
+    @Auditable(module = "pos-product-category", action = "create")
     public ApiResponse<CategoryResponse> create(@Valid @RequestBody CategoryRequest request) {
         return ApiResponse.success(categoryService.create(request));
     }
 
     @PutMapping("/{id}")
+    @RequirePermission("pos:product:manage")
+    @Auditable(module = "pos-product-category", action = "update")
     public ApiResponse<CategoryResponse> update(@PathVariable UUID id,
                                                 @Valid @RequestBody CategoryRequest request) {
         return ApiResponse.success(categoryService.update(id, request));
     }
 
     @DeleteMapping("/{id}")
+    @RequirePermission("pos:product:manage")
+    @Auditable(module = "pos-product-category", action = "delete")
     public ApiResponse<Void> delete(@PathVariable UUID id) {
         categoryService.delete(id);
         return ApiResponse.success(null);

@@ -10,10 +10,11 @@ import {
   Chip, Dialog, DialogTitle, DialogContent, DialogActions, TextField,
   MenuItem, Switch, FormControlLabel, Alert, CircularProgress,
 } from '@mui/material';
+import { DEFAULT_STORE_ID } from '../../pos-orders/config';
 import { payMethodApi } from '../api/paymentApi';
 import type { PayMethod, CreatePayMethodRequest, MethodType } from '../types';
 
-const STORE_ID = import.meta.env.VITE_DEFAULT_STORE_ID as string;
+const STORE_ID = DEFAULT_STORE_ID;
 
 const METHOD_TYPE_OPTIONS: { value: MethodType; label: string }[] = [
   { value: 'CASH', label: '現金' },

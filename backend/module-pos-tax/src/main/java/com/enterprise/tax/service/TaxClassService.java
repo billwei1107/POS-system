@@ -6,6 +6,7 @@
  */
 package com.enterprise.tax.service;
 
+import com.enterprise.common.exception.ResourceNotFoundException;
 import com.enterprise.tax.dto.request.CreateTaxClassRequest;
 import com.enterprise.tax.entity.TaxClass;
 import com.enterprise.tax.entity.TaxRule;
@@ -41,6 +42,13 @@ public class TaxClassService {
         tc.setDescription(req.description());
         tc.setDefault(req.isDefault());
         return taxClassRepository.save(tc);
+    }
+
+    @Transactional(readOnly = true)
+    public UUID findStoreId(UUID id) {
+        return taxClassRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("TaxClass not found: " + id))
+                .getStoreId();
     }
 
     @Transactional

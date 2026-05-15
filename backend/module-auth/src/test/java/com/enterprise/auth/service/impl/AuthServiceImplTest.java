@@ -4,6 +4,7 @@ import com.enterprise.auth.dto.LoginRequest;
 import com.enterprise.auth.dto.LoginResponse;
 import com.enterprise.auth.entity.User;
 import com.enterprise.auth.repository.UserRepository;
+import com.enterprise.auth.service.RoleResolverService;
 import com.enterprise.auth.service.UserService;
 import com.enterprise.common.exception.BusinessException;
 import com.enterprise.common.security.JwtTokenProvider;
@@ -37,6 +38,9 @@ class AuthServiceImplTest {
     @Mock
     private UserService userService;
 
+    @Mock
+    private RoleResolverService roleResolverService;
+
     @InjectMocks
     private AuthServiceImpl authService;
 
@@ -60,7 +64,8 @@ class AuthServiceImplTest {
     void testLogin_Success() {
         when(userRepository.findByUsername(request.getUsername())).thenReturn(Optional.of(testUser));
         when(passwordEncoder.matches(request.getPassword(), testUser.getPasswordHash())).thenReturn(true);
-        when(jwtTokenProvider.generateToken(testUser.getId(), "USER")).thenReturn("dummy-token");
+        when(roleResolverService.resolvePrimaryRoleCode(testUser.getId())).thenReturn("SUPER_ADMIN");
+        when(jwtTokenProvider.generateToken(testUser.getId(), "SUPER_ADMIN")).thenReturn("dummy-token");
 
         LoginResponse response = authService.login(request);
 

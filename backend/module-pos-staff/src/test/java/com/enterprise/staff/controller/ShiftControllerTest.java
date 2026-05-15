@@ -6,6 +6,7 @@
  */
 package com.enterprise.staff.controller;
 
+import com.enterprise.organization.service.StoreAccessService;
 import com.enterprise.staff.entity.StaffShift;
 import com.enterprise.staff.service.ClockService;
 import com.enterprise.staff.service.StaffShiftService;
@@ -25,6 +26,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -36,6 +38,7 @@ class ShiftControllerTest {
 
     @Mock private StaffShiftService shiftService;
     @Mock private ClockService clockService;
+    @Mock private StoreAccessService storeAccessService;
 
     private MockMvc mockMvc;
     private ObjectMapper objectMapper;
@@ -43,7 +46,7 @@ class ShiftControllerTest {
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new ShiftController(shiftService, clockService))
+                .standaloneSetup(new ShiftController(shiftService, clockService, storeAccessService))
                 .build();
         objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
     }
@@ -63,6 +66,8 @@ class ShiftControllerTest {
                 .andExpect(jsonPath("$.data[0].totalSales").value(126.00))
                 .andExpect(jsonPath("$.data[0].totalTax").value(6.00))
                 .andExpect(jsonPath("$.data[0].transactionCount").value(1));
+
+        verify(storeAccessService).requireReadableStore(storeId);
     }
 
     @Test
@@ -90,6 +95,8 @@ class ShiftControllerTest {
                 .andExpect(jsonPath("$.data.terminalId").value(terminalId.toString()))
                 .andExpect(jsonPath("$.data.status").value("OPEN"))
                 .andExpect(jsonPath("$.data.openingCash").value(1000.00));
+
+        verify(storeAccessService).requireOperableStore(storeId);
     }
 
     private StaffShift createOpenShift(UUID storeId) {

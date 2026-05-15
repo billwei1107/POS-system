@@ -9,6 +9,7 @@ package com.enterprise.inventory.controller;
 import com.enterprise.inventory.entity.StockTake;
 import com.enterprise.inventory.entity.StockTakeItem;
 import com.enterprise.inventory.service.StockTakeService;
+import com.enterprise.organization.service.StoreAccessService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,13 +31,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class StockTakeControllerTest {
 
     @Mock private StockTakeService stockTakeService;
+    @Mock private StoreAccessService storeAccessService;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new StockTakeController(stockTakeService))
+                .standaloneSetup(new StockTakeController(stockTakeService, storeAccessService))
                 .build();
     }
 

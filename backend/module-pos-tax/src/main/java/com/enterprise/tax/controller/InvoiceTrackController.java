@@ -6,7 +6,10 @@
  */
 package com.enterprise.tax.controller;
 
+import com.enterprise.common.annotation.Auditable;
+import com.enterprise.common.annotation.RequirePermission;
 import com.enterprise.common.dto.ApiResponse;
+import com.enterprise.organization.service.StoreAccessService;
 import com.enterprise.tax.dto.request.AddInvoiceTrackRequest;
 import com.enterprise.tax.entity.InvoiceTrack;
 import com.enterprise.tax.service.InvoiceTrackService;
@@ -24,14 +27,20 @@ import java.util.UUID;
 public class InvoiceTrackController {
 
     private final InvoiceTrackService trackService;
+    private final StoreAccessService storeAccessService;
 
     @GetMapping
+    @RequirePermission("pos:tax:read")
     public ResponseEntity<ApiResponse<List<InvoiceTrack>>> list(@RequestParam UUID storeId) {
+        storeAccessService.requireReadableStore(storeId);
         return ResponseEntity.ok(ApiResponse.success(trackService.listByStore(storeId)));
     }
 
     @PostMapping
+    @RequirePermission("pos:invoice-track:manage")
+    @Auditable(module = "pos-invoice-track", action = "add")
     public ResponseEntity<ApiResponse<InvoiceTrack>> add(@Valid @RequestBody AddInvoiceTrackRequest req) {
+        storeAccessService.requireOperableStore(req.storeId());
         return ResponseEntity.ok(ApiResponse.success(trackService.addTrack(req)));
     }
 }

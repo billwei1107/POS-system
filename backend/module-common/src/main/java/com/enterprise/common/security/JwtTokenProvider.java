@@ -48,6 +48,16 @@ public class JwtTokenProvider {
         return UUID.fromString(claims.getSubject());
     }
 
+    public String getRoleFromJWT(String token) {
+        Claims claims = Jwts.parser()
+                .verifyWith(key())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+
+        return claims.get("role", String.class);
+    }
+
     public boolean validateToken(String authToken) {
         try {
             Jwts.parser().verifyWith(key()).build().parseSignedClaims(authToken);

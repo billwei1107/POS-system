@@ -10,6 +10,7 @@ import com.enterprise.common.dto.PageResponse;
 import com.enterprise.common.exception.BusinessException;
 import com.enterprise.common.exception.ResourceNotFoundException;
 import com.enterprise.core.dto.request.CreateOrderRequest;
+import com.enterprise.core.dto.request.OrderItemRequest;
 import com.enterprise.core.dto.response.OrderItemResponse;
 import com.enterprise.core.dto.response.OrderResponse;
 import com.enterprise.core.entity.Order;
@@ -31,6 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -49,6 +51,7 @@ public class OrderService {
     private final OrderItemRepository orderItemRepository;
     private final OrderPaymentRepository orderPaymentRepository;
     private final PricingEngine pricingEngine;
+    private final PriceRuleResolver priceRuleResolver;
     private final OrderStateMachine stateMachine;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -57,7 +60,11 @@ public class OrderService {
     // ========================================
     @Transactional
     public OrderResponse createOrder(CreateOrderRequest req) {
-        var pricing = pricingEngine.calculate(req.items(), req.discountAmount(), req.taxIncluded());
+        LocalDateTime orderedAt = LocalDateTime.now();
+        List<OrderItemRequest> pricedItems = priceRuleResolver.resolveOrderItems(
+            req.items(), req.storeId(), req.memberId(), orderedAt
+        );
+        var pricing = pricingEngine.calculate(pricedItems, req.discountAmount(), req.taxIncluded());
 
         Order order = new Order();
         order.setOrderNo(generateOrderNo(req.storeId()));
@@ -77,7 +84,7 @@ public class OrderService {
         orderRepository.save(order);
 
         // 儲存明細 / Save line items
-        List<OrderItem> savedItems = req.items().stream().map(itemReq -> {
+        List<OrderItem> savedItems = pricedItems.stream().map(itemReq -> {
             OrderItem oi = new OrderItem();
             oi.setOrderId(order.getId());
             oi.setItemId(itemReq.itemId());
@@ -87,7 +94,7 @@ public class OrderService {
             oi.setUnitPrice(itemReq.unitPrice());
             oi.setQuantity(itemReq.quantity());
             oi.setDiscountAmount(BigDecimal.ZERO);
-            oi.setLineTotal(itemReq.unitPrice().multiply(itemReq.quantity()));
+            oi.setLineTotal(lineTotal(itemReq));
             oi.setNote(itemReq.note());
             return orderItemRepository.save(oi);
         }).toList();
@@ -166,6 +173,11 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
+    public UUID findStoreId(UUID orderId) {
+        return getOrThrow(orderId).getStoreId();
+    }
+
+    @Transactional(readOnly = true)
     public PageResponse<OrderResponse> listByStore(UUID storeId, Order.OrderStatus status,
                                                     LocalDateTime from, LocalDateTime to,
                                                     Pageable pageable) {
@@ -232,5 +244,12 @@ public class OrderService {
             candidate = candidate + "X";
         }
         return candidate;
+    }
+
+    private BigDecimal lineTotal(OrderItemRequest itemReq) {
+        BigDecimal modifierAdj = itemReq.modifierPriceAdjustment() != null
+            ? itemReq.modifierPriceAdjustment()
+            : BigDecimal.ZERO;
+        return itemReq.unitPrice().add(modifierAdj).multiply(itemReq.quantity()).setScale(2, RoundingMode.HALF_UP);
     }
 }

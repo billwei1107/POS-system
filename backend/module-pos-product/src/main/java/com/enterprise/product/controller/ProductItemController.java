@@ -6,6 +6,8 @@
  */
 package com.enterprise.product.controller;
 
+import com.enterprise.common.annotation.Auditable;
+import com.enterprise.common.annotation.RequirePermission;
 import com.enterprise.common.dto.ApiResponse;
 import com.enterprise.common.dto.PageResponse;
 import com.enterprise.product.dto.ProductItemRequest;
@@ -32,6 +34,7 @@ public class ProductItemController {
     // ========================================
 
     @GetMapping
+    @RequirePermission("pos:product:read")
     public ApiResponse<PageResponse<ProductItemResponse>> listAll(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -50,11 +53,13 @@ public class ProductItemController {
     }
 
     @GetMapping("/{id}")
+    @RequirePermission("pos:product:read")
     public ApiResponse<ProductItemResponse> getById(@PathVariable UUID id) {
         return ApiResponse.success(productService.findById(id));
     }
 
     @GetMapping("/by-sku/{sku}")
+    @RequirePermission("pos:product:read")
     public ApiResponse<ProductItemResponse> getBySku(@PathVariable String sku) {
         return ApiResponse.success(productService.findBySku(sku));
     }
@@ -65,17 +70,23 @@ public class ProductItemController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @RequirePermission("pos:product:manage")
+    @Auditable(module = "pos-product", action = "create")
     public ApiResponse<ProductItemResponse> create(@Valid @RequestBody ProductItemRequest request) {
         return ApiResponse.success(productService.create(request));
     }
 
     @PutMapping("/{id}")
+    @RequirePermission("pos:product:manage")
+    @Auditable(module = "pos-product", action = "update")
     public ApiResponse<ProductItemResponse> update(@PathVariable UUID id,
                                                    @Valid @RequestBody ProductItemRequest request) {
         return ApiResponse.success(productService.update(id, request));
     }
 
     @DeleteMapping("/{id}")
+    @RequirePermission("pos:product:manage")
+    @Auditable(module = "pos-product", action = "delete")
     public ApiResponse<Void> delete(@PathVariable UUID id) {
         productService.delete(id);
         return ApiResponse.success(null);

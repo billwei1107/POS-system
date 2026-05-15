@@ -12,6 +12,7 @@ public class ApiResponseTest {
         assertEquals("Success", response.getMessage());
         assertEquals("Data", response.getData());
         assertNotNull(response.getTimestamp());
+        assertEquals("+08:00", response.getTimestamp().getOffset().toString());
     }
 
     @Test
@@ -21,5 +22,6 @@ public class ApiResponseTest {
         assertEquals("Bad Request", response.getMessage());
         assertNull(response.getData());
         assertNotNull(response.getTimestamp());
+        assertEquals("+08:00", response.getTimestamp().getOffset().toString());
     }
 }

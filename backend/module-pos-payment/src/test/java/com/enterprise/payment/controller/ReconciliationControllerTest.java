@@ -6,6 +6,7 @@
  */
 package com.enterprise.payment.controller;
 
+import com.enterprise.organization.service.StoreAccessService;
 import com.enterprise.payment.entity.Reconciliation;
 import com.enterprise.payment.service.ReconciliationService;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +22,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -31,13 +33,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ReconciliationControllerTest {
 
     @Mock private ReconciliationService reconciliationService;
+    @Mock private StoreAccessService storeAccessService;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new ReconciliationController(reconciliationService))
+                .standaloneSetup(new ReconciliationController(reconciliationService, storeAccessService))
                 .build();
     }
 
@@ -58,6 +61,8 @@ class ReconciliationControllerTest {
                 .andExpect(jsonPath("$.data[0].totalAmount").value(126.00))
                 .andExpect(jsonPath("$.data[0].netAmount").value(126.00))
                 .andExpect(jsonPath("$.data[0].status").value("PENDING"));
+
+        verify(storeAccessService).requireReadableStore(storeId);
     }
 
     @Test
@@ -74,6 +79,8 @@ class ReconciliationControllerTest {
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data[0].methodType").value("CASH"))
                 .andExpect(jsonPath("$.data[0].totalAmount").value(126.00));
+
+        verify(storeAccessService).requireOperableStore(storeId);
     }
 
     private Reconciliation createCashReconciliation(UUID storeId, LocalDate date) {

@@ -2,6 +2,8 @@ package com.enterprise.attendance.controller;
 
 import com.enterprise.attendance.entity.Geofence;
 import com.enterprise.attendance.repository.GeofenceRepository;
+import com.enterprise.common.annotation.Auditable;
+import com.enterprise.common.annotation.RequirePermission;
 import com.enterprise.common.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -22,16 +24,21 @@ public class GeofenceController {
     private final GeofenceRepository geofenceRepository;
 
     @GetMapping
+    @RequirePermission("system:attendance:read")
     public ApiResponse<List<Geofence>> getAllGeofences() {
         return ApiResponse.success(geofenceRepository.findByActiveTrue());
     }
 
     @PostMapping
+    @RequirePermission("system:attendance:manage")
+    @Auditable(module = "attendance-geofence", action = "create")
     public ApiResponse<Geofence> createGeofence(@RequestBody Geofence geofence) {
         return ApiResponse.success(geofenceRepository.save(geofence));
     }
 
     @PutMapping("/{id}")
+    @RequirePermission("system:attendance:manage")
+    @Auditable(module = "attendance-geofence", action = "update")
     public ApiResponse<Geofence> updateGeofence(@PathVariable UUID id, @RequestBody Geofence updated) {
         Geofence geo = geofenceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Geofence not found"));
@@ -45,6 +52,8 @@ public class GeofenceController {
     }
 
     @DeleteMapping("/{id}")
+    @RequirePermission("system:attendance:manage")
+    @Auditable(module = "attendance-geofence", action = "delete")
     public ApiResponse<Void> deleteGeofence(@PathVariable UUID id) {
         geofenceRepository.findById(id).ifPresent(g -> {
             g.setDeletedAt(LocalDateTime.now());

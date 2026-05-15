@@ -37,7 +37,7 @@ services:
       - POSTGRES_PORT=5432
       - REDIS_PORT=6379
     ports:
-      - "38080:8080"
+      - "${BACKEND_PORT:-38180}:8080"
     depends_on:
       - postgres
       - redis
@@ -51,7 +51,7 @@ services:
     env_file:
       - ../../env/local/.env
     ports:
-      - "38082:80"
+      - "${FRONTEND_PORT:-38182}:80"
     depends_on:
       - backend
     restart: always

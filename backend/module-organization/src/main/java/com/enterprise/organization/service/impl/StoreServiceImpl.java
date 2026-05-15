@@ -68,6 +68,11 @@ public class StoreServiceImpl implements StoreService {
     }
 
     @Override
+    public List<Store> listAll() {
+        return storeRepository.findAll();
+    }
+
+    @Override
     public List<Store> listByCompany(UUID companyId) {
         return storeRepository.findByCompanyId(companyId);
     }

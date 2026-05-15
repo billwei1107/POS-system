@@ -15,7 +15,11 @@ import java.util.UUID;
 
 public interface GatewayConfigRepository extends JpaRepository<GatewayConfig, UUID> {
 
+    List<GatewayConfig> findByStoreId(UUID storeId);
+
     List<GatewayConfig> findByStoreIdAndIsActiveTrue(UUID storeId);
 
     Optional<GatewayConfig> findByStoreIdAndGatewayType(UUID storeId, GatewayConfig.GatewayType gatewayType);
+
+    boolean existsByStoreIdAndGatewayType(UUID storeId, GatewayConfig.GatewayType gatewayType);
 }

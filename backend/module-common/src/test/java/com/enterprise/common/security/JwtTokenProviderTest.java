@@ -33,5 +33,6 @@ public class JwtTokenProviderTest {
 
         UUID parsedId = jwtTokenProvider.getUserIdFromJWT(token);
         assertEquals(userId, parsedId);
+        assertEquals(role, jwtTokenProvider.getRoleFromJWT(token));
     }
 }

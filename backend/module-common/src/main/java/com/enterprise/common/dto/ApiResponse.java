@@ -4,7 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 
 /**
  * @file ApiResponse.java
@@ -16,13 +17,15 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ApiResponse<T> {
+    private static final ZoneId API_TIME_ZONE = ZoneId.of("Asia/Taipei");
+
     private int code;
     private String message;
     private T data;
-    private LocalDateTime timestamp;
+    private OffsetDateTime timestamp;
 
     public static <T> ApiResponse<T> success(T data) {
-        return new ApiResponse<>(200, "Success", data, LocalDateTime.now());
+        return new ApiResponse<>(200, "Success", data, now());
     }
 
     public static <T> ApiResponse<T> success() {
@@ -30,6 +33,10 @@ public class ApiResponse<T> {
     }
 
     public static <T> ApiResponse<T> error(int code, String message) {
-        return new ApiResponse<>(code, message, null, LocalDateTime.now());
+        return new ApiResponse<>(code, message, null, now());
+    }
+
+    private static OffsetDateTime now() {
+        return OffsetDateTime.now(API_TIME_ZONE);
     }
 }

@@ -17,4 +17,6 @@ public interface PriceRuleRepository extends JpaRepository<PriceRule, UUID> {
     List<PriceRule> findByItemIdAndActiveTrue(UUID itemId);
 
     List<PriceRule> findByItemIdAndStoreIdAndActiveTrue(UUID itemId, UUID storeId);
+
+    List<PriceRule> findByItemIdAndStoreIdIsNullAndActiveTrue(UUID itemId);
 }

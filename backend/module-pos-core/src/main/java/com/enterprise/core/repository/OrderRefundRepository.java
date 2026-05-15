@@ -8,12 +8,13 @@ package com.enterprise.core.repository;
 
 import com.enterprise.core.entity.OrderRefund;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface OrderRefundRepository extends JpaRepository<OrderRefund, UUID> {
+public interface OrderRefundRepository extends JpaRepository<OrderRefund, UUID>, JpaSpecificationExecutor<OrderRefund> {
 
     List<OrderRefund> findByOrderId(UUID orderId);
 

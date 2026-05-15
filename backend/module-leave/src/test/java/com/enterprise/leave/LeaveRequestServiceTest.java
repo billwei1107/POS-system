@@ -15,6 +15,7 @@ import com.enterprise.leave.repository.LeaveRequestRepository;
 import com.enterprise.leave.service.LeaveBalanceService;
 import com.enterprise.leave.service.LeaveCalculationService;
 import com.enterprise.leave.service.LeaveRequestService;
+import com.enterprise.organization.service.EmployeeAccessService;
 import com.enterprise.workflow.engine.WorkflowEngine;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -43,6 +44,7 @@ class LeaveRequestServiceTest {
     @Mock private LeaveCalculationService  calculationService;
     @Mock private WorkflowEngine           workflowEngine;
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private EmployeeAccessService    employeeAccessService;
 
     @InjectMocks private LeaveRequestService leaveRequestService;
 
@@ -89,6 +91,7 @@ class LeaveRequestServiceTest {
         LeaveRequest result = leaveRequestService.submitRequest(dto);
 
         assertThat(result.getStatus()).isEqualTo(LeaveStatus.PENDING);
+        verify(employeeAccessService).requireOperableEmployee(employeeId);
         verify(balanceService).deductBalance(employeeId, leaveTypeId, new BigDecimal("3.0"));
         verify(workflowEngine).startWorkflow(any());
     }
@@ -112,6 +115,7 @@ class LeaveRequestServiceTest {
         LeaveRequest result = leaveRequestService.cancelRequest(UUID.randomUUID());
 
         assertThat(result.getStatus()).isEqualTo(LeaveStatus.CANCELLED);
+        verify(employeeAccessService).requireOperableEmployee(employeeId);
         verify(balanceService).restoreBalance(employeeId, leaveTypeId, new BigDecimal("3.0"));
     }
 
@@ -122,6 +126,7 @@ class LeaveRequestServiceTest {
     @DisplayName("銷假已取消的請假應拋 LEAVE_ALREADY_CANCELLED")
     void cancelRequest_alreadyCancelled_throws() {
         LeaveRequest request = new LeaveRequest();
+        request.setEmployeeId(employeeId);
         request.setStatus(LeaveStatus.CANCELLED);
 
         when(requestRepository.findById(any())).thenReturn(Optional.of(request));

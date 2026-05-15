@@ -12,6 +12,7 @@ import com.enterprise.leave.entity.LeaveRequest;
 import com.enterprise.leave.entity.LeaveRequest.LeaveStatus;
 import com.enterprise.leave.event.LeaveCancelledEvent;
 import com.enterprise.leave.repository.LeaveRequestRepository;
+import com.enterprise.organization.service.EmployeeAccessService;
 import com.enterprise.workflow.dto.StartWorkflowRequest;
 import com.enterprise.workflow.engine.WorkflowEngine;
 import lombok.RequiredArgsConstructor;
@@ -35,12 +36,15 @@ public class LeaveRequestService {
     private final LeaveCalculationService calculationService;
     private final WorkflowEngine          workflowEngine;
     private final ApplicationEventPublisher eventPublisher;
+    private final EmployeeAccessService employeeAccessService;
 
     // ========================================
     // 提交請假申請 / Submit leave request
     // ========================================
     @Transactional
     public LeaveRequest submitRequest(LeaveRequestDTO dto) {
+        employeeAccessService.requireOperableEmployee(dto.getEmployeeId());
+
         BigDecimal hours = calculationService.calculateLeaveHours(
                 dto.getStartDate(), dto.getEndDate(), dto.getStartHalf(), dto.getEndHalf());
         BigDecimal days = calculationService.hoursToDays(hours);
@@ -86,6 +90,8 @@ public class LeaveRequestService {
     @Transactional
     public LeaveRequest cancelRequest(UUID requestId) {
         LeaveRequest request = findOrThrow(requestId);
+        employeeAccessService.requireOperableEmployee(request.getEmployeeId());
+
         if (request.getStatus() == LeaveStatus.CANCELLED) {
             throw new BusinessException("LEAVE_ALREADY_CANCELLED: Leave request is already cancelled");
         }
@@ -114,6 +120,7 @@ public class LeaveRequestService {
     // ========================================
     @Transactional(readOnly = true)
     public List<LeaveRequest> listByEmployee(UUID employeeId) {
+        employeeAccessService.requireReadableEmployee(employeeId);
         return requestRepository.findByEmployeeId(employeeId);
     }
 
@@ -122,6 +129,7 @@ public class LeaveRequestService {
     // ========================================
     @Transactional(readOnly = true)
     public List<LeaveRequest> listCalendar(LocalDate startDate, LocalDate endDate) {
+        employeeAccessService.requirePeopleScope();
         return requestRepository.findApprovedInDateRange(startDate, endDate);
     }
 

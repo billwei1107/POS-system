@@ -10,6 +10,7 @@ package com.enterprise.tax.service;
 
 import com.enterprise.core.event.OrderCompletedEvent;
 import com.enterprise.core.event.RefundCompletedEvent;
+import com.enterprise.common.exception.ResourceNotFoundException;
 import com.enterprise.tax.dto.request.IssueInvoiceRequest;
 import com.enterprise.tax.dto.response.InvoiceResponse;
 import com.enterprise.tax.entity.Invoice;
@@ -121,6 +122,16 @@ public class InvoiceService {
     public List<InvoiceResponse> listByStore(UUID storeId, LocalDateTime from, LocalDateTime to) {
         return invoiceRepository.findByStoreAndDateRange(storeId, from, to)
                 .stream().map(InvoiceResponse::from).toList();
+    }
+
+    // ========================================
+    // 查詢發票門店 / Find invoice store
+    // ========================================
+    @Transactional(readOnly = true)
+    public UUID findStoreId(UUID invoiceId) {
+        return invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Invoice not found: " + invoiceId))
+                .getStoreId();
     }
 
     // ========================================

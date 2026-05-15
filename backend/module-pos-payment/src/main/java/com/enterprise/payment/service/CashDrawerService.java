@@ -92,6 +92,16 @@ public class CashDrawerService {
     }
 
     // ========================================
+    // 查詢錢櫃門店 / Find cash drawer store
+    // ========================================
+    @Transactional(readOnly = true)
+    public UUID findStoreId(UUID drawerId) {
+        return cashDrawerRepository.findById(drawerId)
+            .orElseThrow(() -> new ResourceNotFoundException("CashDrawer not found: " + drawerId))
+            .getStoreId();
+    }
+
+    // ========================================
     // 現金付款 → 記錄抽屜銷售 / Cash payment → record drawer sale
     // ========================================
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)

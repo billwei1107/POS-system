@@ -19,11 +19,25 @@
             <artifactId>module-common</artifactId>
         </dependency>
 
+        <!-- Organization Module -->
+        <dependency>
+            <groupId>com.enterprise</groupId>
+            <artifactId>module-organization</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
+        </dependency>
+
+        <!-- Test Support -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 

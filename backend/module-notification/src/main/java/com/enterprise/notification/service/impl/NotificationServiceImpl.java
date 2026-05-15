@@ -1,5 +1,6 @@
 package com.enterprise.notification.service.impl;
 
+import com.enterprise.common.exception.BusinessException;
 import com.enterprise.notification.entity.Notification;
 import com.enterprise.notification.entity.NotificationPreference;
 import com.enterprise.notification.entity.NotificationTemplate;
@@ -107,8 +108,11 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     @Transactional
-    public void markAsRead(String notificationId) {
+    public void markAsRead(String notificationId, String userId) {
         notificationRepository.findById(notificationId).ifPresent(n -> {
+            if (!userId.equals(n.getUserId())) {
+                throw new BusinessException(403, "Notification data scope denied");
+            }
             n.setStatus("READ");
             n.setReadAt(LocalDateTime.now());
             notificationRepository.save(n);

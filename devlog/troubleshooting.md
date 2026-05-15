@@ -31,6 +31,37 @@
 
 ---
 
+# 2026-05-14 後台帳號表格操作欄水平溢出
+
+## Issue
+
+- 場景：後台 `/admin/access/users` 帳號管理頁新增「編輯角色 / 重設密碼 / 停用」三個文字按鈕後，使用 1440px 桌機視窗進行瀏覽器驗證。
+- 問題：
+  - 操作欄按鈕寬度加上 UUID 與角色 chips 後，表格超出可視寬度。
+  - 右側操作按鈕被裁切，使用者需要水平捲動才可能操作，不符合後台管理頁的可用性。
+
+## Root Cause
+
+- 表格未設定固定欄寬與 `tableLayout`，長 UUID 與多個文字按鈕會共同撐大欄位。
+- 操作按鈕使用完整文字標籤，對資料密集型後台表格太佔空間。
+
+## Solution
+
+- `UserTable.tsx` 改用 `tableLayout: fixed` 與固定操作欄寬。
+- UUID 改為短格式顯示：`ID 前 8 碼...後 6 碼`。
+- 操作欄改為 44px 高對比 icon buttons，使用 `aria-label` 與 tooltip 保留可讀性與可測試性。
+
+## Verification
+
+- `npm run build`：通過。
+- Docker / OrbStack 重建 `pos-frontend`：成功。
+- Chrome CDP 實測 `/admin/access/users`：
+  - 帳號建立、重設密碼、停用 / 啟用流程成功。
+  - `document.documentElement.scrollWidth === clientWidth`，無水平溢出。
+  - 操作欄完整可見。
+
+---
+
 # 2026-05-13 本地端口被其他專案佔用
 
 ## Issue
@@ -775,3 +806,310 @@ waiting for locator('button').filter({ has: locator('svg[data-testid="ShoppingCa
   - 初始列表：`目前顯示 1-5 筆，共 10 筆`。
   - 搜尋 `02:24`：`目前顯示 1-1 筆，共 1 筆`。
   - 翻頁後：`第 2 / 2 頁`，列表仍最多 5 筆。
+
+---
+
+# 2026-05-14 Java Lambda 內外層變數同名導致編譯失敗
+
+## Issue
+
+- 場景：實作後端 RBAC seed 時執行 `mvn test -pl module-common,module-auth -am`。
+- 錯誤訊息：`variable adminRole is already defined in method run(java.lang.String...)`。
+
+## Root Cause
+
+- `DataSeeder.run()` 外層已宣告 `Role adminRole`。
+- `roleRepository.findByCode("SUPER_ADMIN").orElseGet(() -> { ... })` 的 lambda 內又宣告同名 `Role adminRole`，Java 不允許在 lambda 內遮蔽同一方法作用域的本地變數。
+
+## Solution
+
+- 將 lambda 內新建的角色變數改名為 `newAdminRole`。
+- 重新執行後 module-common、module-auth、POS core/inventory 與 app 全部測試通過。
+
+## Verification
+
+- `mvn test -pl module-common,module-auth -am`：通過。
+- `mvn test -pl module-pos-core,module-pos-inventory -am`：通過。
+- `mvn test -pl app -am`：通過。
+
+---
+
+# 2026-05-14 Docker Compose Override Ports 被合併導致仍綁定原端口
+
+## Issue
+
+- 場景：POS 原端口 `38080/38082` 被 `financial-accounting-backend/frontend` 佔用，嘗試用 override 將 POS 改到 `38180/38182`。
+- 錯誤訊息：`Bind for :::38080 failed: port is already allocated`。
+
+## Root Cause
+
+- Docker Compose 對 `ports` 的預設 merge 行為是合併陣列，不是覆蓋陣列。
+- 一般 override 寫法會讓服務同時保留原本 `38080:8080` 與新增 `38180:8080`，因此仍會嘗試綁定已被占用的 `38080`。
+
+## Solution
+
+- 使用 Compose override tag 明確覆蓋 ports：
+
+```yaml
+services:
+  backend:
+    ports: !override
+      - "38180:8080"
+  frontend:
+    ports: !override
+      - "38182:80"
+```
+
+- 重新執行後 `pos-backend` 與 `pos-frontend` 分別啟動於 `38180/38182`，未影響 `financial-accounting-*` 容器。
+
+## Verification
+
+- `docker ps` 顯示：
+  - `pos-backend 0.0.0.0:38180->8080/tcp`
+  - `pos-frontend 0.0.0.0:38182->80/tcp`
+- `curl http://127.0.0.1:38180/actuator/health`：回 `{"status":"UP"}`。
+
+---
+
+# 2026-05-14 直接開啟後端根路徑顯示 403
+
+## Issue
+
+- 場景：使用瀏覽器直接開啟 POS 後端根網址。
+- 異常行為：`http://127.0.0.1:38180/` 回 403，容易被誤認為後端沒有啟動。
+
+## Root Cause
+
+- Spring Security 原本只放行 `/api/v1/auth/**`、`/api/v1/pos/auth/**`、`/actuator/health` 與 `/ws/**`。
+- 後端根路徑 `/` 沒有公開端點，也沒有被 Security 放行，因此直接開啟根網址會被擋。
+
+## Solution
+
+- `SecurityConfig` 放行 `/` 與 `/api`。
+- 新增 `BackendInfoController`，讓 `/` 與 `/api` 回傳後端服務資訊、健康檢查路徑、API base 與前端網址。
+
+## Verification
+
+- 修正前：
+  - `curl http://127.0.0.1:38180/`：403。
+- 修正後已重新 build/restart backend：
+  - `curl -i http://127.0.0.1:38180/`：200，回 `Titanium POS Backend` 與 `status=UP`。
+  - `curl -i http://127.0.0.1:38180/api`：200，回 API base 與健康檢查路徑。
+  - `curl -i http://127.0.0.1:38180/actuator/health`：200，回 `{"status":"UP"}`。
+
+---
+
+# 2026-05-14 API 回應 timestamp 未帶 Asia/Taipei offset
+
+## Issue
+
+- 場景：瀏覽器直接開啟 `http://127.0.0.1:38180/api`。
+- 異常行為：入口資料內的時間是 `+08:00`，但全域 `ApiResponse.timestamp` 仍顯示 UTC / 無 offset，例如 `2026-05-13T17:54:21...`。
+
+## Root Cause
+
+- `ApiResponse` 使用 `LocalDateTime.now()` 產生時間。
+- Docker 容器系統時區是 UTC，且 `LocalDateTime` 不含 offset，因此序列化後看不出實際時區。
+- `BackendInfoController` 內層又另外放一個 `timestamp`，造成同一個回應中有兩個不同語義的 timestamp。
+
+## Solution
+
+- `ApiResponse.timestamp` 改為 `OffsetDateTime`。
+- 全域回應時間統一使用 `ZoneId.of("Asia/Taipei")`。
+- 後端入口資訊內層改用 `serverTime` 與 `timezone`，避免與外層 `timestamp` 混淆。
+
+## Verification
+
+- `mvn test -pl module-common,app -am`：通過。
+- 重建並啟動 `pos-backend`：成功。
+- `curl -s http://127.0.0.1:38180/api`：內層 `serverTime` 與外層 `timestamp` 都回 `+08:00`。
+
+---
+
+# 2026-05-14 Playwright 角色卡定位器過寬導致測試逾時
+
+## Issue
+
+- 場景：測試後台 RBAC 角色權限編輯時，要點擊 `CASHIER` 角色卡內的「編輯權限」按鈕。
+- 錯誤訊息：`locator.click: Timeout 30000ms exceeded`。
+
+## Root Cause
+
+- 測試腳本使用 `page.locator('div').filter({ hasText: /收銀員\s+CASHIER/ }).last().getByRole(...)`。
+- 該定位器過寬，會匹配到大型祖先容器或非預期區塊，導致後續 nested button locator 不穩定。
+- 目前角色卡尚未加上穩定 `data-testid`，只能先用可見文字與按鈕順序輔助定位。
+
+## Solution
+
+- 先輸出頁面可見按鈕與 body 文字確認角色排列順序。
+- 改用 `page.getByRole('button', { name: '編輯權限' }).nth(1)` 點擊第二個可編輯角色，也就是 `CASHIER`。
+- 完成新增與恢復 `pos:order:void` 的瀏覽器實測。
+- 後續若繼續優化後台測試，應在角色卡或編輯按鈕補穩定 `data-testid`，避免依賴順序。
+
+## Verification
+
+- Playwright + Chrome 實測通過：
+  - 開啟 `/admin/access/roles`。
+  - 登入 `admin / 123456`。
+  - 編輯 `CASHIER` 權限，新增 `pos:order:void` 後儲存。
+  - 重新開啟對話框確認 checkbox 已勾選。
+  - 取消勾選後儲存，確認角色權限恢復原狀。
+
+---
+
+# 2026-05-14 POS demo data 固定 storeId 權限失敗
+
+## Issue
+
+- 場景：新增 StoreAccessService 後，以 `cashier / 123456` 呼叫前端固定門店 `00000000-0000-0000-0000-000000000001` 的 POS core / inventory API。
+- 異常行為：
+  - 一開始回 `Store data scope denied`。
+  - 修復過程中又出現 `Query did not return a unique result: 2 results were returned`。
+
+## Root Cause
+
+- 舊版 demo store / terminal / employee 由 JPA 產生隨機 UUID，但前端與 smoke test 使用固定 UUID。
+- `BaseEntity.id` 使用 `@GeneratedValue(strategy = GenerationType.UUID)`，在 new entity 上呼叫 `setId(DEMO_STORE_ID)` 不會保證以該 UUID 寫入，仍可能產生隨機 id。
+- 同一 cashier user 被多筆 demo employee 綁定，導致 `EmployeeRepository.findByUserId` 回傳多筆。
+
+## Solution
+
+- `PosDemoDataSeeder` 改用 `JdbcTemplate` 顯式插入固定 UUID 的 store / terminal / employee。
+- 將舊 demo code 改成 `*-OLD-<id>`。
+- 將舊 demo cashier employee 的 `user_id` 設為 null、狀態標為 `RESIGNED`。
+- 重新啟用固定 employee 到固定 store 的 active assignment。
+
+## Verification
+
+- `mvn test -pl app -am`：通過。
+- Docker / OrbStack 重建 `pos-backend`：成功，映像 `sha256:2ed2b0edbeafa583ee9c90e4276d573faf5bcb7bfc7dda37a06644b34e415d4b`。
+- `curl http://127.0.0.1:38180/actuator/health`：回 `{"status":"UP"}`。
+- DB 確認固定資料：
+  - store：`00000000-0000-0000-0000-000000000001 / XINYI-001`
+  - terminal：`00000000-0000-0000-0000-000000000101 / DEMO-T-001`
+  - employee：`00000000-0000-0000-0000-000000000201 / EMP-POS-001`
+- API smoke：
+  - 未登入查訂單：403。
+  - cashier 查自己門店訂單 / 暫存單 / 庫存：200。
+  - cashier 查其他門店訂單：403。
+
+---
+
+# 2026-05-14 Java controller 新增 service dependency 後漏 import
+
+## Issue
+
+- 場景：為 `ReportController` 補上門店資料範圍檢查，新增 `StaffShiftService shiftService` 欄位後執行 `mvn test -pl module-pos-staff -am`。
+- 錯誤訊息：`cannot find symbol: class StaffShiftService`。
+
+## Root Cause
+
+- Controller 新增 constructor dependency 時，已宣告 `StaffShiftService` 欄位，但未同步加入 `import com.enterprise.staff.service.StaffShiftService;`。
+- Lombok `@RequiredArgsConstructor` 會在編譯期使用該欄位生成 constructor，因此少 import 會直接造成 Java 編譯失敗。
+
+## Solution
+
+- 在 `backend/module-pos-staff/src/main/java/com/enterprise/staff/controller/ReportController.java` 補上 `StaffShiftService` import。
+- 順手將 Z Report 產生從 `requireReadableStore` 收緊為 `requireOperableStore`，符合日結資料產生屬於操作行為的語意。
+
+## Verification
+
+- `mvn test -pl module-pos-staff -am`：通過。
+- `mvn test -pl app -am`：通過。
+- Docker / OrbStack 重建 `pos-backend`：成功。
+- API smoke：staff shifts 與 Z reports 自己門店 200、其他門店 403。
+
+---
+
+# 2026-05-14 POS CRM Repository 未被 Spring 掃描
+
+## Issue
+
+- 場景：新增 `module-pos-crm` 後重建並啟動 `pos-backend`。
+- 異常行為：容器進入 `Restarting (1)`，38180 無法連線。
+- 錯誤訊息：`No qualifying bean of type 'com.enterprise.crm.repository.MemberRepository' available`。
+
+## Root Cause
+
+- 多模組 Spring Boot 專案中，各 POS 模組需要自己的 module config。
+- CRM 模組已新增 controller / service / repository / entity，但缺少 `@ComponentScan`、`@EntityScan` 與 `@EnableJpaRepositories` 設定。
+- 因此 `MemberService` 建構子需要的 `MemberRepository` 未被註冊成 bean。
+
+## Solution
+
+- 新增 `backend/module-pos-crm/src/main/java/com/enterprise/crm/config/CrmModuleConfig.java`。
+- 使用 `@ConditionalOnProperty(name = "modules.pos-crm", havingValue = "true", matchIfMissing = true)` 控制模組開關。
+- 加入：
+  - `@ComponentScan(basePackages = "com.enterprise.crm")`
+  - `@EntityScan(basePackages = "com.enterprise.crm.entity")`
+  - `@EnableJpaRepositories(basePackages = "com.enterprise.crm.repository")`
+
+## Verification
+
+- `mvn test -pl module-pos-crm -am`：通過。
+- `mvn test -pl app -am`：通過。
+- 重建並啟動 `pos-backend`：成功。
+- `curl http://127.0.0.1:38180/actuator/health`：回 `{"status":"UP"}`。
+- CRM API smoke：會員搜尋、會員建立、點數流水與訂單完成累點皆通過。
+
+---
+
+# 2026-05-14 Docker Hub metadata TLS handshake timeout
+
+## Issue
+
+- 場景：重建 `pos-backend` Docker image。
+- 錯誤訊息：Docker build 在讀取 `eclipse-temurin:21-jre-alpine` metadata 時出現 TLS handshake timeout。
+
+## Root Cause
+
+- 失敗點在 Docker Hub image metadata 下載階段，屬於外部 registry / 網路暫時性問題。
+- 專案程式碼與 Dockerfile 本身沒有在該階段進入編譯流程。
+
+## Solution
+
+- 不修改程式碼。
+- 保留原 POS port 設定與既有容器，不停止無關專案容器。
+- 重新執行同一個 Docker compose build / up 指令。
+
+## Verification
+
+- 重試後 Docker build 成功。
+- 後續 image `sha256:df64b9b0dd2a3035fc45fdfe24b35e16e24ef432fbbe810c0818007e71ba9b87` 成功啟動。
+- `curl http://127.0.0.1:38180/actuator/health`：回 `{"status":"UP"}`。
+
+---
+
+# 2026-05-15 POS refund query PostgreSQL nullable timestamp parameter
+
+## Issue
+
+- 場景：為 `GET /api/v1/pos/refunds` 新增依門店、訂單、狀態與時間區間查詢退款紀錄後，在 Docker / OrbStack 環境執行 API smoke。
+- 異常行為：不帶 `from`、`to` 參數查詢退款列表時，API 回 `500`。
+- 錯誤訊息：PostgreSQL 回 `ERROR: could not determine data type of parameter $6`。
+
+## Root Cause
+
+- Repository 一開始使用靜態 JPQL 條件：
+  - `(:from is null or r.createdAt >= :from)`
+  - `(:to is null or r.createdAt <= :to)`
+- 當 `LocalDateTime` 參數為 null 時，PostgreSQL 無法在 `is null` 判斷中推斷該參數的實際資料型別。
+- H2 或單元測試 mock 不一定會重現，因此必須用實際 PostgreSQL 容器做 API smoke 才能抓到。
+
+## Solution
+
+- 將 `OrderRefundRepository` 改為 extends `JpaSpecificationExecutor<OrderRefund>`。
+- `RefundService.listByStore()` 改用 JPA Criteria `Specification` 動態組合查詢條件。
+- 只有在 `from`、`to` 非 null 時才加入 `createdAt >= from`、`createdAt <= to` predicate，避免傳入無型別 null 參數。
+- 單元測試中的 `findAll` mock 改用 `ArgumentMatchers.<Specification<OrderRefund>>any()`，避免 Mockito 在 `QueryByExampleExecutor` 與 `JpaSpecificationExecutor` 的 overloaded `findAll` 之間產生編譯歧義。
+
+## Verification
+
+- `mvn test -pl module-pos-core -am`：通過。
+- `mvn test -pl app -am`：通過。
+- Docker / OrbStack 重建 `pos-backend`：成功，映像 `sha256:66f99f19e4860be4330910f71e76069a6f7a0701db522c2d1e56f098020a3f2c`。
+- `curl http://127.0.0.1:38180/actuator/health`：回 `{"status":"UP"}`。
+- API smoke：
+  - 退款列表查詢回 `200`。
+  - 單筆退款查詢回 `200`。
+  - `status=COMPLETED` 篩選查詢回 `200`。

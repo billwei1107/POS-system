@@ -47,8 +47,7 @@ public class StockAlertService {
     // ========================================
     @Transactional
     public StockAlert acknowledge(UUID alertId, UUID acknowledgedBy) {
-        StockAlert alert = alertRepository.findById(alertId)
-                .orElseThrow(() -> new IllegalArgumentException("Alert not found: " + alertId));
+        StockAlert alert = findById(alertId);
         alert.setAcknowledged(true);
         alert.setAcknowledgedBy(acknowledgedBy);
         alert.setAcknowledgedAt(Instant.now());
@@ -57,6 +56,11 @@ public class StockAlertService {
 
     public List<StockAlert> listUnacknowledged(UUID storeId) {
         return alertRepository.findAllByStoreIdAndAcknowledgedFalseOrderByCreatedAtDesc(storeId);
+    }
+
+    public StockAlert findById(UUID alertId) {
+        return alertRepository.findById(alertId)
+                .orElseThrow(() -> new IllegalArgumentException("Alert not found: " + alertId));
     }
 
     private void raiseAlert(UUID storeId, UUID itemId, StockAlert.AlertType type,

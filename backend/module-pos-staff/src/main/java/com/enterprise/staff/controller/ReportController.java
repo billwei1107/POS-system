@@ -6,11 +6,15 @@
  */
 package com.enterprise.staff.controller;
 
+import com.enterprise.common.annotation.Auditable;
+import com.enterprise.common.annotation.RequirePermission;
 import com.enterprise.common.dto.ApiResponse;
+import com.enterprise.organization.service.StoreAccessService;
 import com.enterprise.staff.dto.request.GenerateZReportRequest;
 import com.enterprise.staff.dto.response.ZReportResponse;
 import com.enterprise.staff.entity.XReport;
 import com.enterprise.staff.entity.ZReport;
+import com.enterprise.staff.service.StaffShiftService;
 import com.enterprise.staff.service.XReportCalculator;
 import com.enterprise.staff.service.ZReportCalculator;
 import jakarta.validation.Valid;
@@ -28,12 +32,17 @@ public class ReportController {
 
     private final XReportCalculator xReportCalculator;
     private final ZReportCalculator zReportCalculator;
+    private final StaffShiftService shiftService;
+    private final StoreAccessService storeAccessService;
 
     // ========================================
     // 產生 X Report / Generate X Report
     // ========================================
     @PostMapping("/x/{shiftId}")
+    @RequirePermission("pos:report:view")
+    @Auditable(module = "pos-report-x", action = "generate")
     public ResponseEntity<ApiResponse<XReport>> generateXReport(@PathVariable UUID shiftId) {
+        storeAccessService.requireReadableStore(shiftService.findStoreId(shiftId));
         XReport report = xReportCalculator.generate(shiftId);
         return ResponseEntity.ok(ApiResponse.success(report));
     }
@@ -42,7 +51,9 @@ public class ReportController {
     // 查詢班次所有 X Report / List X Reports for shift
     // ========================================
     @GetMapping("/x")
+    @RequirePermission("pos:report:view")
     public ResponseEntity<ApiResponse<List<XReport>>> listXReports(@RequestParam UUID shiftId) {
+        storeAccessService.requireReadableStore(shiftService.findStoreId(shiftId));
         return ResponseEntity.ok(ApiResponse.success(xReportCalculator.listByShift(shiftId)));
     }
 
@@ -50,9 +61,12 @@ public class ReportController {
     // 產生 Z Report（日結）/ Generate Z Report (daily close)
     // ========================================
     @PostMapping("/z/{storeId}")
+    @RequirePermission("pos:report:view-all")
+    @Auditable(module = "pos-report-z", action = "generate")
     public ResponseEntity<ApiResponse<ZReportResponse>> generateZReport(
             @PathVariable UUID storeId,
             @Valid @RequestBody GenerateZReportRequest request) {
+        storeAccessService.requireOperableStore(storeId);
         ZReport report = zReportCalculator.generate(storeId, request.reportDate(), request.cashInDrawer(), request.generatedBy());
         boolean valid = zReportCalculator.verifyHash(report);
         return ResponseEntity.ok(ApiResponse.success(ZReportResponse.from(report, valid)));
@@ -62,7 +76,9 @@ public class ReportController {
     // 查詢歷史 Z Report / List recent Z Reports
     // ========================================
     @GetMapping("/z/{storeId}")
+    @RequirePermission("pos:report:view-all")
     public ResponseEntity<ApiResponse<List<ZReportResponse>>> listZReports(@PathVariable UUID storeId) {
+        storeAccessService.requireReadableStore(storeId);
         List<ZReportResponse> list = zReportCalculator.listRecent(storeId).stream()
                 .map(r -> ZReportResponse.from(r, zReportCalculator.verifyHash(r)))
                 .toList();

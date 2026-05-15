@@ -1,5 +1,13 @@
+/**
+ * @file NotificationController.java
+ * @description 通知 API 控制器 / Notification REST controller
+ * @description_en REST endpoints for unread notifications, read state updates, and test pushes
+ * @description_zh 提供未讀通知、已讀狀態更新與測試推播 API 端點
+ */
 package com.enterprise.notification.controller;
 
+import com.enterprise.common.annotation.Auditable;
+import com.enterprise.common.annotation.RequirePermission;
 import com.enterprise.common.dto.ApiResponse;
 import com.enterprise.common.security.SecurityUtils;
 import com.enterprise.notification.dto.NotificationDTO;
@@ -25,6 +33,7 @@ public class NotificationController {
     }
 
     @GetMapping
+    @RequirePermission("system:notification:read")
     public ApiResponse<List<NotificationDTO>> getUnreadNotifications(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -36,18 +45,24 @@ public class NotificationController {
     }
 
     @GetMapping("/count")
+    @RequirePermission("system:notification:read")
     public ApiResponse<Long> getUnreadCount() {
         String userId = SecurityUtils.getCurrentUserId();
         return ApiResponse.success(notificationService.getUnreadCount(userId));
     }
 
     @PutMapping("/{id}/read")
+    @RequirePermission("system:notification:operate")
+    @Auditable(module = "notification", action = "mark-read")
     public ApiResponse<Void> markAsRead(@PathVariable String id) {
-        notificationService.markAsRead(id);
+        String userId = SecurityUtils.getCurrentUserId();
+        notificationService.markAsRead(id, userId);
         return ApiResponse.success(null);
     }
 
     @PutMapping("/read-all")
+    @RequirePermission("system:notification:operate")
+    @Auditable(module = "notification", action = "mark-all-read")
     public ApiResponse<Void> markAllAsRead() {
         String userId = SecurityUtils.getCurrentUserId();
         notificationService.markAllAsRead(userId);
@@ -55,6 +70,8 @@ public class NotificationController {
     }
 
     @PostMapping("/test-push")
+    @RequirePermission("system:notification:manage")
+    @Auditable(module = "notification", action = "test-push")
     public ApiResponse<Void> testPush() {
         String userId = SecurityUtils.getCurrentUserId();
         notificationService.send(userId, "SYS_TEST", "WEBSOCKET", "SYSTEM",

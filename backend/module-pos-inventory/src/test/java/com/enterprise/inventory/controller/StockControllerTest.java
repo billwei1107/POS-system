@@ -11,6 +11,7 @@ import com.enterprise.inventory.repository.StockMovementRepository;
 import com.enterprise.inventory.repository.StoreStockRepository;
 import com.enterprise.inventory.service.StockAlertService;
 import com.enterprise.inventory.service.StockDeductionService;
+import com.enterprise.organization.service.StoreAccessService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,13 +43,19 @@ class StockControllerTest {
     @Mock private StockMovementRepository movementRepository;
     @Mock private StockDeductionService deductionService;
     @Mock private StockAlertService alertService;
+    @Mock private StoreAccessService storeAccessService;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new StockController(stockRepository, movementRepository, deductionService, alertService))
+                .standaloneSetup(new StockController(
+                        stockRepository,
+                        movementRepository,
+                        deductionService,
+                        alertService,
+                        storeAccessService))
                 .build();
     }
 

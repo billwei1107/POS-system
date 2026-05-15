@@ -6,9 +6,11 @@
  */
 package com.enterprise.core.service;
 
+import com.enterprise.common.dto.PageResponse;
 import com.enterprise.common.exception.BusinessException;
 import com.enterprise.common.exception.ResourceNotFoundException;
 import com.enterprise.core.dto.request.CreateRefundRequest;
+import com.enterprise.core.dto.response.RefundResponse;
 import com.enterprise.core.entity.Order;
 import com.enterprise.core.entity.OrderRefund;
 import com.enterprise.core.event.RefundCompletedEvent;
@@ -16,14 +18,20 @@ import com.enterprise.core.repository.OrderRefundRepository;
 import com.enterprise.core.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import jakarta.persistence.criteria.Predicate;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -79,8 +87,7 @@ public class RefundService {
     // ========================================
     @Transactional
     public OrderRefund completeRefund(UUID refundId) {
-        OrderRefund refund = refundRepository.findById(refundId)
-            .orElseThrow(() -> new ResourceNotFoundException("Refund not found: " + refundId));
+        OrderRefund refund = getRefundOrThrow(refundId);
 
         if (refund.getStatus() != OrderRefund.RefundStatus.APPROVED) {
             throw new BusinessException("Refund must be APPROVED before completing");
@@ -91,17 +98,93 @@ public class RefundService {
         refundRepository.save(refund);
 
         Order order = orderRepository.findById(refund.getOrderId()).orElseThrow();
+        BigDecimal completedRefundTotal = refundRepository.findByOrderId(refund.getOrderId()).stream()
+            .filter(existing -> existing.getStatus() == OrderRefund.RefundStatus.COMPLETED)
+            .map(OrderRefund::getRefundAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
         eventPublisher.publishEvent(new RefundCompletedEvent(
             this,
             refund.getId(),
             refund.getOrderId(),
             order.getStoreId(),
+            order.getMemberId(),
             refund.getRefundAmount(),
             order.getGrandTotal(),
+            completedRefundTotal,
             refund.getRefundMethod()
         ));
 
         return refund;
+    }
+
+    // ========================================
+    // 查詢退款 / Query refunds
+    // ========================================
+    @Transactional(readOnly = true)
+    public RefundResponse getById(UUID refundId) {
+        return RefundResponse.from(getRefundOrThrow(refundId));
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<RefundResponse> listByStore(UUID storeId,
+                                                    UUID orderId,
+                                                    OrderRefund.RefundStatus status,
+                                                    LocalDateTime from,
+                                                    LocalDateTime to,
+                                                    Pageable pageable) {
+        return PageResponse.of(refundRepository
+            .findAll(buildRefundFilter(storeId, orderId, status, from, to), pageable)
+            .map(RefundResponse::from));
+    }
+
+    @Transactional(readOnly = true)
+    public UUID findOrderStoreId(UUID orderId) {
+        return getOrderOrThrow(orderId).getStoreId();
+    }
+
+    @Transactional(readOnly = true)
+    public UUID findStoreId(UUID refundId) {
+        OrderRefund refund = getRefundOrThrow(refundId);
+        return getOrderOrThrow(refund.getOrderId()).getStoreId();
+    }
+
+    private Order getOrderOrThrow(UUID orderId) {
+        return orderRepository.findById(orderId)
+            .orElseThrow(() -> new ResourceNotFoundException("Order not found: " + orderId));
+    }
+
+    private OrderRefund getRefundOrThrow(UUID refundId) {
+        return refundRepository.findById(refundId)
+            .orElseThrow(() -> new ResourceNotFoundException("Refund not found: " + refundId));
+    }
+
+    private Specification<OrderRefund> buildRefundFilter(UUID storeId,
+                                                         UUID orderId,
+                                                         OrderRefund.RefundStatus status,
+                                                         LocalDateTime from,
+                                                         LocalDateTime to) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            var orderSubquery = query.subquery(UUID.class);
+            var orderRoot = orderSubquery.from(Order.class);
+            orderSubquery.select(orderRoot.get("id"))
+                .where(cb.equal(orderRoot.get("storeId"), storeId));
+            predicates.add(root.get("orderId").in(orderSubquery));
+
+            if (orderId != null) {
+                predicates.add(cb.equal(root.get("orderId"), orderId));
+            }
+            if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            if (from != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), from));
+            }
+            if (to != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), to));
+            }
+            return cb.and(predicates.toArray(Predicate[]::new));
+        };
     }
 
     private String generateRefundNo() {

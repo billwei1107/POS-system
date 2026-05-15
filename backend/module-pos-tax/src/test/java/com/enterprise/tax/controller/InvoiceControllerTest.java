@@ -6,6 +6,7 @@
  */
 package com.enterprise.tax.controller;
 
+import com.enterprise.organization.service.StoreAccessService;
 import com.enterprise.tax.dto.response.InvoiceResponse;
 import com.enterprise.tax.entity.Invoice;
 import com.enterprise.tax.service.InvoiceService;
@@ -22,6 +23,7 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -31,22 +33,24 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class InvoiceControllerTest {
 
     @Mock private InvoiceService invoiceService;
+    @Mock private StoreAccessService storeAccessService;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new InvoiceController(invoiceService))
+                .standaloneSetup(new InvoiceController(invoiceService, storeAccessService))
                 .build();
     }
 
     @Test
     void getByOrder_returnsIssuedInvoiceTotalsAndStatus() throws Exception {
         UUID orderId = UUID.randomUUID();
+        UUID storeId = UUID.randomUUID();
         InvoiceResponse invoice = new InvoiceResponse(
                 UUID.randomUUID(),
-                UUID.randomUUID(),
+                storeId,
                 orderId,
                 null,
                 Invoice.InvoiceType.B2C,
@@ -76,6 +80,8 @@ class InvoiceControllerTest {
                 .andExpect(jsonPath("$.data.totalAmount").value(126.00))
                 .andExpect(jsonPath("$.data.status").value("ISSUED"))
                 .andExpect(jsonPath("$.data.uploadStatus").value("SUCCESS"));
+
+        verify(storeAccessService).requireReadableStore(storeId);
     }
 
     @Test

@@ -91,6 +91,16 @@ public class ReconciliationService {
     }
 
     // ========================================
+    // 查詢對帳門店 / Find reconciliation store
+    // ========================================
+    @Transactional(readOnly = true)
+    public UUID findStoreId(UUID reconId) {
+        return reconciliationRepository.findById(reconId)
+            .orElseThrow(() -> new ResourceNotFoundException("Reconciliation not found: " + reconId))
+            .getStoreId();
+    }
+
+    // ========================================
     // 確認對帳 / Mark reconciliation as matched/discrepancy
     // ========================================
     @Transactional

@@ -33,6 +33,16 @@ public class PayMethodService {
     }
 
     // ========================================
+    // 查詢支付方式門店 / Find pay method store
+    // ========================================
+    @Transactional(readOnly = true)
+    public UUID findStoreId(UUID id) {
+        return payMethodRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("PayMethod not found: " + id))
+            .getStoreId();
+    }
+
+    // ========================================
     // 建立支付方式 / Create pay method
     // ========================================
     @Transactional
