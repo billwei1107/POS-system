@@ -6,16 +6,28 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-    Box, Typography, Button, IconButton, Divider, Chip, Dialog, DialogActions,
+    Alert, Box, Typography, Button, CircularProgress, IconButton, Divider, Chip, Dialog, DialogActions,
     DialogContent, DialogTitle, TextField
 } from '@mui/material';
 import { DeleteOutline, Add, Remove, PersonAdd, LocalOffer, PauseCircleOutline } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { calculateCartTotals, calculateItemCount, useCartStore, type HeldOrder } from '../store/cartStore';
+import { calculateCartTotals, calculateItemCount, useCartStore, type CartMember, type HeldOrder } from '../store/cartStore';
 import { formatMoney, formatTime } from '@shared/utils';
-import { DEFAULT_STORE_ID, DEFAULT_TERMINAL_ID, DEMO_POS_MEMBERS } from '../config';
+import { DEFAULT_STORE_ID, DEFAULT_TERMINAL_ID } from '../config';
 import { heldOrderApi } from '../api/orderApi';
 import type { HeldOrderResponse } from '../types';
+import { memberApi } from '../../pos-crm/api/memberApi';
+import type { Member } from '../../pos-crm/types';
+
+const mapMemberToCartMember = (member: Member): CartMember => ({
+    id: member.id,
+    memberNo: member.memberNo,
+    name: member.name,
+    phoneMasked: member.phoneMasked,
+    tier: member.tierLabel,
+    points: member.pointsBalance,
+    discountPercent: Number(member.discountPercent),
+});
 
 const Cart: React.FC = () => {
     const navigate = useNavigate();
@@ -42,16 +54,11 @@ const Cart: React.FC = () => {
     const [holdOpen, setHoldOpen] = useState(false);
     const [discountInput, setDiscountInput] = useState('');
     const [memberQuery, setMemberQuery] = useState('');
+    const [memberCandidates, setMemberCandidates] = useState<CartMember[]>([]);
+    const [memberLoading, setMemberLoading] = useState(false);
+    const [memberError, setMemberError] = useState('');
     const totals = useMemo(() => calculateCartTotals(lines, taxRate, discountAmount), [discountAmount, lines, taxRate]);
     const itemCount = useMemo(() => calculateItemCount(lines), [lines]);
-    const memberCandidates = useMemo(() => {
-        const query = memberQuery.trim().toLowerCase();
-        if (!query) return DEMO_POS_MEMBERS;
-        return DEMO_POS_MEMBERS.filter((member) =>
-            [member.name, member.memberNo, member.phoneMasked, member.tier]
-                .some((value) => value.toLowerCase().includes(query))
-        );
-    }, [memberQuery]);
 
     // ========================================
     // 折扣設定 / Discount Controls
@@ -85,7 +92,56 @@ const Cart: React.FC = () => {
     // ========================================
     // 會員綁定 / Member Binding
     // ========================================
-    const handleSelectMember = (member: typeof DEMO_POS_MEMBERS[number]) => {
+    useEffect(() => {
+        if (!memberOpen) return;
+        const normalizedQuery = memberQuery.trim();
+        if (!normalizedQuery) return;
+
+        let cancelled = false;
+
+        const timeoutId = window.setTimeout(() => {
+            memberApi.search(normalizedQuery, 20)
+                .then((response) => {
+                    if (cancelled) return;
+                    setMemberCandidates((response.data ?? []).map(mapMemberToCartMember));
+                })
+                .catch(() => {
+                    if (cancelled) return;
+                    setMemberCandidates([]);
+                    setMemberError('會員查詢失敗，請稍後再試。');
+                })
+                .finally(() => {
+                    if (!cancelled) setMemberLoading(false);
+                });
+        }, 250);
+
+        return () => {
+            cancelled = true;
+            window.clearTimeout(timeoutId);
+        };
+    }, [memberOpen, memberQuery]);
+
+    const openMemberDialog = () => {
+        setMemberQuery('');
+        setMemberCandidates([]);
+        setMemberError('');
+        setMemberOpen(true);
+    };
+
+    const handleMemberQueryChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const nextQuery = event.target.value;
+        setMemberQuery(nextQuery);
+        if (!nextQuery.trim()) {
+            setMemberCandidates([]);
+            setMemberError('');
+            setMemberLoading(false);
+        } else {
+            setMemberError('');
+            setMemberLoading(true);
+        }
+    };
+
+    const handleSelectMember = (member: CartMember) => {
         setMember(member);
         setMemberOpen(false);
     };
@@ -322,7 +378,7 @@ const Cart: React.FC = () => {
                     variant="outlined"
                     fullWidth
                     startIcon={<PersonAdd />}
-                    onClick={() => setMemberOpen(true)}
+                    onClick={openMemberDialog}
                     sx={{
                         color: 'text.primary',
                         borderColor: selectedMember ? 'rgba(255,138,101,0.45)' : 'rgba(255,255,255,0.1)',
@@ -531,11 +587,22 @@ const Cart: React.FC = () => {
                     <TextField
                         label="手機、姓名或會員編號"
                         value={memberQuery}
-                        onChange={(event) => setMemberQuery(event.target.value)}
+                        onChange={handleMemberQueryChange}
+                        helperText="輸入關鍵字後查詢 CRM 會員資料"
                         fullWidth
                     />
+                    {memberError && (
+                        <Alert severity="error" onClose={() => setMemberError('')}>
+                            {memberError}
+                        </Alert>
+                    )}
+                    {memberLoading && (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                            <CircularProgress size={24} />
+                        </Box>
+                    )}
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                        {memberCandidates.map((member) => (
+                        {!memberLoading && memberCandidates.map((member) => (
                             <Button
                                 key={member.id}
                                 variant="outlined"
@@ -566,10 +633,16 @@ const Cart: React.FC = () => {
                             </Button>
                         ))}
                     </Box>
-                    {memberCandidates.length === 0 && (
+                    {!memberLoading && memberQuery.trim() && memberCandidates.length === 0 && !memberError && (
                         <Box sx={{ py: 4, textAlign: 'center', color: 'text.secondary' }}>
                             <Typography fontWeight={900} color="text.primary">找不到會員</Typography>
                             <Typography variant="body2">請確認手機、姓名或會員編號。</Typography>
+                        </Box>
+                    )}
+                    {!memberQuery.trim() && (
+                        <Box sx={{ py: 4, textAlign: 'center', color: 'text.secondary' }}>
+                            <Typography fontWeight={900} color="text.primary">輸入關鍵字開始搜尋</Typography>
+                            <Typography variant="body2">可輸入手機、姓名、會員編號、卡號或條碼。</Typography>
                         </Box>
                     )}
                     {selectedMember && (

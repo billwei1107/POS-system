@@ -1113,3 +1113,53 @@ services:
   - 退款列表查詢回 `200`。
   - 單筆退款查詢回 `200`。
   - `status=COMPLETED` 篩選查詢回 `200`。
+
+---
+
+# 2026-05-15 React set-state-in-effect lint on debounced member search
+
+## Issue
+
+- 場景：將收銀台會員綁定從前端 demo 陣列改為 `memberApi.search()` 後執行 `npm run lint`。
+- 錯誤訊息：`react-hooks/set-state-in-effect`，指出在 `useEffect` 內同步呼叫 `setMemberCandidates()` / `setMemberLoading()` 可能造成 cascading renders。
+
+## Root Cause
+
+- React 19 lint 規則要求 effect 主要同步外部系統或訂閱外部事件。
+- 原先在 effect body 內先同步清空候選、設定 loading，再建立 debounce timer，觸發此規則。
+
+## Solution
+
+- 將輸入為空時的清空候選、清錯誤、關 loading 移到 `handleMemberQueryChange()`。
+- 將非空查詢時的 loading 啟動也移到輸入事件。
+- `useEffect` 僅在查詢字串存在時建立 debounce timer，並在 timer 內非同步呼叫 CRM API 後更新結果。
+
+## Verification
+
+- `npx tsc -b`：通過。
+- `npm run lint`：通過。
+- `npm test -- --run`：通過。
+
+---
+
+# 2026-05-15 In-app browser screenshot timeout during POS verification
+
+## Issue
+
+- 場景：用 in-app browser 驗證會員管理頁與收銀台會員綁定流程時呼叫 `tab.screenshot()`。
+- 錯誤訊息：`Timed out running CDP command "Page.captureScreenshot"`。
+
+## Root Cause
+
+- 截圖失敗點在瀏覽器自動化截圖管線，互動與 DOM 讀取仍可正常執行。
+- 同一頁面可透過 DOM snapshot 確認狀態，且使用者流程點擊、輸入、搜尋與導覽皆成功。
+
+## Solution
+
+- 本輪不修改產品程式碼。
+- 以 DOM snapshot 與實際互動結果作為驗證依據，並在 devlog 中標記截圖工具逾時。
+
+## Verification
+
+- 會員管理頁：新增會員、調整點數、搜尋與流水顯示均由 DOM snapshot 確認。
+- 收銀台：CRM 會員搜尋、綁定、折扣與結帳頁會員資訊均由 DOM snapshot 確認。
