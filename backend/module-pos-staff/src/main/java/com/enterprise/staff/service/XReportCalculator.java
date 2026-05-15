@@ -7,6 +7,8 @@
 package com.enterprise.staff.service;
 
 import com.enterprise.common.exception.BusinessException;
+import com.enterprise.payment.entity.PaymentTransaction;
+import com.enterprise.payment.repository.PaymentTransactionRepository;
 import com.enterprise.staff.entity.StaffShift;
 import com.enterprise.staff.entity.XReport;
 import com.enterprise.staff.repository.StaffShiftRepository;
@@ -18,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +34,9 @@ public class XReportCalculator {
 
     private final StaffShiftRepository shiftRepository;
     private final XReportRepository xReportRepository;
+    private final PaymentTransactionRepository transactionRepository;
+
+    private static final ZoneId TW_ZONE = ZoneId.of("Asia/Taipei");
 
     // ========================================
     // 產生 X Report（不重置，僅快照）/ Generate X Report (no reset)
@@ -44,9 +51,10 @@ public class XReportCalculator {
         report.setShiftId(shiftId);
         report.setStoreId(shift.getStoreId());
         report.setEmployeeId(shift.getEmployeeId());
-        report.setGeneratedAt(Instant.now());
+        Instant generatedAt = Instant.now();
+        report.setGeneratedAt(generatedAt);
         report.setPeriodStart(shift.getOpenedAt());
-        report.setPeriodEnd(Instant.now());
+        report.setPeriodEnd(generatedAt);
 
         // ========================================
         // 從班次累計資料計算報表欄位 / Calculate from shift aggregates
@@ -59,11 +67,9 @@ public class XReportCalculator {
         report.setTransactionCount(shift.getTransactionCount());
 
         // ========================================
-        // 支付方式明細（Phase 2 整合 pos-payment 後補充）/ Payment breakdown (defer to Phase 2)
+        // 支付方式明細 / Payment breakdown
         // ========================================
-        report.setCashSales(BigDecimal.ZERO);
-        report.setCardSales(BigDecimal.ZERO);
-        report.setOtherSales(BigDecimal.ZERO);
+        applyPaymentBreakdown(report, shift, generatedAt);
 
         // ========================================
         // 額外報表資料（JSON 格式）/ Extra report data (JSON)
@@ -76,6 +82,48 @@ public class XReportCalculator {
 
         log.info("X Report generated for shift: {}", shift.getShiftNo());
         return xReportRepository.save(report);
+    }
+
+    // ========================================
+    // 支付方式彙總 / Payment method aggregation
+    // ========================================
+    private void applyPaymentBreakdown(XReport report, StaffShift shift, Instant periodEnd) {
+        LocalDateTime from = LocalDateTime.ofInstant(shift.getOpenedAt(), TW_ZONE);
+        LocalDateTime to = LocalDateTime.ofInstant(periodEnd, TW_ZONE);
+
+        BigDecimal cash = BigDecimal.ZERO;
+        BigDecimal card = BigDecimal.ZERO;
+        BigDecimal other = BigDecimal.ZERO;
+
+        for (PaymentTransaction txn : transactionRepository.findByStoreAndDateRange(shift.getStoreId(), from, to)) {
+            BigDecimal signedAmount = signedAmount(txn);
+            if (signedAmount == null) {
+                continue;
+            }
+
+            String methodType = txn.getMethodType() == null ? "" : txn.getMethodType();
+            if ("CASH".equals(methodType)) {
+                cash = cash.add(signedAmount);
+            } else if ("CARD".equals(methodType)) {
+                card = card.add(signedAmount);
+            } else {
+                other = other.add(signedAmount);
+            }
+        }
+
+        report.setCashSales(cash);
+        report.setCardSales(card);
+        report.setOtherSales(other);
+    }
+
+    private BigDecimal signedAmount(PaymentTransaction txn) {
+        if (txn.getStatus() == PaymentTransaction.TxnStatus.SUCCESS) {
+            return txn.getAmount();
+        }
+        if (txn.getStatus() == PaymentTransaction.TxnStatus.REFUNDED) {
+            return txn.getAmount().negate();
+        }
+        return null;
     }
 
     // ========================================

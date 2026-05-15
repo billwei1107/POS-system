@@ -6,6 +6,8 @@
  */
 package com.enterprise.staff;
 
+import com.enterprise.payment.entity.PaymentTransaction;
+import com.enterprise.payment.repository.PaymentTransactionRepository;
 import com.enterprise.staff.entity.StaffShift;
 import com.enterprise.staff.entity.XReport;
 import com.enterprise.staff.repository.StaffShiftRepository;
@@ -22,6 +24,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -34,21 +39,24 @@ class XReportCalculatorTest {
 
     @Mock private StaffShiftRepository shiftRepository;
     @Mock private XReportRepository xReportRepository;
+    @Mock private PaymentTransactionRepository transactionRepository;
 
     @InjectMocks private XReportCalculator calculator;
 
     private UUID shiftId;
     private StaffShift shift;
+    private UUID storeId;
 
     @BeforeEach
     void setUp() {
         shiftId = UUID.randomUUID();
+        storeId = UUID.randomUUID();
 
         shift = new StaffShift();
-        shift.setStoreId(UUID.randomUUID());
+        shift.setStoreId(storeId);
         shift.setEmployeeId(UUID.randomUUID());
         shift.setShiftNo("SH20260508001");
-        shift.setOpenedAt(Instant.now());
+        shift.setOpenedAt(Instant.parse("2026-05-15T02:00:00Z"));
         shift.setOpeningCash(new BigDecimal("1000.00"));
         shift.setStatus(StaffShift.ShiftStatus.OPEN);
 
@@ -58,6 +66,11 @@ class XReportCalculatorTest {
         shift.addRefund(new BigDecimal("50.00"));
 
         when(shiftRepository.findById(shiftId)).thenReturn(Optional.of(shift));
+        lenient().when(transactionRepository.findByStoreAndDateRange(
+                eq(storeId),
+                any(LocalDateTime.class),
+                any(LocalDateTime.class)
+        )).thenReturn(List.of());
         when(xReportRepository.save(any(XReport.class))).thenAnswer(inv -> inv.getArgument(0));
     }
 
@@ -102,6 +115,43 @@ class XReportCalculatorTest {
     }
 
     // ========================================
+    // X Report 支付方式明細正確 / Verify payment breakdown
+    // ========================================
+    @Test
+    @DisplayName("X Report 應依支付交易彙總 cash/card/other 淨額")
+    void generate_paymentBreakdown_aggregatesNetAmountByMethodType() {
+        when(transactionRepository.findByStoreAndDateRange(
+                eq(storeId),
+                any(LocalDateTime.class),
+                any(LocalDateTime.class)
+        )).thenReturn(List.of(
+                transaction("CASH", "300.00", PaymentTransaction.TxnStatus.SUCCESS),
+                transaction("CASH", "50.00", PaymentTransaction.TxnStatus.REFUNDED),
+                transaction("CARD", "200.00", PaymentTransaction.TxnStatus.SUCCESS),
+                transaction("QR_CODE", "30.00", PaymentTransaction.TxnStatus.SUCCESS),
+                transaction("CARD", "99.00", PaymentTransaction.TxnStatus.FAILED)
+        ));
+
+        XReport report = calculator.generate(shiftId);
+
+        assertThat(report.getCashSales()).isEqualByComparingTo("250.00");
+        assertThat(report.getCardSales()).isEqualByComparingTo("200.00");
+        assertThat(report.getOtherSales()).isEqualByComparingTo("30.00");
+    }
+
+    @Test
+    @DisplayName("X Report 應以班次開啟時間與產生時間查詢支付交易")
+    void generate_paymentBreakdown_queriesShiftPeriod() {
+        calculator.generate(shiftId);
+
+        verify(transactionRepository).findByStoreAndDateRange(
+                eq(storeId),
+                eq(LocalDateTime.ofInstant(shift.getOpenedAt(), ZoneId.of("Asia/Taipei"))),
+                any(LocalDateTime.class)
+        );
+    }
+
+    // ========================================
     // X Report 稅額正確 / Verify total tax
     // ========================================
     @Test
@@ -121,5 +171,20 @@ class XReportCalculatorTest {
         ArgumentCaptor<XReport> captor = ArgumentCaptor.forClass(XReport.class);
         verify(xReportRepository).save(captor.capture());
         assertThat(captor.getValue().getShiftId()).isEqualTo(shiftId);
+    }
+
+    private PaymentTransaction transaction(
+            String methodType,
+            String amount,
+            PaymentTransaction.TxnStatus status
+    ) {
+        PaymentTransaction txn = new PaymentTransaction();
+        txn.setStoreId(storeId);
+        txn.setOrderId(UUID.randomUUID());
+        txn.setPayMethodId(UUID.randomUUID());
+        txn.setMethodType(methodType);
+        txn.setAmount(new BigDecimal(amount));
+        txn.setStatus(status);
+        return txn;
     }
 }

@@ -30,6 +30,12 @@
 
         <dependency>
             <groupId>com.enterprise</groupId>
+            <artifactId>module-pos-payment</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.enterprise</groupId>
             <artifactId>module-organization</artifactId>
             <version>${project.version}</version>
         </dependency>
