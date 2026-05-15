@@ -75,6 +75,12 @@ const INVOICE_STATUS_COLOR: Record<InvoiceStatusSummary, 'default' | 'success' |
   MISSING: 'default',
 };
 
+const DISCOUNT_SOURCE_LABEL: Record<NonNullable<Order['discountSource']>, string> = {
+  MANUAL: '手動折扣',
+  MEMBER: '會員折扣',
+  PROMOTION: '促銷折扣',
+};
+
 const summarizePaymentStatus = (transactions: PaymentTransaction[]): PaymentStatusSummary => {
   if (transactions.some(txn => txn.status === 'REFUNDED')) return 'REFUNDED';
   if (transactions.some(txn => txn.status === 'SUCCESS')) return 'PAID';
@@ -247,6 +253,22 @@ const OrderListPage: React.FC = () => {
     );
   };
 
+  const renderDiscountChip = (order: Order) => {
+    if (order.discountTotal <= 0 || !order.discountSource) {
+      return <Typography variant="caption" color="text.secondary">-</Typography>;
+    }
+
+    const label = order.discountLabel || DISCOUNT_SOURCE_LABEL[order.discountSource];
+
+    return (
+      <Chip
+        label={`${label} -${formatMoney(order.discountTotal)}`}
+        color={order.discountSource === 'PROMOTION' ? 'success' : 'warning'}
+        size="small"
+      />
+    );
+  };
+
   const renderOrderActions = (order: Order) => (
     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: { xs: 'stretch', md: 'flex-start' } }}>
       {['COMPLETED', 'CLOSED'].includes(order.status) && (
@@ -391,6 +413,10 @@ const OrderListPage: React.FC = () => {
                   <Typography fontWeight={900} color="secondary.main">{formatMoney(order.grandTotal)}</Typography>
                 </Box>
                 <Box>
+                  <Typography variant="caption" color="text.secondary">折扣</Typography>
+                  <Box sx={{ mt: 0.5 }}>{renderDiscountChip(order)}</Box>
+                </Box>
+                <Box>
                   <Typography variant="caption" color="text.secondary">建立時間</Typography>
                   <Typography variant="body2">{formatDateTime(order.createdAt)}</Typography>
                 </Box>
@@ -412,6 +438,7 @@ const OrderListPage: React.FC = () => {
               <TableCell>品項</TableCell>
               <TableCell>付款狀態</TableCell>
               <TableCell>發票狀態</TableCell>
+              <TableCell>折扣</TableCell>
               <TableCell align="right">合計</TableCell>
               <TableCell>建立時間</TableCell>
               <TableCell>操作</TableCell>
@@ -420,11 +447,11 @@ const OrderListPage: React.FC = () => {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={9} align="center"><CircularProgress size={24} /></TableCell>
+                <TableCell colSpan={10} align="center"><CircularProgress size={24} /></TableCell>
               </TableRow>
             ) : orders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} align="center" sx={{ py: 8 }}>
+                <TableCell colSpan={10} align="center" sx={{ py: 8 }}>
                   <Typography variant="h6" fontWeight={800}>目前沒有訂單</Typography>
                   <Typography variant="body2" color="text.secondary">
                     選擇門店並建立銷售後，訂單會顯示在這裡。
@@ -461,6 +488,7 @@ const OrderListPage: React.FC = () => {
                     <Typography variant="caption" color="text.secondary">-</Typography>
                   )}
                 </TableCell>
+                <TableCell>{renderDiscountChip(order)}</TableCell>
                 <TableCell align="right">{formatMoney(order.grandTotal)}</TableCell>
                 <TableCell>{formatDateTime(order.createdAt)}</TableCell>
                 <TableCell>

@@ -23,6 +23,10 @@ public record OrderResponse(
     Order.OrderType orderType,
     BigDecimal subtotal,
     BigDecimal discountTotal,
+    Order.DiscountSource discountSource,
+    UUID promotionRuleId,
+    String promotionCode,
+    String discountLabel,
     BigDecimal taxTotal,
     BigDecimal roundingAdj,
     BigDecimal grandTotal,
@@ -40,7 +44,8 @@ public record OrderResponse(
         return new OrderResponse(
             o.getId(), o.getOrderNo(), o.getStoreId(), o.getTerminalId(), o.getEmployeeId(),
             o.getStatus(), o.getOrderType(),
-            o.getSubtotal(), o.getDiscountTotal(), o.getTaxTotal(), o.getRoundingAdj(),
+            o.getSubtotal(), o.getDiscountTotal(), o.getDiscountSource(), o.getPromotionRuleId(),
+            o.getPromotionCode(), o.getDiscountLabel(), o.getTaxTotal(), o.getRoundingAdj(),
             o.getGrandTotal(), o.getPaidTotal(), o.getChangeGiven(),
             o.getMemberId(), o.getNote(), o.getTableNo(), o.getGuestCount(),
             o.getCompletedAt(), o.getCreatedAt(), items

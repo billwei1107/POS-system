@@ -13,7 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import { calculateCartTotals, useCartStore } from '../store/cartStore';
 import { formatMoney } from '@shared/utils';
 import { orderApi } from '../api/orderApi';
-import type { Order, OrderType } from '../types';
+import type { Order, OrderDiscountSource, OrderType } from '../types';
 import { DEFAULT_GUEST_COUNT, DEFAULT_TABLE_NO } from '../config';
 import { getActivePosContext } from '../posSession';
 
@@ -28,6 +28,13 @@ const PAYMENT_METHOD_LABEL: Record<string, string> = {
 
 type ApiErrorBody = {
     message?: string;
+};
+
+const toOrderDiscountSource = (source: 'manual' | 'member' | 'promotion' | null): OrderDiscountSource | undefined => {
+    if (source === 'manual') return 'MANUAL';
+    if (source === 'member') return 'MEMBER';
+    if (source === 'promotion') return 'PROMOTION';
+    return undefined;
 };
 
 const CheckoutPage: React.FC = () => {
@@ -104,6 +111,10 @@ const CheckoutPage: React.FC = () => {
                 guestCount: DEFAULT_GUEST_COUNT,
                 taxIncluded: false,
                 discountAmount: totals.discount,
+                discountSource: totals.discount > 0 ? toOrderDiscountSource(discountSource) : undefined,
+                discountLabel: totals.discount > 0 ? discountLabel : undefined,
+                promotionRuleId: discountSource === 'promotion' && appliedPromotion ? appliedPromotion.ruleId : undefined,
+                promotionCode: discountSource === 'promotion' && appliedPromotion?.code ? appliedPromotion.code : undefined,
                 memberId: selectedMember?.id,
                 items: orderItems.map((item) => ({
                     itemId: item.itemId,

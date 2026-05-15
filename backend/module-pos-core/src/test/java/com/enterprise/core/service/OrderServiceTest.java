@@ -91,7 +91,7 @@ class OrderServiceTest {
         );
         CreateOrderRequest request = new CreateOrderRequest(
             storeId, UUID.randomUUID(), UUID.randomUUID(), Order.OrderType.DINE_IN,
-            List.of(originalItem), BigDecimal.ZERO, memberId, null, 1, null, false
+            List.of(originalItem), BigDecimal.ZERO, null, null, null, null, memberId, null, 1, null, false
         );
         PricingResult pricing = new PricingResult(
             new BigDecimal("180.00"), BigDecimal.ZERO, new BigDecimal("9.00"),
@@ -113,6 +113,44 @@ class OrderServiceTest {
         assertThat(response.grandTotal()).isEqualByComparingTo("189.00");
         verify(priceRuleResolver).resolveOrderItems(eq(List.of(originalItem)), eq(storeId), eq(memberId), any());
         verify(eventPublisher).publishEvent(any());
+    }
+
+    @Test
+    void createOrder_promotionDiscount_persistsDiscountMetadata() {
+        UUID storeId = UUID.randomUUID();
+        UUID itemId = UUID.randomUUID();
+        UUID promotionRuleId = UUID.randomUUID();
+        OrderItemRequest item = new OrderItemRequest(
+            itemId, null, "燕麥拿鐵 12oz", "DEMO-OAT-LATTE-12OZ",
+            new BigDecimal("145.00"), BigDecimal.ONE,
+            BigDecimal.ZERO, null, List.of()
+        );
+        CreateOrderRequest request = new CreateOrderRequest(
+            storeId, UUID.randomUUID(), UUID.randomUUID(), Order.OrderType.DINE_IN,
+            List.of(item), new BigDecimal("14.50"), Order.DiscountSource.PROMOTION,
+            promotionRuleId, "cafe20", "咖啡滿百 9 折", null, null, 1, null, false
+        );
+        PricingResult pricing = new PricingResult(
+            new BigDecimal("145.00"), new BigDecimal("14.50"), new BigDecimal("6.53"),
+            BigDecimal.ZERO, new BigDecimal("137.03")
+        );
+
+        when(priceRuleResolver.resolveOrderItems(any(), any(), any(), any())).thenReturn(List.of(item));
+        when(pricingEngine.calculate(List.of(item), new BigDecimal("14.50"), false)).thenReturn(pricing);
+        when(orderItemRepository.save(any(OrderItem.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        OrderResponse response = orderService.createOrder(request);
+
+        ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
+        verify(orderRepository).save(orderCaptor.capture());
+        assertThat(orderCaptor.getValue().getDiscountSource()).isEqualTo(Order.DiscountSource.PROMOTION);
+        assertThat(orderCaptor.getValue().getPromotionRuleId()).isEqualTo(promotionRuleId);
+        assertThat(orderCaptor.getValue().getPromotionCode()).isEqualTo("CAFE20");
+        assertThat(orderCaptor.getValue().getDiscountLabel()).isEqualTo("咖啡滿百 9 折");
+        assertThat(response.discountSource()).isEqualTo(Order.DiscountSource.PROMOTION);
+        assertThat(response.promotionRuleId()).isEqualTo(promotionRuleId);
+        assertThat(response.promotionCode()).isEqualTo("CAFE20");
+        assertThat(response.discountLabel()).isEqualTo("咖啡滿百 9 折");
     }
 
     // ========================================

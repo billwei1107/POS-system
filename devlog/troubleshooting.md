@@ -1216,3 +1216,28 @@ services:
 ## Verification
 
 - `npm test -- --run`：通過，8 files / 14 tests。
+
+---
+
+# 2026-05-15 In-app browser screenshot timeout during discount source verification
+
+## Issue
+
+- 場景：用 in-app browser 驗證促銷折扣來源落庫流程，於結帳頁與訂單列表呼叫 `tab.screenshot()`。
+- 錯誤訊息：`Timed out running CDP command "Page.captureScreenshot"`。
+
+## Root Cause
+
+- 與本日稍早的瀏覽器截圖逾時屬同一類工具層問題。
+- 商品點選、結帳付款、DOM snapshot 與資料庫查詢皆可正常執行，產品流程本身沒有被阻斷。
+
+## Solution
+
+- 本輪不修改產品程式碼。
+- 改以 DOM snapshot 驗證 UI 狀態，並以 PostgreSQL 查詢確認 `discount_source`、`promotion_rule_id` 與 `discount_label` 已落庫。
+
+## Verification
+
+- 收銀台 DOM snapshot 顯示 `咖啡滿百 9 折` 與總計 `$137`。
+- 訂單列表 DOM snapshot 顯示最新訂單折扣欄 `咖啡滿百 9 折 -$15`。
+- PostgreSQL 最新訂單查詢確認 `discount_source=PROMOTION`、`promotion_rule_id=00000000-0000-0000-0000-000000001001`、`discount_label=咖啡滿百 9 折`。

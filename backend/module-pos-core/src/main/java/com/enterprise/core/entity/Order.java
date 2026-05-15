@@ -51,6 +51,19 @@ public class Order extends BaseEntity {
     @Column(name = "discount_total", nullable = false, precision = 12, scale = 2)
     private BigDecimal discountTotal = BigDecimal.ZERO;
 
+    @Column(name = "discount_source", length = 20)
+    @Enumerated(EnumType.STRING)
+    private DiscountSource discountSource;
+
+    @Column(name = "promotion_rule_id")
+    private UUID promotionRuleId;
+
+    @Column(name = "promotion_code", length = 50)
+    private String promotionCode;
+
+    @Column(name = "discount_label", length = 120)
+    private String discountLabel;
+
     @Column(name = "tax_total", nullable = false, precision = 12, scale = 2)
     private BigDecimal taxTotal = BigDecimal.ZERO;
 
@@ -102,5 +115,12 @@ public class Order extends BaseEntity {
     // ========================================
     public enum OrderType {
         DINE_IN, TAKEOUT, DELIVERY, ONLINE
+    }
+
+    // ========================================
+    // 折扣來源列舉 / Discount source enum
+    // ========================================
+    public enum DiscountSource {
+        MANUAL, MEMBER, PROMOTION
     }
 }

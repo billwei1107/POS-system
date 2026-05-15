@@ -10,6 +10,7 @@
 // ========================================
 export type OrderStatus = 'DRAFT' | 'CONFIRMED' | 'PREPARING' | 'READY' | 'COMPLETED' | 'CLOSED' | 'VOIDED';
 export type OrderType = 'DINE_IN' | 'TAKEOUT' | 'DELIVERY' | 'ONLINE';
+export type OrderDiscountSource = 'MANUAL' | 'MEMBER' | 'PROMOTION';
 
 // ========================================
 // 訂單明細型別 / Order item type
@@ -40,6 +41,10 @@ export interface Order {
   orderType: OrderType;
   subtotal: number;
   discountTotal: number;
+  discountSource?: OrderDiscountSource | null;
+  promotionRuleId?: string | null;
+  promotionCode?: string | null;
+  discountLabel?: string | null;
   taxTotal: number;
   roundingAdj: number;
   grandTotal: number;
@@ -105,6 +110,10 @@ export interface CreateOrderRequest {
   orderType?: OrderType;
   items: OrderItemRequest[];
   discountAmount?: number;
+  discountSource?: OrderDiscountSource;
+  promotionRuleId?: string;
+  promotionCode?: string;
+  discountLabel?: string;
   memberId?: string;
   tableNo?: string;
   guestCount?: number;

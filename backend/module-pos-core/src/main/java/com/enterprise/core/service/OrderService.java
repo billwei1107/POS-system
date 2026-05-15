@@ -78,6 +78,7 @@ public class OrderService {
         order.setNote(req.note());
         order.setSubtotal(pricing.subtotal());
         order.setDiscountTotal(pricing.discountTotal());
+        applyDiscountMetadata(order, req, pricing.discountTotal());
         order.setTaxTotal(pricing.taxTotal());
         order.setRoundingAdj(pricing.roundingAdj());
         order.setGrandTotal(pricing.grandTotal());
@@ -251,5 +252,55 @@ public class OrderService {
             ? itemReq.modifierPriceAdjustment()
             : BigDecimal.ZERO;
         return itemReq.unitPrice().add(modifierAdj).multiply(itemReq.quantity()).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    // ========================================
+    // 折扣來源保存 / Persist discount metadata
+    // ========================================
+    private void applyDiscountMetadata(Order order, CreateOrderRequest req, BigDecimal discountTotal) {
+        if (discountTotal == null || discountTotal.compareTo(BigDecimal.ZERO) <= 0) {
+            order.setDiscountSource(null);
+            order.setPromotionRuleId(null);
+            order.setPromotionCode(null);
+            order.setDiscountLabel(null);
+            return;
+        }
+
+        Order.DiscountSource source = req.discountSource() != null
+            ? req.discountSource()
+            : Order.DiscountSource.MANUAL;
+        order.setDiscountSource(source);
+        order.setDiscountLabel(normalizeDiscountLabel(req.discountLabel(), source));
+
+        if (source == Order.DiscountSource.PROMOTION) {
+            order.setPromotionRuleId(req.promotionRuleId());
+            order.setPromotionCode(normalizePromotionCode(req.promotionCode()));
+        } else {
+            order.setPromotionRuleId(null);
+            order.setPromotionCode(null);
+        }
+    }
+
+    private String normalizeDiscountLabel(String label, Order.DiscountSource source) {
+        String normalized = label == null || label.isBlank()
+            ? defaultDiscountLabel(source)
+            : label.trim();
+        return normalized.length() <= 120 ? normalized : normalized.substring(0, 120);
+    }
+
+    private String defaultDiscountLabel(Order.DiscountSource source) {
+        return switch (source) {
+            case MEMBER -> "會員折扣";
+            case PROMOTION -> "促銷折扣";
+            case MANUAL -> "手動折扣";
+        };
+    }
+
+    private String normalizePromotionCode(String code) {
+        if (code == null || code.isBlank()) {
+            return null;
+        }
+        String normalized = code.trim().toUpperCase();
+        return normalized.length() <= 50 ? normalized : normalized.substring(0, 50);
     }
 }

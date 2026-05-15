@@ -128,4 +128,48 @@ describe('CheckoutPage cash payment', () => {
     expect(orderApiMock.complete).toHaveBeenCalledWith('order-001', 'CASH', 130);
     expect(useCartStore.getState().lines).toHaveLength(0);
   });
+
+  it('sends promotion discount metadata when promotion is applied', async () => {
+    const user = userEvent.setup();
+    useCartStore.setState({
+      discountAmount: 14.5,
+      discountSource: 'promotion',
+      appliedPromotion: {
+        ruleId: 'promo-rule-001',
+        name: '咖啡滿百 9 折',
+        code: 'CAFE20',
+        discountAmount: 14.5,
+      },
+    });
+    orderApiMock.create.mockResolvedValue({
+      success: true,
+      message: 'created',
+      data: { ...completedOrder, status: 'DRAFT' },
+      code: 200,
+    });
+    orderApiMock.complete.mockResolvedValue({
+      success: true,
+      message: 'completed',
+      data: {
+        ...completedOrder,
+        discountTotal: 14.5,
+        discountSource: 'PROMOTION',
+        promotionRuleId: 'promo-rule-001',
+        promotionCode: 'CAFE20',
+        discountLabel: '咖啡滿百 9 折',
+      },
+      code: 200,
+    });
+
+    renderCheckout();
+    await user.click(screen.getByRole('button', { name: '確認付款方式' }));
+
+    await waitFor(() => expect(orderApiMock.create).toHaveBeenCalledWith(expect.objectContaining({
+      discountAmount: 14.5,
+      discountSource: 'PROMOTION',
+      promotionRuleId: 'promo-rule-001',
+      promotionCode: 'CAFE20',
+      discountLabel: '咖啡滿百 9 折',
+    })));
+  });
 });
