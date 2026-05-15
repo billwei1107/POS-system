@@ -72,6 +72,8 @@ public class PosDataSeeder implements CommandLineRunner {
         createPermissionIfNotExists("pos:member:read", "查看會員資料", "POS", "member", "read");
         createPermissionIfNotExists("pos:member:operate", "操作會員綁定與快速註冊", "POS", "member", "operate");
         createPermissionIfNotExists("pos:member:manage", "管理會員資料", "POS", "member", "manage");
+        createPermissionIfNotExists("pos:promotion:read", "查看促銷規則", "POS", "promotion", "read");
+        createPermissionIfNotExists("pos:promotion:manage", "管理促銷規則", "POS", "promotion", "manage");
         createPermissionIfNotExists("pos:invoice:read", "查看發票資料", "POS", "invoice", "read");
         createPermissionIfNotExists("pos:invoice:issue", "開立發票", "POS", "invoice", "issue");
         createPermissionIfNotExists("pos:invoice:void", "作廢發票", "POS", "invoice", "void");
@@ -113,6 +115,7 @@ public class PosDataSeeder implements CommandLineRunner {
                 "pos:product:read",
                 "pos:member:read",
                 "pos:member:operate",
+                "pos:promotion:read",
                 "pos:invoice:read",
                 "pos:invoice:issue",
                 "pos:report:view",
@@ -143,6 +146,7 @@ public class PosDataSeeder implements CommandLineRunner {
                 "pos:product:read",
                 "pos:member:read",
                 "pos:member:operate",
+                "pos:promotion:read",
                 "pos:invoice:read",
                 "pos:invoice:issue",
                 "pos:invoice:void",
@@ -183,6 +187,8 @@ public class PosDataSeeder implements CommandLineRunner {
                 "pos:member:read",
                 "pos:member:operate",
                 "pos:member:manage",
+                "pos:promotion:read",
+                "pos:promotion:manage",
                 "pos:invoice:read",
                 "pos:invoice:issue",
                 "pos:invoice:void",
@@ -229,6 +235,8 @@ public class PosDataSeeder implements CommandLineRunner {
                 "pos:member:read",
                 "pos:member:operate",
                 "pos:member:manage",
+                "pos:promotion:read",
+                "pos:promotion:manage",
                 "pos:invoice:read",
                 "pos:invoice:issue",
                 "pos:invoice:void",

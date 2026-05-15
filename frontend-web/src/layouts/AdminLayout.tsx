@@ -23,6 +23,7 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import Inventory2Icon from '@mui/icons-material/Inventory2';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import LogoutIcon from '@mui/icons-material/Logout';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import ManageSearchIcon from '@mui/icons-material/ManageSearch';
@@ -53,6 +54,7 @@ const navGroups = [
       { label: '訂單列表', path: '/admin/pos/orders', icon: <ReceiptLongIcon /> },
       { label: '退款處理', path: '/admin/pos/refunds', icon: <ReceiptLongIcon /> },
       { label: '會員管理', path: '/admin/pos/members', icon: <PeopleAltIcon /> },
+      { label: '促銷規則', path: '/admin/pos/promotions', icon: <LocalOfferIcon /> },
     ],
   },
   {

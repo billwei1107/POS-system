@@ -26,7 +26,8 @@ spring:
       classpath:db/migration/pos/tax,
       classpath:db/migration/pos/inventory,
       classpath:db/migration/pos/staff,
-      classpath:db/migration/pos/crm
+      classpath:db/migration/pos/crm,
+      classpath:db/migration/pos/promotion
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -54,6 +55,7 @@ modules:
   pos-inventory: true
   pos-staff: true
   pos-crm: true
+  pos-promotion: true
   leave: true
   finance: false
 

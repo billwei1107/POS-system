@@ -38,6 +38,7 @@
         <module>module-pos-inventory</module>
         <module>module-pos-staff</module>
         <module>module-pos-crm</module>
+        <module>module-pos-promotion</module>
         <module>app</module>
     </modules>
 

@@ -96,6 +96,12 @@
             <version>${project.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.enterprise</groupId>
+            <artifactId>module-pos-promotion</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- Database Driver -->
         <dependency>
             <groupId>org.postgresql</groupId>

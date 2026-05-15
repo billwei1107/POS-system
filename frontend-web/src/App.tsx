@@ -50,6 +50,7 @@ import ReconciliationPage from './features/pos-payment/pages/ReconciliationPage'
 import PayMethodSettingsPage from './features/pos-payment/pages/PayMethodSettingsPage';
 import GatewayConfigPage from './features/pos-payment/pages/GatewayConfigPage';
 import MemberPage from './features/pos-crm/pages/MemberPage';
+import PromotionRulePage from './features/pos-promotion/pages/PromotionRulePage';
 
 function App() {
   return (
@@ -68,6 +69,7 @@ function App() {
             <Route path="pos/orders" element={<OrderListPage />} />
             <Route path="pos/refunds" element={<RefundPage />} />
             <Route path="pos/members" element={<MemberPage />} />
+            <Route path="pos/promotions" element={<PromotionRulePage />} />
             <Route path="inventory/overview" element={<StockOverviewPage />} />
             <Route path="inventory/receiving" element={<ReceivingPage />} />
             <Route path="inventory/stock-takes" element={<StockTakePage />} />
@@ -126,6 +128,7 @@ function App() {
           <Route path="/pay-methods" element={<Navigate to="/admin/operations/pay-methods" replace />} />
           <Route path="/gateways" element={<Navigate to="/admin/operations/gateways" replace />} />
           <Route path="/members" element={<Navigate to="/admin/pos/members" replace />} />
+          <Route path="/promotions" element={<Navigate to="/admin/pos/promotions" replace />} />
 
           {/* 預設導向登入頁面 */}
           <Route path="/" element={<Navigate to="/pos/register" replace />} />

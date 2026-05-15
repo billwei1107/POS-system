@@ -1164,3 +1164,55 @@ services:
 - 會員管理頁：新增會員、調整點數、搜尋與流水顯示均由 DOM snapshot 確認。
 - 收銀台：CRM 會員搜尋、綁定、折扣與結帳頁會員資訊均由 DOM snapshot 確認。
 - POS session context：PIN 登入、收銀結帳、付款完成與 PostgreSQL 最新訂單 `employee_id` 落庫均由 DOM snapshot 與資料庫查詢確認；截圖管線仍回同一個 `Page.captureScreenshot` timeout。
+
+---
+
+# 2026-05-15 POS promotion repository not scanned during app startup
+
+## Issue
+
+- 場景：新增 `module-pos-promotion` 後，Docker 重建 `pos-backend` 並啟動 app。
+- 異常行為：`/actuator/health` 無法連線，容器持續重啟。
+- 錯誤訊息：`No qualifying bean of type 'com.enterprise.promotion.repository.PromotionRuleRepository' available`。
+
+## Root Cause
+
+- 新模組的 `PromotionModuleConfig` 只加了 `@Configuration` 與 feature toggle。
+- 其他 POS 模組皆在 module config 中明確宣告 `@ComponentScan`、`@EntityScan`、`@EnableJpaRepositories`。
+- 因 promotion repository 未被 JPA repository 掃描，`PromotionService` 建構子注入失敗，導致 Spring Boot app 啟動中止。
+
+## Solution
+
+- 在 `PromotionModuleConfig` 補上：
+  - `@ComponentScan(basePackages = "com.enterprise.promotion")`
+  - `@EntityScan(basePackages = "com.enterprise.promotion.entity")`
+  - `@EnableJpaRepositories(basePackages = "com.enterprise.promotion.repository")`
+
+## Verification
+
+- `mvn test -pl module-pos-promotion -am`：通過。
+- `docker compose --env-file env/local/.env -f docker/local/docker-compose.yml up -d --build backend frontend`：成功。
+- `curl http://127.0.0.1:38180/actuator/health`：回 `{"status":"UP"}`。
+- promotion list / evaluate API smoke 通過。
+
+---
+
+# 2026-05-15 Promotion page currency assertion mismatch
+
+## Issue
+
+- 場景：新增 `PromotionRulePage.test.tsx` 後執行 `npm test -- --run`。
+- 異常行為：測試預期文字含 `NT$15`，實際 `formatMoney()` 在目前測試環境顯示 `$15`。
+
+## Root Cause
+
+- 前端共用 `formatMoney()` 目前在 `zh-TW` / `TWD` 的 Intl 輸出於 jsdom/Vitest 環境為 `$15`。
+- 測試預期寫得比產品實際格式更窄。
+
+## Solution
+
+- 將測試斷言改為檢查頁面實際顯示的 `折抵 $15`。
+
+## Verification
+
+- `npm test -- --run`：通過，8 files / 14 tests。
