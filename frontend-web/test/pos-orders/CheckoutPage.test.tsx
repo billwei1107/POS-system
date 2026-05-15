@@ -63,7 +63,9 @@ beforeEach(() => {
     }],
     taxRate: 0.05,
     discountAmount: 0,
+    discountSource: null,
     selectedMember: null,
+    appliedPromotion: null,
     heldOrders: [],
   });
 });

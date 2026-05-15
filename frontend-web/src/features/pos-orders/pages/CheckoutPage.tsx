@@ -40,7 +40,9 @@ const CheckoutPage: React.FC = () => {
     const orderItems = useCartStore((state) => state.lines);
     const taxRate = useCartStore((state) => state.taxRate);
     const discountAmount = useCartStore((state) => state.discountAmount);
+    const discountSource = useCartStore((state) => state.discountSource);
     const selectedMember = useCartStore((state) => state.selectedMember);
+    const appliedPromotion = useCartStore((state) => state.appliedPromotion);
     const clearCart = useCartStore((state) => state.clear);
     const posContext = useMemo(() => getActivePosContext(), []);
     const totals = useMemo(() => calculateCartTotals(orderItems, taxRate, discountAmount), [discountAmount, orderItems, taxRate]);
@@ -51,6 +53,12 @@ const CheckoutPage: React.FC = () => {
     const cashShortfall = Math.max(0, totals.total - cashTenderedAmount);
     const changeDue = Math.max(0, cashTenderedAmount - totals.total);
     const cashPaymentInvalid = selectedMethod === 'cash' && cashShortfall > 0;
+    const discountLabel = useMemo(() => {
+        if (discountSource === 'member' && selectedMember) return '會員折扣';
+        if (discountSource === 'promotion' && appliedPromotion) return appliedPromotion.name;
+        if (discountSource === 'manual') return '手動折扣';
+        return '折扣';
+    }, [appliedPromotion, discountSource, selectedMember]);
 
     const paymentMethods = [
         { id: 'cash', label: '現金', icon: <Payments sx={{ fontSize: 32 }} />, color: '#4CAF50', bg: 'rgba(76, 175, 80, 0.15)' },
@@ -171,11 +179,18 @@ const CheckoutPage: React.FC = () => {
                             size="small"
                             sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: 'text.secondary', fontFamily: 'monospace', fontWeight: 800 }}
                         />
-                        {selectedMember && (
+                        {discountSource === 'member' && selectedMember && (
                             <Chip
                                 label={`${selectedMember.discountPercent}% 會員折扣`}
                                 size="small"
                                 sx={{ bgcolor: 'rgba(255,138,101,0.12)', color: '#FFAB91', fontWeight: 800 }}
+                            />
+                        )}
+                        {discountSource === 'promotion' && appliedPromotion && (
+                            <Chip
+                                label={appliedPromotion.code ? `${appliedPromotion.name} · ${appliedPromotion.code}` : appliedPromotion.name}
+                                size="small"
+                                sx={{ bgcolor: 'rgba(0,230,118,0.12)', color: '#7CFFB2', fontWeight: 800 }}
                             />
                         )}
                     </Box>
@@ -235,7 +250,7 @@ const CheckoutPage: React.FC = () => {
                         <Typography variant="body2">{formatMoney(totals.tax)}</Typography>
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, color: '#FF8A65' }}>
-                        <Typography variant="body2" letterSpacing={1} fontWeight="bold">會員折扣</Typography>
+                        <Typography variant="body2" letterSpacing={1} fontWeight="bold">{discountLabel}</Typography>
                         <Typography variant="body2">-{formatMoney(totals.discount)}</Typography>
                     </Box>
                     

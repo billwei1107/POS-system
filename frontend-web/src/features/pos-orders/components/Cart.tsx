@@ -17,6 +17,7 @@ import { heldOrderApi } from '../api/orderApi';
 import type { HeldOrderResponse } from '../types';
 import { memberApi } from '../../pos-crm/api/memberApi';
 import type { Member } from '../../pos-crm/types';
+import { promotionApi } from '../../pos-promotion/api/promotionApi';
 import { getActivePosContext } from '../posSession';
 
 const mapMemberToCartMember = (member: Member): CartMember => ({
@@ -38,12 +39,16 @@ const Cart: React.FC = () => {
     const clear = useCartStore((state) => state.clear);
     const taxRate = useCartStore((state) => state.taxRate);
     const discountAmount = useCartStore((state) => state.discountAmount);
+    const discountSource = useCartStore((state) => state.discountSource);
     const selectedMember = useCartStore((state) => state.selectedMember);
+    const appliedPromotion = useCartStore((state) => state.appliedPromotion);
     const heldOrders = useCartStore((state) => state.heldOrders);
     const setDiscountAmount = useCartStore((state) => state.setDiscountAmount);
     const clearDiscount = useCartStore((state) => state.clearDiscount);
     const setMember = useCartStore((state) => state.setMember);
     const clearMember = useCartStore((state) => state.clearMember);
+    const setPromotionDiscount = useCartStore((state) => state.setPromotionDiscount);
+    const clearPromotionDiscount = useCartStore((state) => state.clearPromotionDiscount);
     const holdCurrentOrder = useCartStore((state) => state.holdCurrentOrder);
     const replaceHeldOrders = useCartStore((state) => state.replaceHeldOrders);
     const replaceHeldOrder = useCartStore((state) => state.replaceHeldOrder);
@@ -57,9 +62,19 @@ const Cart: React.FC = () => {
     const [memberCandidates, setMemberCandidates] = useState<CartMember[]>([]);
     const [memberLoading, setMemberLoading] = useState(false);
     const [memberError, setMemberError] = useState('');
+    const [promotionCodeInput, setPromotionCodeInput] = useState('');
+    const [promotionLoading, setPromotionLoading] = useState(false);
+    const [promotionError, setPromotionError] = useState('');
     const posContext = useMemo(() => getActivePosContext(), []);
     const totals = useMemo(() => calculateCartTotals(lines, taxRate, discountAmount), [discountAmount, lines, taxRate]);
     const itemCount = useMemo(() => calculateItemCount(lines), [lines]);
+
+    const discountLabel = useMemo(() => {
+        if (discountSource === 'member' && selectedMember) return `${selectedMember.discountPercent}% 會員折扣`;
+        if (discountSource === 'promotion' && appliedPromotion) return appliedPromotion.name;
+        if (discountSource === 'manual') return '手動折扣';
+        return '折扣';
+    }, [appliedPromotion, discountSource, selectedMember]);
 
     // ========================================
     // 折扣設定 / Discount Controls
@@ -87,7 +102,100 @@ const Cart: React.FC = () => {
     const handleClearDiscount = () => {
         clearDiscount();
         setDiscountInput('');
+        setPromotionCodeInput('');
+        setPromotionError('');
         setDiscountOpen(false);
+    };
+
+    // ========================================
+    // 自動促銷試算 / Automatic Promotion Evaluation
+    // ========================================
+    useEffect(() => {
+        if (discountSource === 'manual' || discountSource === 'member') return;
+
+        if (lines.length === 0 || totals.subtotal <= 0) {
+            clearPromotionDiscount();
+            setPromotionError('');
+            return;
+        }
+
+        let cancelled = false;
+        const activeCode = appliedPromotion?.code ?? null;
+        setPromotionLoading(true);
+
+        promotionApi.evaluate({
+            storeId: posContext.storeId,
+            subtotal: totals.subtotal,
+            code: activeCode,
+        })
+            .then((response) => {
+                if (cancelled) return;
+                const result = response.data;
+                if (result?.applied && result.ruleId && result.discountAmount > 0) {
+                    setPromotionDiscount({
+                        ruleId: result.ruleId,
+                        name: result.name ?? '促銷折扣',
+                        code: result.code,
+                        discountAmount: Number(result.discountAmount),
+                    });
+                    setPromotionError('');
+                } else {
+                    clearPromotionDiscount();
+                }
+            })
+            .catch(() => {
+                if (!cancelled && discountSource === 'promotion') {
+                    clearPromotionDiscount();
+                    setPromotionError('促銷試算失敗，請稍後再試。');
+                }
+            })
+            .finally(() => {
+                if (!cancelled) setPromotionLoading(false);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [
+        appliedPromotion?.code,
+        clearPromotionDiscount,
+        discountSource,
+        lines,
+        posContext.storeId,
+        setPromotionDiscount,
+        totals.subtotal,
+    ]);
+
+    const handleApplyPromotionCode = async () => {
+        const code = promotionCodeInput.trim();
+        if (!code || totals.subtotal <= 0) return;
+
+        setPromotionLoading(true);
+        setPromotionError('');
+        try {
+            const response = await promotionApi.evaluate({
+                storeId: posContext.storeId,
+                subtotal: totals.subtotal,
+                code,
+            });
+            const result = response.data;
+            if (result?.applied && result.ruleId && result.discountAmount > 0) {
+                setPromotionDiscount({
+                    ruleId: result.ruleId,
+                    name: result.name ?? '促銷折扣',
+                    code: result.code,
+                    discountAmount: Number(result.discountAmount),
+                });
+                setPromotionCodeInput(result.code ?? code.toUpperCase());
+                setDiscountOpen(false);
+            } else {
+                setPromotionError('沒有可套用的優惠碼。');
+            }
+        } catch {
+            setPromotionError('優惠碼試算失敗，請稍後再試。');
+        } finally {
+            setPromotionLoading(false);
+        }
     };
 
     // ========================================
@@ -349,9 +457,15 @@ const Cart: React.FC = () => {
                     <Typography>{formatMoney(totals.tax)}</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', color: 'success.main' }}>
-                    <Typography>折扣</Typography>
+                    <Typography>{discountLabel}</Typography>
                     <Typography>-{formatMoney(totals.discount)}</Typography>
                 </Box>
+                {promotionLoading && discountSource !== 'manual' && discountSource !== 'member' && (
+                    <Typography variant="caption" color="text.secondary">促銷試算中...</Typography>
+                )}
+                {promotionError && (
+                    <Typography variant="caption" color="warning.main">{promotionError}</Typography>
+                )}
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1, alignItems: 'center' }}>
                     <Typography variant="h5" fontWeight={900}>總計</Typography>
                     <Typography variant="h4" fontWeight={900} color="secondary.main" sx={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -373,7 +487,7 @@ const Cart: React.FC = () => {
                         bgcolor: totals.discount > 0 ? 'rgba(0,230,118,0.08)' : 'rgba(255,255,255,0.05)'
                     }}
                 >
-                    {totals.discount > 0 ? `折扣 ${formatMoney(totals.discount)}` : '折扣'}
+                    {totals.discount > 0 ? `${discountLabel} ${formatMoney(totals.discount)}` : '折扣'}
                 </Button>
                 <Button
                     variant="outlined"
@@ -431,6 +545,11 @@ const Cart: React.FC = () => {
             >
                 <DialogTitle sx={{ fontWeight: 900 }}>套用折扣</DialogTitle>
                 <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+                    {appliedPromotion && (
+                        <Alert severity="success">
+                            已套用 {appliedPromotion.name}，折抵 {formatMoney(appliedPromotion.discountAmount)}
+                        </Alert>
+                    )}
                     <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1 }}>
                         {[5, 10, 20].map((percent) => (
                             <Button
@@ -456,6 +575,23 @@ const Cart: React.FC = () => {
                         <Typography variant="body2">折扣後小計</Typography>
                         <Typography variant="body2">{formatMoney(Math.max(0, totals.subtotal - (Number(discountInput) || 0)))}</Typography>
                     </Box>
+                    <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)' }} />
+                    <TextField
+                        label="優惠碼"
+                        value={promotionCodeInput}
+                        onChange={(event) => {
+                            setPromotionCodeInput(event.target.value);
+                            setPromotionError('');
+                        }}
+                        placeholder="例如 CAFE20"
+                        helperText="優惠碼會取代目前手動或會員折扣"
+                        fullWidth
+                    />
+                    {promotionError && (
+                        <Alert severity="warning" onClose={() => setPromotionError('')}>
+                            {promotionError}
+                        </Alert>
+                    )}
                 </DialogContent>
                 <DialogActions sx={{ px: 3, pb: 3 }}>
                     <Button onClick={handleClearDiscount} sx={{ color: 'text.secondary' }}>
@@ -464,6 +600,14 @@ const Cart: React.FC = () => {
                     <Box sx={{ flexGrow: 1 }} />
                     <Button onClick={() => setDiscountOpen(false)} sx={{ color: 'text.secondary' }}>
                         取消
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        disabled={!promotionCodeInput.trim() || promotionLoading}
+                        onClick={handleApplyPromotionCode}
+                        sx={{ color: 'text.primary', borderColor: 'rgba(255,255,255,0.12)' }}
+                    >
+                        套優惠碼
                     </Button>
                     <Button variant="contained" color="secondary" onClick={confirmDiscount}>
                         套用

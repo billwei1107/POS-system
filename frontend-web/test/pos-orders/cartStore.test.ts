@@ -50,7 +50,9 @@ beforeEach(() => {
     lines: [],
     taxRate: 0.05,
     discountAmount: 0,
+    discountSource: null,
     selectedMember: null,
+    appliedPromotion: null,
     heldOrders: [],
   });
   vi.useRealTimers();
@@ -86,12 +88,29 @@ describe('useCartStore', () => {
     expect(state.lines).toHaveLength(1);
     expect(state.lines[0].quantity).toBe(2);
     expect(state.discountAmount).toBe(24);
+    expect(state.discountSource).toBe('member');
     expect(state.totals()).toEqual({
       subtotal: 240,
       discount: 24,
       tax: 10.8,
       total: 227,
     });
+  });
+
+  it('applies promotion discount as a distinct discount source', () => {
+    useCartStore.getState().addProduct(createProduct());
+    useCartStore.getState().setPromotionDiscount({
+      ruleId: 'promo-100',
+      name: '咖啡滿百 9 折',
+      code: null,
+      discountAmount: 12,
+    });
+
+    const state = useCartStore.getState();
+    expect(state.discountSource).toBe('promotion');
+    expect(state.appliedPromotion?.name).toBe('咖啡滿百 9 折');
+    expect(state.discountAmount).toBe(12);
+    expect(state.selectedMember).toBeNull();
   });
 
   it('holds current order in localStorage and restores it into the cart', () => {
