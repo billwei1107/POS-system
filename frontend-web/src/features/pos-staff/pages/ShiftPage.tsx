@@ -4,7 +4,7 @@
  * @description_en Manage staff shifts: open, close, blind close, and view open shifts
  * @description_zh 管理班次：開班、關班、盲點結算、查看當前開放班次
  */
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell, TableBody,
   Chip, Alert, TextField, Dialog, DialogTitle, DialogContent, DialogActions,
@@ -14,7 +14,7 @@ import { formatDateTime } from '@shared/utils';
 import { shiftApi } from '../api/staffApi';
 import { cashDrawerApi } from '../../pos-payment/api/paymentApi';
 import type { OpenShiftPayload, StaffShift } from '../types';
-import { DEFAULT_EMPLOYEE_ID, DEFAULT_STORE_ID, DEFAULT_TERMINAL_ID } from '../../pos-orders/config';
+import { getActivePosContext } from '../../pos-orders/posSession';
 
 const STATUS_LABEL: Record<string, string> = {
   OPEN: '開班中',
@@ -38,39 +38,40 @@ const ShiftPage: React.FC = () => {
   const [success, setSuccess] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
   const [closeDialog, setCloseDialog] = useState<{ open: boolean; shiftId: string }>({ open: false, shiftId: '' });
+  const posContext = useMemo(() => getActivePosContext(), []);
 
   // ========================================
   // 開班表單 / Open shift form
   // ========================================
   const [openForm, setOpenForm] = useState<OpenShiftPayload>({
-    employeeId: DEFAULT_EMPLOYEE_ID,
-    terminalId: DEFAULT_TERMINAL_ID,
+    employeeId: posContext.employeeId,
+    terminalId: posContext.terminalId,
     openingCash: 1000,
   });
   const [closingCash, setClosingCash] = useState('');
 
-  const loadShifts = async () => {
+  const loadShifts = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await shiftApi.listOpen(DEFAULT_STORE_ID);
+      const res = await shiftApi.listOpen(posContext.storeId);
       setShifts(res.data ?? []);
     } catch {
       setError('載入失敗');
     } finally {
       setLoading(false);
     }
-  };
+  }, [posContext.storeId]);
 
-  useEffect(() => { loadShifts(); }, []);
+  useEffect(() => { loadShifts(); }, [loadShifts]);
 
   const handleOpen = async () => {
     if (!openForm.employeeId) return;
     try {
-      await shiftApi.open(DEFAULT_STORE_ID, openForm);
+      await shiftApi.open(posContext.storeId, openForm);
       try {
         await cashDrawerApi.open({
-          storeId: DEFAULT_STORE_ID,
-          terminalId: openForm.terminalId || DEFAULT_TERMINAL_ID,
+          storeId: posContext.storeId,
+          terminalId: openForm.terminalId || posContext.terminalId,
           openedBy: openForm.employeeId,
           openingAmount: openForm.openingCash,
         });
@@ -78,7 +79,7 @@ const ShiftPage: React.FC = () => {
         // 現金抽屜可能已由同終端機開啟；開班成功時不阻斷班次流程。
       }
       setOpenDialog(false);
-      setOpenForm({ employeeId: DEFAULT_EMPLOYEE_ID, terminalId: DEFAULT_TERMINAL_ID, openingCash: 1000 });
+      setOpenForm({ employeeId: posContext.employeeId, terminalId: posContext.terminalId, openingCash: 1000 });
       await loadShifts();
       setSuccess('班次已開啟');
     } catch {
@@ -91,9 +92,9 @@ const ShiftPage: React.FC = () => {
     try {
       await shiftApi.close(closeDialog.shiftId, { closingCash: Number(closingCash) });
       try {
-        const drawer = await cashDrawerApi.getOpen(DEFAULT_TERMINAL_ID);
+        const drawer = await cashDrawerApi.getOpen(posContext.terminalId);
         if (drawer.data) {
-          await cashDrawerApi.close(drawer.data.id, DEFAULT_EMPLOYEE_ID, Number(closingCash), 'shift close');
+          await cashDrawerApi.close(drawer.data.id, posContext.employeeId, Number(closingCash), 'shift close');
         }
       } catch {
         // 若沒有開啟中的抽屜，仍保留班次關班結果。

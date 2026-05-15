@@ -4,7 +4,7 @@
  * @description_en View store inventory levels, alerts, and entry points for receiving and stock takes
  * @description_zh 查看門店庫存水位、警示，並提供進貨驗收與盤點單入口
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -29,7 +29,7 @@ import {
 } from '@mui/material';
 import { AssignmentTurnedIn, Inventory2, LocalShipping, Tune } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { DEFAULT_EMPLOYEE_ID, DEFAULT_STORE_ID } from '../../pos-orders/config';
+import { getActivePosContext } from '../../pos-orders/posSession';
 import { productApi } from '../../pos-products/api/productApi';
 import type { ProductItem } from '../../pos-products/types';
 import { alertApi, stockApi } from '../api/inventoryApi';
@@ -55,11 +55,12 @@ const StockOverviewPage: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [adjDialog, setAdjDialog] = useState(false);
+  const posContext = useMemo(() => getActivePosContext(), []);
   const [adjForm, setAdjForm] = useState<AdjustStockPayload>({
-    storeId: DEFAULT_STORE_ID,
+    storeId: posContext.storeId,
     itemId: '',
     adjustQty: 0,
-    operatedBy: DEFAULT_EMPLOYEE_ID,
+    operatedBy: posContext.employeeId,
     notes: '',
   });
 
@@ -84,12 +85,12 @@ const StockOverviewPage: React.FC = () => {
     return { totalItems: stocks.length, lowStock, outOfStock, totalQty };
   }, [stocks]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [stockRes, alertRes, productRes] = await Promise.all([
-        stockApi.listByStore(DEFAULT_STORE_ID),
-        alertApi.listUnacknowledged(DEFAULT_STORE_ID),
+        stockApi.listByStore(posContext.storeId),
+        alertApi.listUnacknowledged(posContext.storeId),
         productApi.getProducts({ page: 0, size: 500 }),
       ]);
       setStocks(stockRes.data ?? []);
@@ -100,9 +101,9 @@ const StockOverviewPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [posContext.storeId]);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const getProductName = (itemId: string) => productMap.get(itemId)?.name ?? `商品 ${itemId.slice(0, 8)}`;
   const getProductSku = (itemId: string) => productMap.get(itemId)?.sku ?? itemId;
@@ -117,10 +118,10 @@ const StockOverviewPage: React.FC = () => {
       await stockApi.adjust(adjForm);
       setAdjDialog(false);
       setAdjForm({
-        storeId: DEFAULT_STORE_ID,
+        storeId: posContext.storeId,
         itemId: '',
         adjustQty: 0,
-        operatedBy: DEFAULT_EMPLOYEE_ID,
+        operatedBy: posContext.employeeId,
         notes: '',
       });
       await loadData();
@@ -132,7 +133,7 @@ const StockOverviewPage: React.FC = () => {
 
   const handleAcknowledge = async (alertId: string) => {
     try {
-      await alertApi.acknowledge(alertId, DEFAULT_EMPLOYEE_ID);
+      await alertApi.acknowledge(alertId, posContext.employeeId);
       setAlerts(prev => prev.filter(alert => alert.id !== alertId));
     } catch {
       setError('確認警示失敗');

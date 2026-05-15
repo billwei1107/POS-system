@@ -30,7 +30,7 @@ import type { SelectChangeEvent } from '@mui/material/Select';
 import { ArrowBack, AssignmentTurnedIn, CalendarMonth, CheckCircle, ChevronLeft, ChevronRight, Close, PlaylistAddCheck, RestartAlt } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { formatDateTime } from '@shared/utils';
-import { DEFAULT_EMPLOYEE_ID, DEFAULT_STORE_ID } from '../../pos-orders/config';
+import { getActivePosContext } from '../../pos-orders/posSession';
 import { productApi } from '../../pos-products/api/productApi';
 import type { ProductItem } from '../../pos-products/types';
 import { stockTakeApi } from '../api/inventoryApi';
@@ -148,6 +148,7 @@ const StockTakePage: React.FC = () => {
   const [savingKeys, setSavingKeys] = useState<Record<string, boolean>>({});
   const [savingComplete, setSavingComplete] = useState(false);
   const isDetailMode = Boolean(stockTakeId);
+  const posContext = useMemo(() => getActivePosContext(), []);
 
   const productMap = useMemo(
     () => new Map(products.map(product => [product.id, product])),
@@ -250,11 +251,11 @@ const StockTakePage: React.FC = () => {
       && (rawValue === undefined || rawValue === '');
   }).length;
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [takeRes, productRes] = await Promise.all([
-        stockTakeApi.listByStore(DEFAULT_STORE_ID),
+        stockTakeApi.listByStore(posContext.storeId),
         productApi.getProducts({ page: 0, size: 500 }),
       ]);
       const nextTakes = takeRes.data ?? [];
@@ -278,9 +279,9 @@ const StockTakePage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [posContext.storeId]);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [loadData]);
 
   useEffect(() => {
     setStockTakePage(1);
@@ -305,7 +306,7 @@ const StockTakePage: React.FC = () => {
 
   const handleStart = async () => {
     try {
-      const res = await stockTakeApi.start(DEFAULT_STORE_ID, DEFAULT_EMPLOYEE_ID);
+      const res = await stockTakeApi.start(posContext.storeId, posContext.employeeId);
       await loadData();
       setSuccess('新的盤點單已建立，請依現場實數逐項登記');
       if (res.data?.id) {

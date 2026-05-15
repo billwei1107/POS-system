@@ -4,7 +4,7 @@
  * @description_en Manage store-level tax classes: list, create, deactivate
  * @description_zh 管理門店稅率類別：列表、新增、停用
  */
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell, TableBody,
   Chip, Dialog, DialogTitle, DialogContent, DialogActions, TextField,
@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 import { taxClassApi } from '../api/taxApi';
 import type { TaxClass, CreateTaxClassRequest, TaxType } from '../types';
-import { DEFAULT_STORE_ID } from '../../pos-orders/config';
+import { getActivePosContext } from '../../pos-orders/posSession';
 
 const TAX_TYPE_OPTIONS: { value: TaxType; label: string }[] = [
   { value: 'INCLUSIVE', label: '含稅' },
@@ -44,9 +44,10 @@ const TaxClassSettingsPage: React.FC = () => {
   const [error, setError] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const posContext = useMemo(() => getActivePosContext(), []);
 
   const [form, setForm] = useState<CreateTaxClassRequest>({
-    storeId: DEFAULT_STORE_ID,
+    storeId: posContext.storeId,
     name: '',
     taxType: 'INCLUSIVE',
     rate: 0.05,
@@ -54,19 +55,19 @@ const TaxClassSettingsPage: React.FC = () => {
     isDefault: false,
   });
 
-  const loadClasses = async () => {
+  const loadClasses = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await taxClassApi.list(DEFAULT_STORE_ID);
+      const res = await taxClassApi.list(posContext.storeId);
       setClasses(res.data ?? []);
     } catch {
       setError('載入失敗');
     } finally {
       setLoading(false);
     }
-  };
+  }, [posContext.storeId]);
 
-  useEffect(() => { loadClasses(); }, []);
+  useEffect(() => { loadClasses(); }, [loadClasses]);
 
   const handleCreate = async () => {
     if (!form.name) return;
@@ -74,7 +75,7 @@ const TaxClassSettingsPage: React.FC = () => {
     try {
       await taxClassApi.create(form);
       setDialogOpen(false);
-      setForm({ storeId: DEFAULT_STORE_ID, name: '', taxType: 'INCLUSIVE', rate: 0.05, description: '', isDefault: false });
+      setForm({ storeId: posContext.storeId, name: '', taxType: 'INCLUSIVE', rate: 0.05, description: '', isDefault: false });
       await loadClasses();
     } catch {
       setError('建立失敗');

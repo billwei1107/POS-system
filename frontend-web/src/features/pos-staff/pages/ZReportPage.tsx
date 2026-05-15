@@ -4,7 +4,7 @@
  * @description_en View and generate Z Reports with hash integrity verification
  * @description_zh 查看與產生 Z Report，包含 Hash 完整性驗證
  */
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell, TableBody,
   Chip, Alert, TextField, Dialog, DialogTitle, DialogContent, DialogActions,
@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 import { reportApi } from '../api/staffApi';
 import type { GenerateZReportPayload, ZReport } from '../types';
-import { DEFAULT_EMPLOYEE_ID, DEFAULT_STORE_ID } from '../../pos-orders/config';
+import { getActivePosContext } from '../../pos-orders/posSession';
 import { formatDateTime, toISODateString } from '@shared/utils';
 
 
@@ -25,29 +25,30 @@ const ZReportPage: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const posContext = useMemo(() => getActivePosContext(), []);
   const [form, setForm] = useState<GenerateZReportPayload>({
     reportDate: toISODateString(new Date()),
     cashInDrawer: 0,
-    generatedBy: DEFAULT_EMPLOYEE_ID,
+    generatedBy: posContext.employeeId,
   });
 
-  const loadReports = async () => {
+  const loadReports = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await reportApi.listZ(DEFAULT_STORE_ID);
+      const res = await reportApi.listZ(posContext.storeId);
       setReports(res.data ?? []);
     } catch {
       setError('載入失敗');
     } finally {
       setLoading(false);
     }
-  };
+  }, [posContext.storeId]);
 
-  useEffect(() => { loadReports(); }, []);
+  useEffect(() => { loadReports(); }, [loadReports]);
 
   const handleGenerate = async () => {
     try {
-      await reportApi.generateZ(DEFAULT_STORE_ID, form);
+      await reportApi.generateZ(posContext.storeId, form);
       setDialogOpen(false);
       await loadReports();
       setSuccess('Z Report 已產生');

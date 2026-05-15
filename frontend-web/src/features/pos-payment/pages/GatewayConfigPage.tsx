@@ -4,7 +4,7 @@
  * @description_en Manage store-level gateway configs through the payment gateway API
  * @description_zh 透過支付閘道 API 管理門店層級閘道設定
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -34,7 +34,7 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { DEFAULT_STORE_ID } from '../../pos-orders/config';
+import { getActivePosContext } from '../../pos-orders/posSession';
 import { gatewayApi } from '../api/paymentApi';
 import type {
   CreateGatewayConfigRequest,
@@ -42,8 +42,6 @@ import type {
   GatewayType,
   UpdateGatewayConfigRequest,
 } from '../types';
-
-const STORE_ID = DEFAULT_STORE_ID;
 
 const GATEWAY_TYPE_OPTIONS: { value: GatewayType; label: string }[] = [
   { value: 'CASH', label: '現金' },
@@ -104,6 +102,7 @@ const GatewayConfigPage: React.FC = () => {
   const [editingGateway, setEditingGateway] = useState<GatewayConfig | null>(null);
   const [form, setForm] = useState<GatewayFormState>(createEmptyForm);
   const [submitting, setSubmitting] = useState(false);
+  const posContext = useMemo(() => getActivePosContext(), []);
 
   const usedGatewayTypes = useMemo(() => new Set(gateways.map((gateway) => gateway.gatewayType)), [gateways]);
 
@@ -112,22 +111,22 @@ const GatewayConfigPage: React.FC = () => {
     [editingGateway?.gatewayType, usedGatewayTypes]
   );
 
-  const loadGateways = async () => {
+  const loadGateways = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
-      const res = await gatewayApi.list(STORE_ID);
+      const res = await gatewayApi.list(posContext.storeId);
       setGateways(res.data ?? []);
     } catch {
       setError('載入閘道設定失敗');
     } finally {
       setLoading(false);
     }
-  };
+  }, [posContext.storeId]);
 
   useEffect(() => {
     loadGateways();
-  }, []);
+  }, [loadGateways]);
 
   const openCreateDialog = () => {
     const firstAvailable = selectableGatewayTypes[0]?.value ?? 'MOCK_CARD';
@@ -180,7 +179,7 @@ const GatewayConfigPage: React.FC = () => {
         await gatewayApi.update(editingGateway.id, req);
       } else {
         const req: CreateGatewayConfigRequest = {
-          storeId: STORE_ID,
+          storeId: posContext.storeId,
           gatewayType: form.gatewayType,
           displayName: form.displayName.trim(),
           merchantId: optionalText(form.merchantId),

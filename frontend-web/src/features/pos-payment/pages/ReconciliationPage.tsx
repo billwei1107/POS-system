@@ -4,7 +4,7 @@
  * @description_en Generate and confirm daily payment reconciliation per store
  * @description_zh 產生並確認每門店每日支付對帳記錄
  */
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell, TableBody,
   Chip, Alert, TextField, Paper, Dialog, DialogTitle, DialogContent,
@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 import { reconciliationApi } from '../api/paymentApi';
 import type { Reconciliation, ReconStatus } from '../types';
-import { DEFAULT_EMPLOYEE_ID, DEFAULT_STORE_ID } from '../../pos-orders/config';
+import { getActivePosContext } from '../../pos-orders/posSession';
 import { toISODateString } from '@shared/utils';
 
 const STATUS_COLOR: Record<ReconStatus, 'default' | 'warning' | 'success' | 'error'> = {
@@ -38,6 +38,7 @@ const ReconciliationPage: React.FC = () => {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const posContext = useMemo(() => getActivePosContext(), []);
 
   // ========================================
   // 確認對帳對話框狀態 / Confirm reconciliation dialog state
@@ -47,14 +48,14 @@ const ReconciliationPage: React.FC = () => {
     reconId: '',
   });
   const [gatewayAmount, setGatewayAmount] = useState('');
-  const [reconciledBy, setReconciledBy] = useState(DEFAULT_EMPLOYEE_ID);
+  const [reconciledBy, setReconciledBy] = useState(posContext.employeeId);
 
   const loadRecords = async () => {
     if (!date) return;
     setLoading(true);
     setError('');
     try {
-      const res = await reconciliationApi.list(DEFAULT_STORE_ID, date);
+      const res = await reconciliationApi.list(posContext.storeId, date);
       setRecords(res.data ?? []);
     } catch {
       setError('查詢失敗');
@@ -68,7 +69,7 @@ const ReconciliationPage: React.FC = () => {
     setGenerating(true);
     setError('');
     try {
-      const res = await reconciliationApi.generate(DEFAULT_STORE_ID, date);
+      const res = await reconciliationApi.generate(posContext.storeId, date);
       setRecords(res.data ?? []);
       setSuccess(`已產生 ${res.data?.length ?? 0} 筆對帳記錄`);
     } catch {
@@ -84,7 +85,7 @@ const ReconciliationPage: React.FC = () => {
       await reconciliationApi.confirm(confirmDialog.reconId, Number(gatewayAmount), reconciledBy);
       setConfirmDialog({ open: false, reconId: '' });
       setGatewayAmount('');
-      setReconciledBy(DEFAULT_EMPLOYEE_ID);
+      setReconciledBy(posContext.employeeId);
       await loadRecords();
       setSuccess('對帳已確認');
     } catch {

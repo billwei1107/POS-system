@@ -4,17 +4,15 @@
  * @description_en Manage store-level payment methods: list, create, deactivate
  * @description_zh 管理門店支付方式：列表、新增、停用
  */
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell, TableBody,
   Chip, Dialog, DialogTitle, DialogContent, DialogActions, TextField,
   MenuItem, Switch, FormControlLabel, Alert, CircularProgress,
 } from '@mui/material';
-import { DEFAULT_STORE_ID } from '../../pos-orders/config';
+import { getActivePosContext } from '../../pos-orders/posSession';
 import { payMethodApi } from '../api/paymentApi';
 import type { PayMethod, CreatePayMethodRequest, MethodType } from '../types';
-
-const STORE_ID = DEFAULT_STORE_ID;
 
 const METHOD_TYPE_OPTIONS: { value: MethodType; label: string }[] = [
   { value: 'CASH', label: '現金' },
@@ -41,12 +39,13 @@ const PayMethodSettingsPage: React.FC = () => {
   const [error, setError] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const posContext = useMemo(() => getActivePosContext(), []);
 
   // ========================================
   // 新增表單狀態 / New pay method form state
   // ========================================
   const [form, setForm] = useState<CreatePayMethodRequest>({
-    storeId: STORE_ID,
+    storeId: posContext.storeId,
     code: '',
     name: '',
     methodType: 'CASH',
@@ -54,19 +53,19 @@ const PayMethodSettingsPage: React.FC = () => {
     sortOrder: 0,
   });
 
-  const loadMethods = async () => {
+  const loadMethods = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await payMethodApi.list(STORE_ID);
+      const res = await payMethodApi.list(posContext.storeId);
       setMethods(res.data ?? []);
     } catch {
       setError('載入失敗');
     } finally {
       setLoading(false);
     }
-  };
+  }, [posContext.storeId]);
 
-  useEffect(() => { loadMethods(); }, []);
+  useEffect(() => { loadMethods(); }, [loadMethods]);
 
   const handleCreate = async () => {
     if (!form.code || !form.name) return;
@@ -74,7 +73,7 @@ const PayMethodSettingsPage: React.FC = () => {
     try {
       await payMethodApi.create(form);
       setDialogOpen(false);
-      setForm({ storeId: STORE_ID, code: '', name: '', methodType: 'CASH', isChangeBack: true, sortOrder: 0 });
+      setForm({ storeId: posContext.storeId, code: '', name: '', methodType: 'CASH', isChangeBack: true, sortOrder: 0 });
       await loadMethods();
     } catch {
       setError('建立失敗');

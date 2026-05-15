@@ -4,7 +4,7 @@
  * @description_en Count inbound goods and post verified receiving quantities into inventory
  * @description_zh 讓門店在進貨時先點收商品，再依實際驗收數量入庫
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -20,7 +20,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Add, DeleteOutline, Inventory2, Save } from '@mui/icons-material';
-import { DEFAULT_EMPLOYEE_ID, DEFAULT_STORE_ID } from '../../pos-orders/config';
+import { getActivePosContext } from '../../pos-orders/posSession';
 import { productApi } from '../../pos-products/api/productApi';
 import type { ProductItem } from '../../pos-products/types';
 import { stockApi } from '../api/inventoryApi';
@@ -58,6 +58,7 @@ const ReceivingPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const posContext = useMemo(() => getActivePosContext(), []);
 
   const productMap = useMemo(
     () => new Map(products.map(product => [product.id, product])),
@@ -88,12 +89,12 @@ const ReceivingPage: React.FC = () => {
     };
   }, [rows]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [productRes, stockRes] = await Promise.all([
         productApi.getProducts({ page: 0, size: 500 }),
-        stockApi.listByStore(DEFAULT_STORE_ID),
+        stockApi.listByStore(posContext.storeId),
       ]);
       setProducts(productRes.data?.content ?? []);
       setStocks(stockRes.data ?? []);
@@ -102,9 +103,9 @@ const ReceivingPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [posContext.storeId]);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const updateRow = (rowId: string, patch: Partial<ReceivingRow>) => {
     setRows(prev => prev.map(row => (row.rowId === rowId ? { ...row, ...patch } : row)));
@@ -150,8 +151,8 @@ const ReceivingPage: React.FC = () => {
       setSubmitting(true);
       setError('');
       await stockApi.receive({
-        storeId: DEFAULT_STORE_ID,
-        operatedBy: DEFAULT_EMPLOYEE_ID,
+        storeId: posContext.storeId,
+        operatedBy: posContext.employeeId,
         notes: buildNotes(),
         items: validRows.map(row => ({ itemId: row.itemId, receivedQty: toNumber(row.receivedQty) })),
       });

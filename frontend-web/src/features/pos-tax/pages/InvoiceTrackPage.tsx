@@ -4,7 +4,7 @@
  * @description_en Register and view bi-monthly MoF-allocated invoice character tracks
  * @description_zh 登記並查看財政部配發的發票字軌號碼範圍
  */
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell, TableBody,
   Chip, Dialog, DialogTitle, DialogContent, DialogActions, TextField,
@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 import { invoiceTrackApi } from '../api/taxApi';
 import type { InvoiceTrack, AddInvoiceTrackRequest } from '../types';
-import { DEFAULT_STORE_ID } from '../../pos-orders/config';
+import { getActivePosContext } from '../../pos-orders/posSession';
 
 // ========================================
 // 字軌使用進度計算 / Track usage progress calculation
@@ -36,9 +36,10 @@ const InvoiceTrackPage: React.FC = () => {
   const [success, setSuccess] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const posContext = useMemo(() => getActivePosContext(), []);
 
   const [form, setForm] = useState<AddInvoiceTrackRequest>({
-    storeId: DEFAULT_STORE_ID,
+    storeId: posContext.storeId,
     sellerId: '',
     trackPrefix: '',
     yearMonth: '',
@@ -47,19 +48,19 @@ const InvoiceTrackPage: React.FC = () => {
     endNo: '00000050',
   });
 
-  const loadTracks = async () => {
+  const loadTracks = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await invoiceTrackApi.list(DEFAULT_STORE_ID);
+      const res = await invoiceTrackApi.list(posContext.storeId);
       setTracks(res.data ?? []);
     } catch {
       setError('載入失敗');
     } finally {
       setLoading(false);
     }
-  };
+  }, [posContext.storeId]);
 
-  useEffect(() => { loadTracks(); }, []);
+  useEffect(() => { loadTracks(); }, [loadTracks]);
 
   const handleAdd = async () => {
     if (!form.sellerId || !form.trackPrefix || !form.yearMonth) return;
@@ -67,7 +68,7 @@ const InvoiceTrackPage: React.FC = () => {
     try {
       await invoiceTrackApi.add(form);
       setDialogOpen(false);
-      setForm({ storeId: DEFAULT_STORE_ID, sellerId: '', trackPrefix: '', yearMonth: '', period: '', startNo: '00000001', endNo: '00000050' });
+      setForm({ storeId: posContext.storeId, sellerId: '', trackPrefix: '', yearMonth: '', period: '', startNo: '00000001', endNo: '00000050' });
       await loadTracks();
       setSuccess('字軌已新增');
     } catch {

@@ -4,7 +4,7 @@
  * @description_en Query and manage issued e-invoices by date range; void individual invoices
  * @description_zh 依日期範圍查詢與管理已開立的電子發票，支援手動作廢
  */
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell, TableBody,
   Chip, Alert, TextField, Paper, Dialog, DialogTitle, DialogContent,
@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 import { invoiceApi } from '../api/taxApi';
 import type { Invoice, InvoiceStatus, UploadStatus } from '../types';
-import { DEFAULT_STORE_ID } from '../../pos-orders/config';
+import { getActivePosContext } from '../../pos-orders/posSession';
 import { formatDateTime, toISODateString } from '@shared/utils';
 
 const STATUS_COLOR: Record<InvoiceStatus, 'default' | 'success' | 'error' | 'warning'> = {
@@ -50,6 +50,7 @@ const InvoicePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const posContext = useMemo(() => getActivePosContext(), []);
 
   // ========================================
   // 作廢對話框狀態 / Void dialog state
@@ -66,7 +67,7 @@ const InvoicePage: React.FC = () => {
     try {
       const from = `${fromDate}T00:00:00`;
       const to = `${toDate}T23:59:59`;
-      const res = await invoiceApi.list(DEFAULT_STORE_ID, from, to);
+      const res = await invoiceApi.list(posContext.storeId, from, to);
       setInvoices(res.data ?? []);
     } catch {
       setError('查詢失敗');

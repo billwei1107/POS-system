@@ -4,18 +4,16 @@
  * @description_en Manage inter-store stock transfers: create, approve, ship, receive, cancel
  * @description_zh 管理門店間調撥：建立、核准、出貨、收貨、取消
  */
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell, TableBody,
   Chip, Alert, TextField, Dialog, DialogTitle, DialogContent, DialogActions,
   CircularProgress, Collapse,
 } from '@mui/material';
 import { formatDateTime } from '@shared/utils';
-import { DEFAULT_STORE_ID } from '../../pos-orders/config';
+import { getActivePosContext } from '../../pos-orders/posSession';
 import { transferApi } from '../api/inventoryApi';
 import type { CreateTransferRequestPayload, TransferRequest, TransferStatus } from '../types';
-
-const STORE_ID = DEFAULT_STORE_ID;
 
 const STATUS_LABEL: Record<TransferStatus, string> = {
   REQUESTED: '待核准',
@@ -43,37 +41,38 @@ const TransferPage: React.FC = () => {
   const [success, setSuccess] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const posContext = useMemo(() => getActivePosContext(), []);
 
   // ========================================
   // 新增調撥表單 / New transfer form
   // ========================================
   const [form, setForm] = useState<CreateTransferRequestPayload>({
-    fromStoreId: STORE_ID,
+    fromStoreId: posContext.storeId,
     toStoreId: '',
     notes: '',
     items: [{ itemId: '', requestedQty: 1 }],
   });
 
-  const loadTransfers = async () => {
+  const loadTransfers = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await transferApi.listByStore(STORE_ID);
+      const res = await transferApi.listByStore(posContext.storeId);
       setTransfers(res.data ?? []);
     } catch {
       setError('載入失敗');
     } finally {
       setLoading(false);
     }
-  };
+  }, [posContext.storeId]);
 
-  useEffect(() => { loadTransfers(); }, []);
+  useEffect(() => { loadTransfers(); }, [loadTransfers]);
 
   const handleCreate = async () => {
     if (!form.toStoreId || form.items.some(i => !i.itemId)) return;
     try {
       await transferApi.create(form);
       setDialogOpen(false);
-      setForm({ fromStoreId: STORE_ID, toStoreId: '', notes: '', items: [{ itemId: '', requestedQty: 1 }] });
+      setForm({ fromStoreId: posContext.storeId, toStoreId: '', notes: '', items: [{ itemId: '', requestedQty: 1 }] });
       await loadTransfers();
       setSuccess('調撥申請已建立');
     } catch {
