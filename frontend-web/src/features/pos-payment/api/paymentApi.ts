@@ -14,6 +14,8 @@ import type {
   CashDrawer,
   OpenDrawerRequest,
   GatewayConfig,
+  CreateGatewayConfigRequest,
+  UpdateGatewayConfigRequest,
   Reconciliation,
 } from '../types';
 
@@ -63,11 +65,20 @@ export const cashDrawerApi = {
 };
 
 // ========================================
-// 閘道配置 API / Gateway config API (placeholder)
+// 閘道配置 API / Gateway config API
 // ========================================
 export const gatewayApi = {
   list: (storeId: string) =>
     axiosInstance.get<unknown, ApiResponse<GatewayConfig[]>>(`${BASE}/gateways`, { params: { storeId } }),
+
+  create: (req: CreateGatewayConfigRequest) =>
+    axiosInstance.post<unknown, ApiResponse<GatewayConfig>, CreateGatewayConfigRequest>(`${BASE}/gateways`, req),
+
+  update: (id: string, req: UpdateGatewayConfigRequest) =>
+    axiosInstance.put<unknown, ApiResponse<GatewayConfig>, UpdateGatewayConfigRequest>(`${BASE}/gateways/${id}`, req),
+
+  deactivate: (id: string) =>
+    axiosInstance.delete<unknown, ApiResponse<null>>(`${BASE}/gateways/${id}`),
 };
 
 // ========================================

@@ -102,9 +102,38 @@ export interface GatewayConfig {
   gatewayType: GatewayType;
   displayName: string;
   merchantId: string | null;
+  endpointUrl: string | null;
+  extraConfig: string | null;
+  apiKeyConfigured: boolean;
+  apiSecretConfigured: boolean;
   isActive: boolean;
   isSandbox: boolean;
   createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateGatewayConfigRequest {
+  storeId: string;
+  gatewayType: GatewayType;
+  displayName: string;
+  merchantId?: string;
+  apiKey?: string;
+  apiSecret?: string;
+  endpointUrl?: string;
+  extraConfig?: string;
+  isSandbox: boolean;
+  isActive: boolean;
+}
+
+export interface UpdateGatewayConfigRequest {
+  displayName: string;
+  merchantId?: string;
+  apiKey?: string;
+  apiSecret?: string;
+  endpointUrl?: string;
+  extraConfig?: string;
+  isSandbox: boolean;
+  isActive: boolean;
 }
 
 // ========================================

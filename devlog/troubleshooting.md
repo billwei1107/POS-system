@@ -5,6 +5,32 @@
 
 ---
 
+# 2026-05-15 API smoke one-liner 引號拆解失敗
+
+## Issue
+
+- 場景：驗證 `GET /api/v1/pos/payments/gateways` 是否不暴露金流密鑰時，嘗試在單一 shell 指令內巢狀 `curl`、`node -e` 與 zsh 字串插值。
+- 問題：
+  - zsh 將 `node -e` 片段中的引號與括號拆壞，出現 `Unterminated string constant`、`bad pattern`。
+  - 內層 token 解析失敗後，後續 gateway API 以空 token 呼叫，造成 403。
+
+## Root Cause
+
+- 複雜的一行式命令同時包含 JSON、JavaScript 字串、shell command substitution 與 zsh glob pattern，引用規則過度脆弱。
+
+## Solution
+
+- 改成先用 `TOKEN=$(...)` 分段取得 JWT，再呼叫 gateway API。
+- JSON 摘要改用 `/usr/bin/python3 -c` 讀 stdin 解析，避免巢狀 JavaScript 引號與 zsh pattern 互相干擾。
+
+## Verification
+
+- 使用 `admin / 123456` 取得 token 成功。
+- `GET /api/v1/pos/payments/gateways?storeId=00000000-0000-0000-0000-000000000001` 回 `200`。
+- 回應摘要確認 `count=1`、`apiKeyConfigured=true`、`apiSecretConfigured=true`，且沒有暴露 `apiKey` / `apiSecret` 欄位。
+
+---
+
 # 2026-05-13 本地端口被其他專案佔用
 
 ## Issue
