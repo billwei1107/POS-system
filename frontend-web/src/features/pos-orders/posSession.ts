@@ -10,9 +10,11 @@ const POS_SESSION_STORAGE_KEY = 'pos-session';
 
 export interface PosSession {
   storeId?: string | null;
+  storeName?: string | null;
   terminalId?: string | null;
   employeeId?: string | null;
   terminalCode?: string | null;
+  terminalName?: string | null;
   userId?: string | null;
   username?: string | null;
   role?: string | null;

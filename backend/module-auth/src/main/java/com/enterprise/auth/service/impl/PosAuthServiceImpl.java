@@ -15,7 +15,9 @@ import com.enterprise.auth.service.PosAuthService;
 import com.enterprise.auth.service.RoleResolverService;
 import com.enterprise.common.exception.BusinessException;
 import com.enterprise.common.security.JwtTokenProvider;
+import com.enterprise.organization.entity.Terminal;
 import com.enterprise.organization.repository.EmployeeRepository;
+import com.enterprise.organization.repository.StoreRepository;
 import com.enterprise.organization.repository.TerminalRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -42,6 +44,7 @@ public class PosAuthServiceImpl implements PosAuthService {
     private final RoleRepository roleRepository;
     private final UserRoleRepository userRoleRepository;
     private final TerminalRepository terminalRepository;
+    private final StoreRepository storeRepository;
     private final EmployeeRepository employeeRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
@@ -58,8 +61,8 @@ public class PosAuthServiceImpl implements PosAuthService {
     @Override
     @Transactional
     public PinLoginResponse pinLogin(PinLoginRequest request) {
-        UUID terminalId = resolveTerminalId(request);
-        TerminalToken terminalToken = terminalTokenRepository.findByTerminalIdAndActiveTrue(terminalId)
+        Terminal terminal = resolveTerminal(request);
+        TerminalToken terminalToken = terminalTokenRepository.findByTerminalIdAndActiveTrue(terminal.getId())
                 .orElseThrow(() -> new BusinessException(403, "Terminal is not registered"));
 
         // 取得所有啟用中的 PIN 碼 / Get all active PIN codes
@@ -97,6 +100,9 @@ public class PosAuthServiceImpl implements PosAuthService {
                 String employeeId = employeeRepository.findByUserId(user.getId())
                         .map(employee -> employee.getId().toString())
                         .orElse(null);
+                String storeName = storeRepository.findById(terminalToken.getStoreId())
+                        .map(store -> store.getName())
+                        .orElse(null);
 
                 return PinLoginResponse.builder()
                         .token(token)
@@ -104,7 +110,10 @@ public class PosAuthServiceImpl implements PosAuthService {
                         .userId(user.getId().toString())
                         .username(user.getUsername())
                         .storeId(terminalToken.getStoreId().toString())
-                        .terminalId(terminalId.toString())
+                        .storeName(storeName)
+                        .terminalId(terminal.getId().toString())
+                        .terminalCode(terminal.getTerminalCode())
+                        .terminalName(terminal.getName())
                         .employeeId(employeeId)
                         .role(role)
                         .build();
@@ -118,9 +127,10 @@ public class PosAuthServiceImpl implements PosAuthService {
     /**
      * 解析終端識別 / Resolve terminal identifier
      */
-    private UUID resolveTerminalId(PinLoginRequest request) {
+    private Terminal resolveTerminal(PinLoginRequest request) {
         if (request.getTerminalId() != null) {
-            return request.getTerminalId();
+            return terminalRepository.findById(request.getTerminalId())
+                    .orElseThrow(() -> new BusinessException(404, "Terminal not found"));
         }
 
         String terminalCode = request.getTerminalCode();
@@ -129,8 +139,7 @@ public class PosAuthServiceImpl implements PosAuthService {
         }
 
         return terminalRepository.findByTerminalCode(terminalCode.trim())
-                .orElseThrow(() -> new BusinessException(404, "Terminal not found"))
-                .getId();
+                .orElseThrow(() -> new BusinessException(404, "Terminal not found"));
     }
 
     @Override

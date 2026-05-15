@@ -4,7 +4,7 @@
  * @description_en Provides responsive navigation, status header and cart slots
  * @description_zh 提供響應式導覽、狀態列與購物車掛載區域
  */
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Box, Collapse, Drawer, List, ListItem, ListItemIcon, ListItemText, IconButton,
   useTheme, useMediaQuery, Typography, Avatar, Divider, ListItemButton,
@@ -17,9 +17,17 @@ import {
 } from '@mui/icons-material';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@shared/store/authStore';
+import { readPosSession } from '@features/pos-orders/posSession';
 
 const SIDEBAR_EXPANDED_WIDTH = 240;
 const CART_WIDTH = 340;
+
+const ROLE_LABELS: Record<string, string> = {
+  STORE_MANAGER: '店長',
+  CASHIER: '收銀員',
+  ADMIN: '系統管理員',
+  MANAGER: '管理員',
+};
 
 interface NavItem {
   text: string;
@@ -43,6 +51,15 @@ const PosLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const logout = useAuthStore((state) => state.logout);
+  const authUser = useAuthStore((state) => state.user);
+  const posSession = useMemo(() => readPosSession(), []);
+  const storeLabel = posSession?.storeName?.trim() || 'POS 門店';
+  const terminalLabel = posSession?.terminalName?.trim()
+    || posSession?.terminalCode?.trim()
+    || '未命名終端';
+  const operatorName = posSession?.username?.trim() || authUser?.username || '未登入';
+  const roleLabel = posSession?.role ? ROLE_LABELS[posSession.role] ?? posSession.role : 'POS 作業';
+  const operatorInitial = operatorName.slice(0, 1).toUpperCase();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -53,6 +70,7 @@ const PosLayout: React.FC = () => {
   };
 
   const handleLockTerminal = () => {
+    localStorage.removeItem('pos-session');
     logout();
     navigate('/pos/login', { replace: true });
   };
@@ -129,8 +147,8 @@ const PosLayout: React.FC = () => {
       </Box>
       <Box sx={{ mx: 2, p: 2, display: 'flex', alignItems: 'center', gap: 2, mb: 2, borderRadius: 3, bgcolor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.05)' }}>
         <Box>
-          <Typography variant="subtitle1" fontWeight={900}>終端機 01</Typography>
-          <Typography variant="body2" color="text.secondary">一樓主區 · A 班</Typography>
+          <Typography variant="subtitle1" fontWeight={900}>{terminalLabel}</Typography>
+          <Typography variant="body2" color="text.secondary">{roleLabel} · {operatorName}</Typography>
         </Box>
       </Box>
       <List sx={{ flexGrow: 1, px: 2 }}>
@@ -284,7 +302,7 @@ const PosLayout: React.FC = () => {
                 <ShoppingCart />
               </IconButton>
             )}
-            <Avatar sx={{ width: 36, height: 36, ml: 1 }} />
+            <Avatar sx={{ width: 36, height: 36, ml: 1 }}>{operatorInitial}</Avatar>
           </Box>
         </Paper>
       )}
@@ -337,21 +355,21 @@ const PosLayout: React.FC = () => {
         {/* 桌面狀態列 / Desktop status bar */}
         {!isSmallScreen && (
            <Box sx={{ height: 64, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', px: 4, gap: 3 }}>
-              <Box sx={{ mr: 'auto' }}>
-                <Typography variant="h6" fontWeight={900}>信義旗艦店</Typography>
-                <Typography variant="caption" color="text.secondary">營業班次 · 終端機 01</Typography>
+             <Box sx={{ mr: 'auto' }}>
+                <Typography variant="h6" fontWeight={900}>{storeLabel}</Typography>
+                <Typography variant="caption" color="text.secondary">營業班次 · {terminalLabel}</Typography>
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'success.main', bgcolor: 'rgba(35, 193, 107, 0.1)', px: 2, py: 0.5, borderRadius: 5 }}>
                  <Wifi fontSize="small" />
                  <Typography variant="caption" fontWeight="bold">線上</Typography>
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, bgcolor: 'rgba(255,255,255,0.04)', px: 1.5, py: 0.75, borderRadius: 3 }}>
-                <Avatar sx={{ width: 32, height: 32, cursor: 'pointer' }} />
+                <Avatar sx={{ width: 32, height: 32, cursor: 'pointer' }}>{operatorInitial}</Avatar>
                 <Box>
-                  <Typography variant="body2" fontWeight={800}>操作員 #042</Typography>
+                  <Typography variant="body2" fontWeight={800}>操作員 {operatorName}</Typography>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                     <Circle sx={{ fontSize: 8, color: 'success.main' }} />
-                    <Typography variant="caption" color="text.secondary">值勤中</Typography>
+                    <Typography variant="caption" color="text.secondary">{roleLabel}</Typography>
                   </Box>
                 </Box>
               </Box>
