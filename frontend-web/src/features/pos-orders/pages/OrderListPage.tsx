@@ -113,6 +113,7 @@ const OrderListPage: React.FC = () => {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentStatusByOrder, setPaymentStatusByOrder] = useState<Record<string, PaymentStatusSummary>>({});
   const [invoiceStatusByOrder, setInvoiceStatusByOrder] = useState<Record<string, InvoiceStatusSummary>>({});
+  const [detailTarget, setDetailTarget] = useState<Order | null>(null);
 
   function formatMoney(amount: number) {
     return new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', maximumFractionDigits: 0 }).format(amount);
@@ -237,6 +238,27 @@ const OrderListPage: React.FC = () => {
   const getInvoiceSummary = (order: Order) =>
     invoiceStatusByOrder[order.id] ?? 'MISSING';
 
+  // ========================================
+  // 訂單詳情稽核顯示 / Order detail audit display
+  // ========================================
+  const formatOptional = (value?: string | number | null) => {
+    if (value === undefined || value === null || value === '') return '-';
+    return String(value);
+  };
+
+  const formatDiscountSource = (order: Order) => (
+    order.discountSource ? DISCOUNT_SOURCE_LABEL[order.discountSource] : '-'
+  );
+
+  const renderAuditField = (label: string, value?: string | number | null) => (
+    <Box sx={{ minWidth: 0 }}>
+      <Typography variant="caption" color="text.secondary" fontWeight={800}>{label}</Typography>
+      <Typography variant="body2" fontWeight={800} sx={{ overflowWrap: 'anywhere' }}>
+        {formatOptional(value)}
+      </Typography>
+    </Box>
+  );
+
   const renderClosureChips = (order: Order) => {
     if (!['COMPLETED', 'CLOSED'].includes(order.status)) {
       return <Typography variant="caption" color="text.secondary">尚未完成</Typography>;
@@ -271,6 +293,14 @@ const OrderListPage: React.FC = () => {
 
   const renderOrderActions = (order: Order) => (
     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: { xs: 'stretch', md: 'flex-start' } }}>
+      <Button
+        size="small"
+        variant="outlined"
+        onClick={() => setDetailTarget(order)}
+        sx={{ flex: { xs: '1 1 120px', md: '0 0 auto' } }}
+      >
+        詳情
+      </Button>
       {['COMPLETED', 'CLOSED'].includes(order.status) && (
         <>
           <Button
@@ -519,6 +549,79 @@ const OrderListPage: React.FC = () => {
         <DialogActions>
           <Button onClick={() => setVoidDialog(false)}>取消</Button>
           <Button color="error" onClick={handleVoid}>確認作廢</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={Boolean(detailTarget)} onClose={() => setDetailTarget(null)} maxWidth="lg" fullWidth>
+        <DialogTitle>訂單詳情 {detailTarget?.orderNo}</DialogTitle>
+        <DialogContent>
+          {detailTarget && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' }, gap: 2 }}>
+                {renderAuditField('訂單狀態', ORDER_STATUS_LABEL[detailTarget.status])}
+                {renderAuditField('訂單類型', detailTarget.orderType)}
+                {renderAuditField('建立時間', formatDateTime(detailTarget.createdAt))}
+                {renderAuditField('完成時間', detailTarget.completedAt ? formatDateTime(detailTarget.completedAt) : null)}
+                {renderAuditField('門店 ID', detailTarget.storeId)}
+                {renderAuditField('終端 ID', detailTarget.terminalId)}
+                {renderAuditField('操作員 ID', detailTarget.employeeId)}
+                {renderAuditField('會員 ID', detailTarget.memberId)}
+              </Box>
+
+              <Box sx={{ p: 2, borderRadius: 2, border: '1px solid rgba(255,255,255,0.08)', bgcolor: 'rgba(255,255,255,0.03)' }}>
+                <Typography variant="subtitle2" fontWeight={900} sx={{ mb: 2 }}>折扣稽核</Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' }, gap: 2 }}>
+                  {renderAuditField('折扣來源', formatDiscountSource(detailTarget))}
+                  {renderAuditField('折扣標籤', detailTarget.discountLabel)}
+                  {renderAuditField('促銷規則 ID', detailTarget.promotionRuleId)}
+                  {renderAuditField('優惠碼', detailTarget.promotionCode)}
+                </Box>
+              </Box>
+
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(5, 1fr)' }, gap: 2 }}>
+                {renderAuditField('小計', formatMoney(detailTarget.subtotal))}
+                {renderAuditField('折扣', `-${formatMoney(detailTarget.discountTotal)}`)}
+                {renderAuditField('稅額', formatMoney(detailTarget.taxTotal))}
+                {renderAuditField('已收', formatMoney(detailTarget.paidTotal))}
+                {renderAuditField('總計', formatMoney(detailTarget.grandTotal))}
+              </Box>
+
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>品項</TableCell>
+                    <TableCell>SKU</TableCell>
+                    <TableCell align="right">單價</TableCell>
+                    <TableCell align="right">數量</TableCell>
+                    <TableCell align="right">明細折扣</TableCell>
+                    <TableCell align="right">小計</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {detailTarget.items.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>{item.itemNameSnapshot}</TableCell>
+                      <TableCell>
+                        <Typography variant="caption" fontFamily="monospace">{item.skuSnapshot ?? '-'}</Typography>
+                      </TableCell>
+                      <TableCell align="right">{formatMoney(item.unitPrice)}</TableCell>
+                      <TableCell align="right">{item.quantity}</TableCell>
+                      <TableCell align="right">{formatMoney(item.discountAmount)}</TableCell>
+                      <TableCell align="right">{formatMoney(item.lineTotal)}</TableCell>
+                    </TableRow>
+                  ))}
+                  {detailTarget.items.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center" sx={{ py: 4 }}>尚無品項明細</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDetailTarget(null)}>關閉</Button>
         </DialogActions>
       </Dialog>
 

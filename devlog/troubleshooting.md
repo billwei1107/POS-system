@@ -1241,3 +1241,28 @@ services:
 - 收銀台 DOM snapshot 顯示 `咖啡滿百 9 折` 與總計 `$137`。
 - 訂單列表 DOM snapshot 顯示最新訂單折扣欄 `咖啡滿百 9 折 -$15`。
 - PostgreSQL 最新訂單查詢確認 `discount_source=PROMOTION`、`promotion_rule_id=00000000-0000-0000-0000-000000001001`、`discount_label=咖啡滿百 9 折`。
+
+---
+
+# 2026-05-16 Frontend test command executed from repository root
+
+## Issue
+
+- 場景：新增 `OrderListPage.test.tsx` 後，嘗試執行單元測試。
+- 錯誤訊息：`npm error enoent Could not read package.json: Error: ENOENT: no such file or directory, open '/Users/wei/Desktop/code/POS/package.json'`。
+
+## Root Cause
+
+- POS 專案根目錄不是 npm workspace root，前端 `package.json` 位於 `frontend-web/`。
+- 測試命令誤從 `/Users/wei/Desktop/code/POS` 執行，導致 npm 找不到 package manifest。
+
+## Solution
+
+- 改在 `/Users/wei/Desktop/code/POS/frontend-web` 執行前端測試與 lint/build 指令。
+- 後續前端驗證統一使用 `frontend-web` 作為工作目錄。
+
+## Verification
+
+- `npm test -- --run test/pos-orders/OrderListPage.test.tsx`：通過。
+- `npm run lint`：通過。
+- `npm test -- --run`：通過，10 files / 18 tests。
