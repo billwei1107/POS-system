@@ -42,6 +42,16 @@ const completedOrder: Order = {
   items: [],
 };
 
+const selectedMember = {
+  id: 'member-gold',
+  memberNo: 'M0001',
+  name: '金卡會員',
+  phoneMasked: '0912***888',
+  tier: 'GOLD',
+  points: 1000,
+  discountPercent: 10,
+};
+
 const renderCheckout = () => render(
   <MemoryRouter>
     <CheckoutPage />
@@ -134,6 +144,7 @@ describe('CheckoutPage cash payment', () => {
     useCartStore.setState({
       discountAmount: 14.5,
       discountSource: 'promotion',
+      selectedMember,
       appliedPromotion: {
         ruleId: 'promo-rule-001',
         name: '咖啡滿百 9 折',
@@ -170,6 +181,7 @@ describe('CheckoutPage cash payment', () => {
       promotionRuleId: 'promo-rule-001',
       promotionCode: 'CAFE20',
       discountLabel: '咖啡滿百 9 折',
+      memberId: 'member-gold',
     })));
   });
 });

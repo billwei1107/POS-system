@@ -99,6 +99,7 @@ describe('useCartStore', () => {
 
   it('applies promotion discount as a distinct discount source', () => {
     useCartStore.getState().addProduct(createProduct());
+    useCartStore.getState().setMember(member);
     useCartStore.getState().setPromotionDiscount({
       ruleId: 'promo-100',
       name: '咖啡滿百 9 折',
@@ -110,7 +111,36 @@ describe('useCartStore', () => {
     expect(state.discountSource).toBe('promotion');
     expect(state.appliedPromotion?.name).toBe('咖啡滿百 9 折');
     expect(state.discountAmount).toBe(12);
+    expect(state.selectedMember?.id).toBe(member.id);
+  });
+
+  it('preserves bound member identity when manual discount replaces the member discount', () => {
+    useCartStore.getState().addProduct(createProduct());
+    useCartStore.getState().setMember(member);
+    useCartStore.getState().setDiscountAmount(20);
+
+    const state = useCartStore.getState();
+    expect(state.discountSource).toBe('manual');
+    expect(state.discountAmount).toBe(20);
+    expect(state.selectedMember?.id).toBe(member.id);
+  });
+
+  it('clears member only when requested and keeps active promotion discount', () => {
+    useCartStore.getState().addProduct(createProduct());
+    useCartStore.getState().setMember(member);
+    useCartStore.getState().setPromotionDiscount({
+      ruleId: 'promo-100',
+      name: '咖啡滿百 9 折',
+      code: null,
+      discountAmount: 12,
+    });
+
+    useCartStore.getState().clearMember();
+
+    const state = useCartStore.getState();
     expect(state.selectedMember).toBeNull();
+    expect(state.discountSource).toBe('promotion');
+    expect(state.discountAmount).toBe(12);
   });
 
   it('holds current order in localStorage and restores it into the cart', () => {

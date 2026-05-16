@@ -118,9 +118,12 @@ const recalculateDiscountForLines = (
   lines: CartLine[],
   taxRate: number,
   currentDiscount: number,
-  selectedMember: CartMember | null
+  selectedMember: CartMember | null,
+  discountSource: CartDiscountSource | null,
+  appliedPromotion: CartPromotion | null
 ) => {
-  if (selectedMember) return calculateMemberDiscount(lines, selectedMember);
+  if (discountSource === 'member') return calculateMemberDiscount(lines, selectedMember);
+  if (discountSource === 'promotion' && appliedPromotion) return capDiscount(lines, taxRate, appliedPromotion.discountAmount);
   return capDiscount(lines, taxRate, currentDiscount);
 };
 
@@ -159,7 +162,14 @@ export const useCartStore = create<CartState>((set, get) => ({
       );
       return {
         lines,
-        discountAmount: recalculateDiscountForLines(lines, state.taxRate, state.discountAmount, state.selectedMember),
+        discountAmount: recalculateDiscountForLines(
+          lines,
+          state.taxRate,
+          state.discountAmount,
+          state.selectedMember,
+          state.discountSource,
+          state.appliedPromotion
+        ),
       };
     }
 
@@ -177,7 +187,14 @@ export const useCartStore = create<CartState>((set, get) => ({
 
     return {
       lines,
-      discountAmount: recalculateDiscountForLines(lines, state.taxRate, state.discountAmount, state.selectedMember),
+      discountAmount: recalculateDiscountForLines(
+        lines,
+        state.taxRate,
+        state.discountAmount,
+        state.selectedMember,
+        state.discountSource,
+        state.appliedPromotion
+      ),
     };
   }),
 
@@ -187,7 +204,14 @@ export const useCartStore = create<CartState>((set, get) => ({
     );
     return {
       lines,
-      discountAmount: recalculateDiscountForLines(lines, state.taxRate, state.discountAmount, state.selectedMember),
+      discountAmount: recalculateDiscountForLines(
+        lines,
+        state.taxRate,
+        state.discountAmount,
+        state.selectedMember,
+        state.discountSource,
+        state.appliedPromotion
+      ),
     };
   }),
 
@@ -197,7 +221,14 @@ export const useCartStore = create<CartState>((set, get) => ({
       .filter((line) => line.quantity > 0);
     return {
       lines,
-      discountAmount: recalculateDiscountForLines(lines, state.taxRate, state.discountAmount, state.selectedMember),
+      discountAmount: recalculateDiscountForLines(
+        lines,
+        state.taxRate,
+        state.discountAmount,
+        state.selectedMember,
+        state.discountSource,
+        state.appliedPromotion
+      ),
     };
   }),
 
@@ -205,7 +236,14 @@ export const useCartStore = create<CartState>((set, get) => ({
     const lines = state.lines.filter((line) => line.itemId !== itemId);
     return {
       lines,
-      discountAmount: recalculateDiscountForLines(lines, state.taxRate, state.discountAmount, state.selectedMember),
+      discountAmount: recalculateDiscountForLines(
+        lines,
+        state.taxRate,
+        state.discountAmount,
+        state.selectedMember,
+        state.discountSource,
+        state.appliedPromotion
+      ),
     };
   }),
 
@@ -213,7 +251,6 @@ export const useCartStore = create<CartState>((set, get) => ({
     return {
       discountAmount: capDiscount(state.lines, state.taxRate, amount),
       discountSource: amount > 0 ? 'manual' : null,
-      selectedMember: null,
       appliedPromotion: null,
     };
   }),
@@ -221,7 +258,6 @@ export const useCartStore = create<CartState>((set, get) => ({
   clearDiscount: () => set({
     discountAmount: 0,
     discountSource: null,
-    selectedMember: null,
     appliedPromotion: null,
   }),
 
@@ -232,14 +268,13 @@ export const useCartStore = create<CartState>((set, get) => ({
     appliedPromotion: null,
   })),
 
-  clearMember: () => set({
+  clearMember: () => set((state) => ({
     selectedMember: null,
-    discountAmount: 0,
-    discountSource: null,
-  }),
+    discountAmount: state.discountSource === 'member' ? 0 : state.discountAmount,
+    discountSource: state.discountSource === 'member' ? null : state.discountSource,
+  })),
 
   setPromotionDiscount: (promotion) => set((state) => ({
-    selectedMember: null,
     appliedPromotion: {
       ...promotion,
       discountAmount: capDiscount(state.lines, state.taxRate, promotion.discountAmount),
@@ -250,10 +285,11 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   clearPromotionDiscount: () => set((state) => {
     if (state.discountSource !== 'promotion' && !state.appliedPromotion) return state;
+    const memberDiscount = calculateMemberDiscount(state.lines, state.selectedMember);
     return {
       appliedPromotion: null,
-      discountAmount: 0,
-      discountSource: null,
+      discountAmount: memberDiscount,
+      discountSource: memberDiscount > 0 ? 'member' : null,
     };
   }),
 
