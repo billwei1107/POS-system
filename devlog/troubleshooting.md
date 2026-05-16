@@ -1298,3 +1298,35 @@ services:
 - `npm run build`：通過。
 - Docker frontend 重建成功。
 - 瀏覽器驗證：鎖定終端後直接開 `/pos/register`，會導回 `/pos/login?redirect=%2Fpos%2Fregister`，沒有顯示商品載入失敗。
+
+---
+
+# 2026-05-16 POS member cleared by promotion or manual discount
+
+## Issue
+
+- 場景：收銀台先綁定會員，再套用促銷優惠碼或手動折扣。
+- 異常行為：右側會員按鈕回到「會員」，結帳頁不再顯示會員資料，送出訂單時也無法帶 `memberId`。
+
+## Root Cause
+
+- `cartStore.setPromotionDiscount()` 與 `setDiscountAmount()` 將折扣來源切換視為解除會員，直接清空 `selectedMember`。
+- `recalculateDiscountForLines()` 只要存在 `selectedMember` 就強制重算會員折扣，沒有依 `discountSource` 區分會員、促銷與手動折扣。
+- 結帳頁以 `selectedMember?.id` 產生 `memberId`，因此會員在套折扣時被清掉後，訂單就失去會員關聯。
+
+## Solution
+
+- 讓會員身分與折扣來源分離保存，促銷折扣與手動折扣不再清除 `selectedMember`。
+- `recalculateDiscountForLines()` 改依 `discountSource` 重算對應折扣。
+- `clearMember()` 只在目前折扣來源為會員折扣時清除折抵；促銷或手動折扣維持原狀。
+- `clearPromotionDiscount()` 若仍有會員，會回退到會員折扣。
+
+## Verification
+
+- `npx tsc -b`：通過。
+- `npm run lint`：通過。
+- `npm test -- --run test/pos-orders/cartStore.test.ts test/pos-orders/CheckoutPage.test.tsx test/pos-orders/CartPromotion.test.tsx`：通過。
+- `npm test -- --run`：通過，12 files / 23 tests。
+- `npm run build`：通過。
+- Docker frontend 重建成功。
+- 瀏覽器驗證：綁定 `林依晨` 後套用 `CAFE20`，收銀台仍顯示 `金卡 林依晨`；結帳頁同時顯示 `金卡 · 林依晨 · 1,292 點` 與 `優惠碼 CAFE20 · CAFE20`。
