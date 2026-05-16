@@ -1266,3 +1266,35 @@ services:
 - `npm test -- --run test/pos-orders/OrderListPage.test.tsx`：通過。
 - `npm run lint`：通過。
 - `npm test -- --run`：通過，10 files / 18 tests。
+
+---
+
+# 2026-05-16 POS expired session stayed on register page
+
+## Issue
+
+- 場景：使用者隔一段時間重新進入 POS 收銀台。
+- 異常行為：照理應回到 PIN 登入頁，但畫面仍停在主畫面，並顯示商品資料載入失敗。
+
+## Root Cause
+
+- `ProtectedRoute` 只根據 zustand persisted state 的 `isAuthenticated` 判斷是否放行，未檢查 JWT payload `exp` 是否過期。
+- `PosLoginPage` 若看到 `isAuthenticated=true`，會自動導回收銀台，過期 token 也會被推回主畫面。
+- `axiosInstance` 只攔截 HTTP status `401`；若 response body 為 `ApiResponse { code: 401 }`，會被正規化為一般失敗 response，頁面 catch 後只顯示商品載入失敗。
+
+## Solution
+
+- 在 `authStore` 新增 JWT expiration 解碼與檢查，hydration 與 `setAuth()` 遇到過期 token 會清除 auth 與 `pos-session`。
+- `ProtectedRoute` 加上 token 過期判斷，過期時 logout 並導回登入頁。
+- `PosLoginPage` 遇到過期 persisted auth 時先 logout，不再自動導回收銀台。
+- `axiosInstance` 同時處理 HTTP `401` 與 API body `code: 401`，集中清除登入狀態。
+
+## Verification
+
+- `npx tsc -b`：通過。
+- `npm run lint`：通過。
+- `npm test -- --run test/shared/authStore.test.ts test/shared/ProtectedRoute.test.tsx test/shared/axiosInstance.test.ts`：通過。
+- `npm test -- --run`：通過，12 files / 21 tests。
+- `npm run build`：通過。
+- Docker frontend 重建成功。
+- 瀏覽器驗證：鎖定終端後直接開 `/pos/register`，會導回 `/pos/login?redirect=%2Fpos%2Fregister`，沒有顯示商品載入失敗。

@@ -9,7 +9,7 @@ import { Alert, Box, Typography, Avatar, IconButton, Button, AvatarGroup, Circul
 import { ArrowForward, Backspace, PointOfSale, Add } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { useAuthStore } from '../../../shared/store/authStore';
+import { isTokenExpired, useAuthStore } from '../../../shared/store/authStore';
 import { pinLoginApi } from '../api/posAuthApi';
 import { formatPosClock } from '@shared/utils';
 
@@ -31,8 +31,11 @@ const PosLoginPage: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const setAuth = useAuthStore((state) => state.setAuth);
+    const logout = useAuthStore((state) => state.logout);
+    const token = useAuthStore((state) => state.token);
     const hasHydrated = useAuthStore((state) => state.hasHydrated);
     const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+    const tokenExpired = hasHydrated && isAuthenticated && isTokenExpired(token);
 
     // 更新當前時間
     const [currentTime, setCurrentTime] = useState(new Date());
@@ -42,10 +45,16 @@ const PosLoginPage: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        if (hasHydrated && isAuthenticated) {
+        if (tokenExpired) {
+            logout();
+        }
+    }, [logout, tokenExpired]);
+
+    useEffect(() => {
+        if (hasHydrated && isAuthenticated && !tokenExpired) {
             navigate(resolvePosRedirectPath(location.search), { replace: true });
         }
-    }, [hasHydrated, isAuthenticated, location.search, navigate]);
+    }, [hasHydrated, isAuthenticated, location.search, navigate, tokenExpired]);
 
     const handleNumberClick = (num: string) => {
         if (pin.length < 6) {
