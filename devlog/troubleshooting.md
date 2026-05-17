@@ -1330,3 +1330,58 @@ services:
 - `npm run build`：通過。
 - Docker frontend 重建成功。
 - 瀏覽器驗證：綁定 `林依晨` 後套用 `CAFE20`，收銀台仍顯示 `金卡 林依晨`；結帳頁同時顯示 `金卡 · 林依晨 · 1,292 點` 與 `優惠碼 CAFE20 · CAFE20`。
+
+---
+
+# 2026-05-17 POS checkout completion summary cleared after payment
+
+## Issue
+
+- 場景：收銀台完成付款後，`CheckoutPage` 會呼叫 `clearCart()` 清空目前購物車。
+- 異常行為：付款成功訊息仍存在，但訂單摘要區改顯示「購物車是空的」，剛完成的品項、會員與促銷資訊會消失。
+- 後續瀏覽器驗證又發現：若現金剛好付款 `$95`，購物車清空後 totals 變成 `$0`，找零會錯顯為 `$95`。
+
+## Root Cause
+
+- `CheckoutPage` 的摘要區直接讀 zustand cart state。
+- 付款成功後清空 cart 是正確行為，但畫面沒有保留完成付款當下的 receipt snapshot。
+- 現金找零也直接依目前 cart totals 計算，因此 cart 清空後會把整筆收款額當成找零。
+
+## Solution
+
+- 新增 `CheckoutReceiptSnapshot`，在付款完成、清空 cart 前保存品項、金額、會員、折扣來源與促銷資訊。
+- 付款完成後的訂單摘要、會員 chip、促銷 chip、金額彙總與現金應收改讀取 receipt snapshot。
+- 現金不足與找零計算改使用摘要總額，且付款完成後不再觸發不足狀態。
+
+## Verification
+
+- `npx tsc -b`：通過。
+- `npm test -- --run test/pos-orders/CheckoutPage.test.tsx`：通過。
+- `npm run lint`：通過。
+- `npm test -- --run`：通過，12 files / 23 tests。
+- `npm run build`：通過。
+- Docker frontend 重建成功。
+- 瀏覽器驗證：完成 `美式咖啡 12oz` 現金結帳後，付款完成畫面仍顯示品項與應收 `$95`，未顯示「購物車是空的」，找零為 `$0`。
+
+---
+
+# 2026-05-17 In-app browser screenshot timeout during checkout receipt verification
+
+## Issue
+
+- 場景：用 in-app browser 驗證付款完成摘要後呼叫 `tab.screenshot()`。
+- 錯誤訊息：`Timed out running CDP command "Page.captureScreenshot"`。
+
+## Root Cause
+
+- 與既有 `Page.captureScreenshot` 逾時屬同一類瀏覽器工具層問題。
+- DOM snapshot、點擊、導覽與實際付款流程皆成功，產品流程未被阻斷。
+
+## Solution
+
+- 本輪不修改產品程式碼。
+- 改以 DOM snapshot 與實際互動結果驗證完成畫面狀態。
+
+## Verification
+
+- DOM snapshot 確認付款完成畫面顯示訂單號、品項、應收金額與正確找零。
