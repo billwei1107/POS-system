@@ -19,6 +19,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(const XinyiPosApp());
+    await tester.pumpAndSettle();
   }
 
   testWidgets('shows Android POS terminal shell', (tester) async {

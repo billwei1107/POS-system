@@ -8,11 +8,17 @@ import 'package:flutter/material.dart';
 
 import '../../../core/models/cart_item.dart';
 import '../../../core/models/product.dart';
-import '../../../core/services/demo_catalog.dart';
+import '../../../core/repositories/demo_product_repository.dart';
+import '../../../core/repositories/product_repository.dart';
 import '../state/pos_cart_state.dart';
 
 class PosTerminalScreen extends StatefulWidget {
-  const PosTerminalScreen({super.key});
+  const PosTerminalScreen({
+    super.key,
+    this.productRepository = const DemoProductRepository(),
+  });
+
+  final ProductRepository productRepository;
 
   @override
   State<PosTerminalScreen> createState() => _PosTerminalScreenState();
@@ -21,22 +27,50 @@ class PosTerminalScreen extends StatefulWidget {
 class _PosTerminalScreenState extends State<PosTerminalScreen> {
   PosCartState _cart = PosCartState.empty();
   String _selectedCategory = '全部商品';
+  List<Product> _catalog = const <Product>[];
+  bool _isLoadingCatalog = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCatalog();
+  }
 
   List<String> get _categories {
     return <String>{
       '全部商品',
-      ...demoCatalog.map((product) => product.category),
+      ..._catalog.map((product) => product.category),
     }.toList();
   }
 
   List<Product> get _products {
     if (_selectedCategory == '全部商品') {
-      return demoCatalog;
+      return _catalog;
     }
 
-    return demoCatalog
+    return _catalog
         .where((product) => product.category == _selectedCategory)
         .toList();
+  }
+
+  // ========================================
+  // 商品目錄載入 / Product Catalog Loading
+  // ========================================
+  Future<void> _loadCatalog() async {
+    final catalog = await widget.productRepository.listProducts();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _catalog = List<Product>.unmodifiable(catalog);
+      _isLoadingCatalog = false;
+
+      if (!_categories.contains(_selectedCategory)) {
+        _selectedCategory = '全部商品';
+      }
+    });
   }
 
   // ========================================
@@ -85,7 +119,8 @@ class _PosTerminalScreenState extends State<PosTerminalScreen> {
                 ),
                 const SizedBox(height: 20),
                 Expanded(
-                  child: _ProductGrid(
+                  child: _CatalogContent(
+                    isLoading: _isLoadingCatalog,
                     products: _products,
                     onAddProduct: _addProduct,
                   ),
@@ -125,7 +160,11 @@ class _PosTerminalScreenState extends State<PosTerminalScreen> {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: _ProductGrid(products: _products, onAddProduct: _addProduct),
+            child: _CatalogContent(
+              isLoading: _isLoadingCatalog,
+              products: _products,
+              onAddProduct: _addProduct,
+            ),
           ),
         ),
         SizedBox(
@@ -140,6 +179,33 @@ class _PosTerminalScreenState extends State<PosTerminalScreen> {
         ),
       ],
     );
+  }
+}
+
+class _CatalogContent extends StatelessWidget {
+  const _CatalogContent({
+    required this.isLoading,
+    required this.products,
+    required this.onAddProduct,
+  });
+
+  final bool isLoading;
+  final List<Product> products;
+  final ValueChanged<Product> onAddProduct;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (products.isEmpty) {
+      return const Center(
+        child: Text('目前沒有可銷售商品', style: TextStyle(color: Color(0xFFAEB2C3))),
+      );
+    }
+
+    return _ProductGrid(products: products, onAddProduct: onAddProduct);
   }
 }
 
