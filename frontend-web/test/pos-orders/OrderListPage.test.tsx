@@ -14,6 +14,16 @@ import type { Order } from '../../src/features/pos-orders/types';
 import type { PaymentTransaction } from '../../src/features/pos-payment/types';
 import type { Invoice } from '../../src/features/pos-tax/types';
 
+const navigateMock = vi.hoisted(() => vi.fn());
+
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>();
+  return {
+    ...actual,
+    useNavigate: () => navigateMock,
+  };
+});
+
 const orderApiMock = vi.hoisted(() => ({
   list: vi.fn(),
   void: vi.fn(),
@@ -150,6 +160,7 @@ beforeEach(() => {
   orderApiMock.void.mockReset();
   paymentApiMock.getByOrder.mockReset();
   invoiceApiMock.getByOrder.mockReset();
+  navigateMock.mockReset();
   orderApiMock.list.mockResolvedValue({
     success: true,
     message: 'ok',
@@ -212,5 +223,14 @@ describe('OrderListPage order details', () => {
     await user.type(screen.getByPlaceholderText('依訂單編號搜尋'), 'NO-MATCH');
 
     expect(screen.getAllByText('找不到符合條件的訂單').length).toBeGreaterThan(0);
+  });
+
+  it('navigates to the register page when creating a new order', async () => {
+    const user = userEvent.setup();
+    renderOrderList();
+
+    await user.click(screen.getByRole('button', { name: '新增訂單' }));
+
+    expect(navigateMock).toHaveBeenCalledWith('/pos/register');
   });
 });

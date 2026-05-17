@@ -355,6 +355,7 @@ const OrderListPage: React.FC = () => {
         <Button
           variant="contained"
           color="secondary"
+          onClick={() => navigate('/pos/register')}
           sx={{ minHeight: 52, px: 3, fontWeight: 900 }}
         >
           新增訂單
