@@ -163,6 +163,8 @@ curl http://localhost:38080/actuator/health
 
 更多導入交接、測試清單與人工確認事項請看 `docs/production-handoff.md`。
 
+使用者操作流程請看 `docs/user-manual.md`。
+
 ## AI 協作流程
 
 使用 Claude 規劃、Codex 執行時，請先閱讀：
