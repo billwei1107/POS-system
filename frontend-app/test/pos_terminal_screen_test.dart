@@ -34,7 +34,9 @@ void main() {
   testWidgets('adds product to cart and updates total', (tester) async {
     await pumpTabletApp(tester);
 
-    await tester.tap(find.text('美式咖啡 12oz'));
+    await tester.tap(
+      find.byKey(const ValueKey('product-tile-demo-americano-12oz')),
+    );
     await tester.pump();
 
     expect(find.text('尚未加入商品'), findsNothing);
@@ -42,8 +44,39 @@ void main() {
     expect(find.text('\$90'), findsWidgets);
 
     final checkoutButton = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, '現金結帳'),
+      find.byKey(const ValueKey('cash-checkout-button')),
     );
     expect(checkoutButton.onPressed, isNotNull);
+  });
+
+  testWidgets('increments duplicate product and clears the cart', (
+    tester,
+  ) async {
+    await pumpTabletApp(tester);
+
+    await tester.tap(
+      find.byKey(const ValueKey('product-tile-demo-latte-12oz')),
+    );
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const ValueKey('product-tile-demo-latte-12oz')),
+    );
+    await tester.pump();
+
+    expect(find.text('x 2'), findsOneWidget);
+    expect(find.text('咖啡滿 200 享 9 折'), findsOneWidget);
+    expect(find.text('-\$24'), findsOneWidget);
+    expect(find.text('\$216'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('clear-cart-button')));
+    await tester.pump();
+
+    expect(find.text('尚未加入商品'), findsOneWidget);
+    expect(find.text('x 2'), findsNothing);
+
+    final checkoutButton = tester.widget<FilledButton>(
+      find.byKey(const ValueKey('cash-checkout-button')),
+    );
+    expect(checkoutButton.onPressed, isNull);
   });
 }

@@ -29,6 +29,7 @@ import AdminLayout from './layouts/AdminLayout';
 import AdminDashboardPage from './features/admin/pages/AdminDashboardPage';
 import AuditLogPage from './features/admin/pages/AuditLogPage';
 import PosLayout from './layouts/PosLayout';
+import { PosSessionRoute } from './features/pos-auth/components/PosSessionRoute';
 import RegisterPage from './features/pos-orders/pages/RegisterPage';
 import CheckoutPage from './features/pos-orders/pages/CheckoutPage';
 import OrderListPage from './features/pos-orders/pages/OrderListPage';
@@ -136,7 +137,7 @@ function App() {
           {/* POS 登入畫面 */}
           <Route path="/pos/login" element={<PosLoginPage />} />
 
-          <Route path="/pos" element={<ProtectedRoute redirectTo="/pos/login"><PosLayout /></ProtectedRoute>}>
+          <Route path="/pos" element={<ProtectedRoute redirectTo="/pos/login"><PosSessionRoute><PosLayout /></PosSessionRoute></ProtectedRoute>}>
               <Route path="register" element={<RegisterPage />} />
               <Route path="orders" element={<OrderListPage />} />
               <Route path="refunds" element={<RefundPage />} />

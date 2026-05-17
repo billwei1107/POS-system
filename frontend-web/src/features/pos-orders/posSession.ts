@@ -46,6 +46,18 @@ export const readPosSession = (): PosSession | null => {
 };
 
 // ========================================
+// Session 有效性 / Session Validity
+// ========================================
+export const hasActivePosSession = () => {
+  const session = readPosSession();
+  return (
+    hasValue(session?.storeId) &&
+    hasValue(session?.terminalId) &&
+    hasValue(session?.employeeId)
+  );
+};
+
+// ========================================
 // POS 操作脈絡 / POS Operating Context
 // ========================================
 export const getActivePosContext = (): ActivePosContext => {

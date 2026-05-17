@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/cart_item.dart';
 import '../../../core/models/product.dart';
 import '../../../core/services/demo_catalog.dart';
+import '../state/pos_cart_state.dart';
 
 class PosTerminalScreen extends StatefulWidget {
   const PosTerminalScreen({super.key});
@@ -18,20 +19,8 @@ class PosTerminalScreen extends StatefulWidget {
 }
 
 class _PosTerminalScreenState extends State<PosTerminalScreen> {
-  final List<CartItem> _cart = <CartItem>[];
+  PosCartState _cart = PosCartState.empty();
   String _selectedCategory = '全部商品';
-
-  int get _subtotal {
-    return _cart.fold<int>(0, (sum, item) => sum + item.subtotal);
-  }
-
-  int get _discount {
-    return _subtotal >= 200 ? (_subtotal * 0.1).round() : 0;
-  }
-
-  int get _total {
-    return _subtotal - _discount;
-  }
 
   List<String> get _categories {
     return <String>{
@@ -54,19 +43,11 @@ class _PosTerminalScreenState extends State<PosTerminalScreen> {
   // 購物車操作 / Cart Actions
   // ========================================
   void _addProduct(Product product) {
-    final index = _cart.indexWhere((item) => item.product.id == product.id);
-    setState(() {
-      if (index == -1) {
-        _cart.add(CartItem(product: product, quantity: 1));
-      } else {
-        final item = _cart[index];
-        _cart[index] = item.copyWith(quantity: item.quantity + 1);
-      }
-    });
+    setState(() => _cart = _cart.addProduct(product));
   }
 
   void _clearCart() {
-    setState(_cart.clear);
+    setState(() => _cart = _cart.clear());
   }
 
   @override
@@ -114,10 +95,10 @@ class _PosTerminalScreenState extends State<PosTerminalScreen> {
           ),
         ),
         _CartPanel(
-          items: _cart,
-          subtotal: _subtotal,
-          discount: _discount,
-          total: _total,
+          items: _cart.items,
+          subtotal: _cart.subtotal,
+          discount: _cart.discount,
+          total: _cart.total,
           onClear: _clearCart,
         ),
       ],
@@ -150,10 +131,10 @@ class _PosTerminalScreenState extends State<PosTerminalScreen> {
         SizedBox(
           height: 300,
           child: _CartPanel(
-            items: _cart,
-            subtotal: _subtotal,
-            discount: _discount,
-            total: _total,
+            items: _cart.items,
+            subtotal: _cart.subtotal,
+            discount: _cart.discount,
+            total: _cart.total,
             onClear: _clearCart,
           ),
         ),
@@ -360,6 +341,7 @@ class _ProductGrid extends StatelessWidget {
           itemBuilder: (context, index) {
             final product = products[index];
             return _ProductTile(
+              key: ValueKey('product-tile-${product.id}'),
               product: product,
               onAdd: () => onAddProduct(product),
             );
@@ -371,7 +353,7 @@ class _ProductGrid extends StatelessWidget {
 }
 
 class _ProductTile extends StatelessWidget {
-  const _ProductTile({required this.product, required this.onAdd});
+  const _ProductTile({super.key, required this.product, required this.onAdd});
 
   final Product product;
   final VoidCallback onAdd;
@@ -418,6 +400,7 @@ class _ProductTile extends StatelessWidget {
                     ),
                   ),
                   IconButton.filled(
+                    key: ValueKey('add-product-${product.id}'),
                     tooltip: '加入購物車',
                     onPressed: onAdd,
                     icon: const Icon(Icons.add_shopping_cart),
@@ -468,6 +451,7 @@ class _CartPanel extends StatelessWidget {
                 ),
               ),
               IconButton(
+                key: const ValueKey('clear-cart-button'),
                 tooltip: '清空購物車',
                 onPressed: items.isEmpty ? null : onClear,
                 icon: const Icon(Icons.delete_outline),
@@ -529,6 +513,7 @@ class _CartPanel extends StatelessWidget {
             width: double.infinity,
             height: 64,
             child: FilledButton.icon(
+              key: const ValueKey('cash-checkout-button'),
               onPressed: items.isEmpty ? null : () {},
               icon: const Icon(Icons.payments),
               label: const Text('現金結帳'),
