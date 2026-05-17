@@ -23,6 +23,14 @@ class PosSessionState {
     );
   }
 
+  factory PosSessionState.signedIn(PosSession session) {
+    return PosSessionState._(
+      session: session,
+      isLoading: false,
+      errorCode: null,
+    );
+  }
+
   final PosSession? session;
   final bool isLoading;
   final String? errorCode;

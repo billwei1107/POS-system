@@ -22,11 +22,27 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  Future<void> loginWithDemoPin(WidgetTester tester) async {
+    expect(find.byKey(const ValueKey('pin-login-screen')), findsOneWidget);
+
+    for (final digit in <String>['1', '2', '3', '4']) {
+      await tester.tap(find.byKey(ValueKey('pin-digit-$digit')));
+      await tester.pump();
+    }
+
+    await tester.tap(find.byKey(const ValueKey('pin-submit-button')));
+    await tester.pumpAndSettle();
+  }
+
   testWidgets('shows Android POS terminal shell', (tester) async {
     await pumpTabletApp(tester);
+    await loginWithDemoPin(tester);
 
     expect(find.text('Xinyi Flagship Store'), findsOneWidget);
-    expect(find.text('Android Tablet POS · Demo Terminal 01'), findsOneWidget);
+    expect(
+      find.text('Android Tablet POS · Demo Terminal 01 · Demo Cashier'),
+      findsOneWidget,
+    );
     expect(find.text('線上'), findsOneWidget);
     expect(find.text('待同步 0'), findsOneWidget);
     expect(find.text('現金結帳'), findsOneWidget);
@@ -34,6 +50,7 @@ void main() {
 
   testWidgets('adds product to cart and updates total', (tester) async {
     await pumpTabletApp(tester);
+    await loginWithDemoPin(tester);
 
     await tester.tap(
       find.byKey(const ValueKey('product-tile-demo-americano-12oz')),
@@ -54,6 +71,7 @@ void main() {
     tester,
   ) async {
     await pumpTabletApp(tester);
+    await loginWithDemoPin(tester);
 
     await tester.tap(
       find.byKey(const ValueKey('product-tile-demo-latte-12oz')),
@@ -79,5 +97,18 @@ void main() {
       find.byKey(const ValueKey('cash-checkout-button')),
     );
     expect(checkoutButton.onPressed, isNull);
+  });
+
+  testWidgets('locks terminal and returns to PIN login', (tester) async {
+    await pumpTabletApp(tester);
+    await loginWithDemoPin(tester);
+
+    await tester.tap(
+      find.byKey(const ValueKey('header-logout-terminal-button')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('pin-login-screen')), findsOneWidget);
+    expect(find.text('Xinyi Flagship Store'), findsOneWidget);
   });
 }

@@ -6,13 +6,35 @@
  */
 import 'package:flutter/material.dart';
 
+import '../core/repositories/auth_repository.dart';
+import '../core/repositories/demo_auth_repository.dart';
+import '../features/auth/screens/pin_login_screen.dart';
+import '../features/auth/state/pos_session_state.dart';
 import '../features/pos_terminal/screens/pos_terminal_screen.dart';
 
-class XinyiPosApp extends StatelessWidget {
-  const XinyiPosApp({super.key});
+class XinyiPosApp extends StatefulWidget {
+  const XinyiPosApp({
+    super.key,
+    this.authRepository = const DemoAuthRepository(),
+  });
+
+  final AuthRepository authRepository;
+
+  @override
+  State<XinyiPosApp> createState() => _XinyiPosAppState();
+}
+
+class _XinyiPosAppState extends State<XinyiPosApp> {
+  PosSessionState _sessionState = PosSessionState.signedOut();
+
+  void _logout() {
+    setState(() => _sessionState = _sessionState.logout());
+  }
 
   @override
   Widget build(BuildContext context) {
+    final session = _sessionState.session;
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Xinyi POS',
@@ -25,7 +47,16 @@ class XinyiPosApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFF11141B),
         useMaterial3: true,
       ),
-      home: const PosTerminalScreen(),
+      home: session == null
+          ? PinLoginScreen(
+              authRepository: widget.authRepository,
+              onSignedIn: (nextSession) {
+                setState(
+                  () => _sessionState = PosSessionState.signedIn(nextSession),
+                );
+              },
+            )
+          : PosTerminalScreen(session: session, onLogout: _logout),
     );
   }
 }

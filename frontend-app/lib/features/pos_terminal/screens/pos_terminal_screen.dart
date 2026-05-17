@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/models/cart_item.dart';
+import '../../../core/models/pos_session.dart';
 import '../../../core/models/product.dart';
 import '../../../core/repositories/demo_product_repository.dart';
 import '../../../core/repositories/product_repository.dart';
@@ -16,9 +17,13 @@ class PosTerminalScreen extends StatefulWidget {
   const PosTerminalScreen({
     super.key,
     this.productRepository = const DemoProductRepository(),
+    this.session,
+    this.onLogout,
   });
 
   final ProductRepository productRepository;
+  final PosSession? session;
+  final VoidCallback? onLogout;
 
   @override
   State<PosTerminalScreen> createState() => _PosTerminalScreenState();
@@ -101,14 +106,17 @@ class _PosTerminalScreenState extends State<PosTerminalScreen> {
   Widget _buildTabletLayout() {
     return Row(
       children: [
-        const _SideRail(),
+        _SideRail(onLogout: widget.onLogout),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const _TerminalHeader(),
+                _TerminalHeader(
+                  session: widget.session,
+                  onLogout: widget.onLogout,
+                ),
                 const SizedBox(height: 24),
                 _CategoryBar(
                   categories: _categories,
@@ -143,9 +151,12 @@ class _PosTerminalScreenState extends State<PosTerminalScreen> {
   Widget _buildCompactLayout() {
     return Column(
       children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: _TerminalHeader(),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: _TerminalHeader(
+            session: widget.session,
+            onLogout: widget.onLogout,
+          ),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -210,24 +221,30 @@ class _CatalogContent extends StatelessWidget {
 }
 
 class _SideRail extends StatelessWidget {
-  const _SideRail();
+  const _SideRail({this.onLogout});
+
+  final VoidCallback? onLogout;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: 88,
       color: const Color(0xFF202230),
-      child: const Column(
+      child: Column(
         children: [
-          SizedBox(height: 24),
-          Icon(Icons.point_of_sale, size: 36, color: Color(0xFFFF7A1A)),
-          SizedBox(height: 28),
-          _RailIcon(icon: Icons.shopping_cart_checkout, selected: true),
-          _RailIcon(icon: Icons.receipt_long),
-          _RailIcon(icon: Icons.inventory_2),
-          Spacer(),
-          _RailIcon(icon: Icons.lock_clock),
-          SizedBox(height: 18),
+          const SizedBox(height: 24),
+          const Icon(Icons.point_of_sale, size: 36, color: Color(0xFFFF7A1A)),
+          const SizedBox(height: 28),
+          const _RailIcon(icon: Icons.shopping_cart_checkout, selected: true),
+          const _RailIcon(icon: Icons.receipt_long),
+          const _RailIcon(icon: Icons.inventory_2),
+          const Spacer(),
+          _RailIcon(
+            key: const ValueKey('logout-terminal-button'),
+            icon: Icons.lock_clock,
+            onPressed: onLogout,
+          ),
+          const SizedBox(height: 18),
         ],
       ),
     );
@@ -235,52 +252,66 @@ class _SideRail extends StatelessWidget {
 }
 
 class _RailIcon extends StatelessWidget {
-  const _RailIcon({required this.icon, this.selected = false});
+  const _RailIcon({
+    super.key,
+    required this.icon,
+    this.selected = false,
+    this.onPressed,
+  });
 
   final IconData icon;
   final bool selected;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
+    final iconColor = selected ? Colors.white : const Color(0xFFB5B8C8);
+
     return Container(
       width: 56,
       height: 56,
       margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: selected ? const Color(0xFFFF6B00) : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Icon(
-        icon,
-        color: selected ? Colors.white : const Color(0xFFB5B8C8),
+      child: IconButton(
+        tooltip: selected ? '收銀台' : '鎖定終端',
+        onPressed: onPressed,
+        style: IconButton.styleFrom(
+          backgroundColor: selected
+              ? const Color(0xFFFF6B00)
+              : Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        icon: Icon(icon, color: iconColor),
       ),
     );
   }
 }
 
 class _TerminalHeader extends StatelessWidget {
-  const _TerminalHeader();
+  const _TerminalHeader({this.session, this.onLogout});
+
+  final PosSession? session;
+  final VoidCallback? onLogout;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final cashierName = session?.cashierName ?? 'Demo Cashier';
+    final titleBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Xinyi Flagship Store',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-              ),
-              SizedBox(height: 6),
-              Text(
-                'Android Tablet POS · Demo Terminal 01',
-                style: TextStyle(color: Color(0xFFAEB2C3)),
-              ),
-            ],
-          ),
+        const Text(
+          'Xinyi Flagship Store',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
         ),
+        const SizedBox(height: 6),
+        Text(
+          'Android Tablet POS · Demo Terminal 01 · $cashierName',
+          style: const TextStyle(color: Color(0xFFAEB2C3)),
+        ),
+      ],
+    );
+
+    List<Widget> statusActions() {
+      return [
         _StatusPill(
           icon: Icons.wifi,
           label: '線上',
@@ -294,7 +325,41 @@ class _TerminalHeader extends StatelessWidget {
           color: Color(0xFFB8C7FF),
           background: Color(0xFF242C49),
         ),
-      ],
+        if (onLogout != null) ...[
+          const SizedBox(width: 12),
+          IconButton.filledTonal(
+            key: const ValueKey('header-logout-terminal-button'),
+            tooltip: '鎖定終端',
+            onPressed: onLogout,
+            icon: const Icon(Icons.lock_clock),
+          ),
+        ],
+      ];
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 620) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              titleBlock,
+              const SizedBox(height: 12),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(children: statusActions()),
+              ),
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: titleBlock),
+            ...statusActions(),
+          ],
+        );
+      },
     );
   }
 }

@@ -1554,3 +1554,31 @@ services:
 - `RegisterPage.test.tsx` 驗證點擊掃描按鈕會 focus 搜尋欄並顯示提示，輸入條碼後按 Enter 會以條碼作為 `productApi.getProducts` keyword。
 - in-app browser DOM snapshot 顯示掃描提示列。
 - browser console error logs 為空。
+
+---
+
+# 2026-05-17 Flutter PIN login screen overflow on short viewport
+
+## Issue
+
+- 場景：替 `frontend-app` 新增 PIN 登入畫面後執行 `flutter test`。
+- 錯誤訊息：`A RenderFlex overflowed by 140 pixels on the bottom.`
+- 異常行為：Flutter 測試預設 800x600 viewport 下，PIN keypad 底部超出 root render tree，`pin-submit-button` 與 `pin-digit-0` 點擊落在畫面外。
+
+## Root Cause
+
+- `PinLoginScreen` 使用固定垂直間距與較高的 `GridView.count` 數字鍵盤。
+- 畫面內容高度超過 600px 測試視窗，且外層 `Column` 沒有可捲動容器，導致底部按鈕不可達。
+
+## Solution
+
+- 將登入畫面外層改為 `LayoutBuilder + SingleChildScrollView + minHeight`，短視窗可捲動且一般平板仍置中。
+- 壓縮數字鍵盤列高與標題間距，避免 Android tablet / 測試小視窗溢出。
+- 收銀台 header 在窄寬度改成上下排列並允許狀態列水平捲動。
+
+## Verification
+
+- `dart format lib test`：通過。
+- `flutter test`：通過，24 tests。
+- `flutter analyze`：通過。
+- `flutter build apk --debug`：通過。
