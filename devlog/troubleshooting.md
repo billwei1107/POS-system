@@ -1472,3 +1472,31 @@ services:
 - `brew info --cask android-studio`：可顯示 Android Studio `2025.3.4.7`。
 - `flutter doctor -v`：Flutter 與 Android toolchain 通過。
 - `/tmp/pos_flutter_smoke` smoke app 可成功 `flutter build apk --debug` 並在 emulator 啟動。
+
+---
+
+# 2026-05-17 Plaintext OpenAI API key in shell configuration
+
+## Issue
+
+- 場景：檢查 Flutter Android toolchain 時讀取 shell 設定。
+- 異常行為：`/Users/wei/.zshrc` 內含明文 `OPENAI_API_KEY` export，且 Codex shell snapshot / session log 可能保留歷史輸出。
+
+## Root Cause
+
+- API key 被直接寫入 shell rc 檔，導致每個互動 shell 都會載入，也可能被工具快照、session log 或診斷輸出帶出。
+
+## Solution
+
+- 從 `/Users/wei/.zshrc` 移除明文 `OPENAI_API_KEY` export。
+- 執行 `launchctl unsetenv OPENAI_API_KEY` 清除 launchd 層級變數。
+- 掃描 POS repo、shell 設定、shell history、Codex shell snapshots 與 session logs。
+- 對 Codex shell/session 歷史中的 API-key 型字串改為 `[REDACTED_OPENAI_KEY]`。
+- 保留官方技能範例與 Codex `auth.json`，避免破壞工具登入狀態。
+
+## Verification
+
+- POS repo 與 `git grep` 未發現明文 OpenAI key。
+- `.zshrc`、常見 shell 設定與 history 未再發現 OpenAI API key 形態字串。
+- `.codex/shell_snapshots` 與 `.codex/sessions` 未再發現 OpenAI API key 形態字串。
+- 後續需由使用者到 OpenAI API keys 頁面撤銷舊 key、建立新 key，並改用 secret manager / Keychain 管理。
