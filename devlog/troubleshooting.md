@@ -1416,3 +1416,32 @@ services:
 - `npm run build`：通過。
 - Docker frontend 重建成功。
 - 瀏覽器驗證：搜尋 `74938` 只顯示 `000000-20260517145729-74938`；搜尋 `NO-MATCH-ORDER` 顯示「找不到符合條件的訂單」。
+
+---
+
+# 2026-05-17 POS new order button had no navigation
+
+## Issue
+
+- 場景：使用者進入 `/pos/orders` 訂單列表。
+- 異常行為：右上角 `新增訂單` 按鈕可點，但沒有導頁或建立新單行為。
+
+## Root Cause
+
+- `OrderListPage` 的 `新增訂單` button 只有視覺樣式，未設定 `onClick`。
+- 收銀員從訂單列表完成查單後，無法直接回到收銀台開始下一筆訂單。
+
+## Solution
+
+- 替 `新增訂單` 按鈕加上 `onClick={() => navigate('/pos/register')}`。
+- 補 `OrderListPage.test.tsx`，mock `useNavigate()` 並驗證點擊後導向收銀台。
+
+## Verification
+
+- `npx tsc -b`：通過。
+- `npm test -- --run test/pos-orders/OrderListPage.test.tsx`：通過。
+- `npm run lint`：通過。
+- `npm test -- --run`：通過，12 files / 25 tests。
+- `npm run build`：通過。
+- Docker frontend 重建成功。
+- 瀏覽器驗證：從 `/pos/orders` 點擊 `新增訂單` 會導向 `/pos/register`，並顯示收銀台主畫面。
