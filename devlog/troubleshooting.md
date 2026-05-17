@@ -1500,3 +1500,57 @@ services:
 - `.zshrc`、常見 shell 設定與 history 未再發現 OpenAI API key 形態字串。
 - `.codex/shell_snapshots` 與 `.codex/sessions` 未再發現 OpenAI API key 形態字串。
 - 後續需由使用者到 OpenAI API keys 頁面撤銷舊 key、建立新 key，並改用 secret manager / Keychain 管理。
+
+---
+
+# 2026-05-17 Flutter Android GridView zero-size first frame
+
+## Issue
+
+- 場景：`frontend-app` 第一版 POS 終端在 `pos_android_tablet` emulator 上執行 `flutter run -d emulator-5554`。
+- 錯誤訊息：`Failed assertion: line 493 pos 12: 'crossAxisExtent > 0.0': is not true.`
+- 異常位置：`_ProductGrid` 的 `GridView.builder`。
+
+## Root Cause
+
+- Android emulator 首幀 layout 過程中，`GridView` 曾收到 `crossAxisExtent: 0.0` 與 `viewportMainAxisExtent: 0.0`。
+- `SliverGridDelegateWithMaxCrossAxisExtent` 要求 cross axis extent 必須大於 0，因此在真機啟動時 assert；widget test 的平板 viewport 沒有覆蓋到這個短暫零尺寸邊界。
+
+## Solution
+
+- 在 `_ProductGrid` 外層加入 `LayoutBuilder`。
+- 當 `constraints.maxWidth <= 0` 或 `constraints.maxHeight <= 0` 時先回傳 `SizedBox.shrink()`。
+- 尺寸正常後再建立 `GridView.builder`。
+
+## Verification
+
+- `flutter analyze`：通過。
+- `flutter test`：通過，2 tests。
+- `flutter build apk --debug`：通過。
+- `flutter run -d emulator-5554`：成功安裝並啟動，未再出現 layout exception。
+
+---
+
+# 2026-05-17 Browser automation virtual clipboard blocked text input
+
+## Issue
+
+- 場景：使用 in-app browser 驗證 Web 收銀台掃描模式，點擊 `掃描條碼` 後嘗試以 Playwright `type` / `fill` 輸入條碼。
+- 錯誤訊息：`Browser Use virtual clipboard is not installed`。
+
+## Root Cause
+
+- Browser automation 工具層缺少虛擬剪貼簿能力，導致該工具的文字輸入操作失敗。
+- DOM snapshot 與點擊仍可用，產品頁面也無 console error。
+
+## Solution
+
+- 產品程式碼不需修改。
+- 瀏覽器層驗證掃描按鈕、提示列與 console error。
+- 條碼 Enter 後 API keyword payload 改由 React Testing Library 測試覆蓋。
+
+## Verification
+
+- `RegisterPage.test.tsx` 驗證點擊掃描按鈕會 focus 搜尋欄並顯示提示，輸入條碼後按 Enter 會以條碼作為 `productApi.getProducts` keyword。
+- in-app browser DOM snapshot 顯示掃描提示列。
+- browser console error logs 為空。

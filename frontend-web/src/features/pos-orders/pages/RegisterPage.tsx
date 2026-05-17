@@ -4,7 +4,7 @@
  * @description_en Provides API-backed product browsing, category filtering and cart portal mounting
  * @description_zh 提供串接 API 的商品瀏覽、分類篩選與購物車掛載功能
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     Alert, Box, TextField, InputAdornment, Button, Card, CardContent,
     Typography, Chip, IconButton, Tooltip, CircularProgress
@@ -92,6 +92,8 @@ const RegisterPage: React.FC = () => {
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [scannerNotice, setScannerNotice] = useState<string | null>(null);
+    const searchInputRef = useRef<HTMLInputElement>(null);
 
     // ========================================
     // 購物車掛載 / Cart Portal Mounting
@@ -171,7 +173,19 @@ const RegisterPage: React.FC = () => {
         [activeCategory, categories]
     );
 
-    const handleSearch = () => setKeyword(searchInput.trim());
+    // ========================================
+    // 條碼搜尋模式 / Barcode Search Mode
+    // ========================================
+    const handleSearch = () => {
+        setKeyword(searchInput.trim());
+        setScannerNotice(null);
+    };
+
+    const handleBarcodeScanClick = () => {
+        setScannerNotice('掃描模式已啟動，請掃描條碼或輸入條碼後按 Enter。');
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+    };
 
     return (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -217,6 +231,7 @@ const RegisterPage: React.FC = () => {
                 alignItems: 'center'
             }}>
                 <TextField
+                    inputRef={searchInputRef}
                     placeholder="搜尋商品、SKU 或條碼"
                     variant="outlined"
                     value={searchInput}
@@ -270,7 +285,7 @@ const RegisterPage: React.FC = () => {
                 </Box>
 
                 <Tooltip title="掃描條碼">
-                    <IconButton sx={{
+                    <IconButton aria-label="掃描條碼" onClick={handleBarcodeScanClick} sx={{
                         minWidth: 52,
                         width: 52,
                         minHeight: 52,
@@ -287,6 +302,7 @@ const RegisterPage: React.FC = () => {
             </Box>
 
             {error && <Alert severity="warning" sx={{ mb: 2 }}>{error}</Alert>}
+            {scannerNotice && <Alert severity="info" sx={{ mb: 2 }}>{scannerNotice}</Alert>}
 
             <Box sx={{
                 display: 'grid',

@@ -27,7 +27,8 @@ POS/
 ├── .agent/                      # 本地工作流與 Skill
 ├── .cursor/                     # Cursor 規則
 ├── backend/                     # Spring Boot Maven multi-module 後端
-├── frontend-web/                # React + TypeScript + Vite 管理後台
+├── frontend-web/                # React + TypeScript + Vite 管理後台與 Web POS
+├── frontend-app/                # Flutter Android-first POS 終端
 ├── docker/                      # Docker 本地部署設定
 ├── env/                         # 環境變數範本與本地 env 位置
 ├── reference/                   # AI 參考資料，不進正式源碼
@@ -73,7 +74,7 @@ Flyway migration 依模組分散在各 `module-*/src/main/resources/db/migration
 
 ## 4. 前端結構
 
-前端位於 `frontend-web/`，使用 React 19、TypeScript 6、Vite 8、MUI 7、Zustand、Axios、React Router。
+Web 前端位於 `frontend-web/`，使用 React 19、TypeScript 6、Vite 8、MUI 7、Zustand、Axios、React Router。
 
 ```text
 frontend-web/src/
@@ -117,6 +118,36 @@ npm run dev
 ```
 
 前端測試基線位於 `frontend-web/test/`，使用 Vitest、jsdom 與 React Testing Library，覆蓋 cart store、auth persistence、held order API flow 與 CheckoutPage 現金付款核心邏輯。
+
+## 4.1 Flutter POS 終端
+
+Flutter POS 終端位於 `frontend-app/`，目前採 Android-first 開發，使用 Flutter stable 與 Android SDK 36。
+
+```text
+frontend-app/
+├── android/                     # Android 平台工程
+├── lib/
+│   ├── app/                     # MaterialApp、theme 與 app shell
+│   ├── core/                    # POS 模型、暫時 demo catalog、未來 API/DB/sync 共用層
+│   └── features/pos_terminal/   # Android 平板收銀主畫面
+└── test/                        # Flutter widget tests
+```
+
+常用指令：
+
+```bash
+cd frontend-app
+flutter analyze
+flutter test
+flutter build apk --debug
+flutter run -d emulator-5554
+```
+
+本機已建立 Android tablet AVD：
+
+```bash
+flutter emulators --launch pos_android_tablet
+```
 
 ## 5. Docker 與環境
 

@@ -17,7 +17,8 @@ POS 專案根目錄固定為本資料夾：
 | 後端 | Spring Boot 3.2.4 / Java 21 / Maven multi-module |
 | 資料庫 | PostgreSQL 15 / Flyway |
 | 快取 | Redis 7 |
-| 前端 | React 19 / TypeScript 6 / Vite 8 / MUI 7 / Zustand |
+| 前端 Web | React 19 / TypeScript 6 / Vite 8 / MUI 7 / Zustand |
+| 前端 App | Flutter 3.41 / Dart 3.11 / Android SDK 36 |
 | 部署 | Docker Compose |
 | 模塊 reference | `billwei1107/module` tag `module-v2026.05.10.4` |
 
@@ -32,7 +33,8 @@ POS/
 ├── .agent/                   # 專案工作流與本地 Skill
 ├── .cursor/                  # Cursor 專案規則
 ├── backend/                  # Spring Boot 後端模塊
-├── frontend-web/             # React 管理後台
+├── frontend-web/             # React 管理後台與 Web POS
+├── frontend-app/             # Flutter Android-first POS 終端
 ├── docker/                   # Docker 部署設定檔
 ├── env/                      # 環境變數範本與本地 env 位置
 ├── 需求/                      # Claude 規劃與 Codex 執行交接文件
@@ -79,6 +81,17 @@ npm run build
 npm run dev
 ```
 
+6. Flutter Android POS 驗證：
+
+```bash
+cd frontend-app
+flutter analyze
+flutter test
+flutter build apk --debug
+flutter emulators --launch pos_android_tablet
+flutter run -d emulator-5554
+```
+
 本地服務預設：
 
 | 服務 | URL |
@@ -99,13 +112,15 @@ POS demo 登入：
 
 ## 目前完成狀態
 
-截至 2026-05-11，POS 主流程已完成到可驗證閉環：
+截至 2026-05-17，POS Web 主流程已完成到可驗證閉環，Flutter Android POS 終端已建立第一版骨架：
 
 ```text
 PIN 登入 → 商品載入 → 加入購物車 → 折扣/會員 MVP → 掛單/取回 →
 現金付款 → payment transaction → mock invoice/tax →
 inventory 扣庫存 → staff shift/cash drawer/reconciliation → 訂單查詢/退款
 ```
+
+Flutter app 目前已完成 Android-first scaffold、平板收銀首屏、demo 商品加入購物車、金額試算、widget tests 與 debug APK build；後續會逐步接 PIN auth、API、SQLite/SQLCipher 離線快取與 sync engine。
 
 正式化狀態以 `需求/開發進度對照.md` 為準。仍屬 MVP 或待正式化的項目包括：CRM 會員後端、促銷引擎、正式電子發票字軌/Turnkey、完整盤點/調撥、硬體列印/錢箱、多支付方式與更完整日結情境。
 
@@ -118,6 +133,15 @@ cd frontend-web
 npm test
 npm run lint
 npm run build
+```
+
+Flutter app：
+
+```bash
+cd frontend-app
+flutter analyze
+flutter test
+flutter build apk --debug
 ```
 
 後端 POS 核心模組：
