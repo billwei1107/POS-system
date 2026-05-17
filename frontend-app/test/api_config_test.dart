@@ -38,7 +38,7 @@ void main() {
 
       expect(
         config.pinLoginEndpoint.toString(),
-        'http://10.0.2.2:38080/api/v1/pos/sessions/pin-login',
+        'http://10.0.2.2:38080/api/v1/pos/auth/pin-login',
       );
       expect(
         config.productsEndpoint.toString(),

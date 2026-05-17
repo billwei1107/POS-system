@@ -11,7 +11,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import CheckoutPage from '../../src/features/pos-orders/pages/CheckoutPage';
 import { useCartStore } from '../../src/features/pos-orders/store/cartStore';
-import type { Order } from '../../src/features/pos-orders/types';
+import type { CreateOrderRequest, Order } from '../../src/features/pos-orders/types';
 
 const orderApiMock = vi.hoisted(() => ({
   create: vi.fn(),
@@ -146,7 +146,7 @@ describe('CheckoutPage cash payment', () => {
     expect(useCartStore.getState().lines).toHaveLength(0);
   });
 
-  it('sends promotion discount metadata when promotion is applied', async () => {
+  it('keeps member id in create order payload when promotion discount is applied', async () => {
     const user = userEvent.setup();
     useCartStore.setState({
       discountAmount: 14.5,
@@ -182,14 +182,14 @@ describe('CheckoutPage cash payment', () => {
     renderCheckout();
     await user.click(screen.getByRole('button', { name: '確認付款方式' }));
 
-    await waitFor(() => expect(orderApiMock.create).toHaveBeenCalledWith(expect.objectContaining({
-      discountAmount: 14.5,
-      discountSource: 'PROMOTION',
-      promotionRuleId: 'promo-rule-001',
-      promotionCode: 'CAFE20',
-      discountLabel: '咖啡滿百 9 折',
-      memberId: 'member-gold',
-    })));
+    await waitFor(() => expect(orderApiMock.create).toHaveBeenCalledTimes(1));
+    const createPayload = orderApiMock.create.mock.calls[0]?.[0] as CreateOrderRequest;
+    expect(createPayload.memberId).toBe('member-gold');
+    expect(createPayload.discountAmount).toBe(14.5);
+    expect(createPayload.discountSource).toBe('PROMOTION');
+    expect(createPayload.promotionRuleId).toBe('promo-rule-001');
+    expect(createPayload.promotionCode).toBe('CAFE20');
+    expect(createPayload.discountLabel).toBe('咖啡滿百 9 折');
     await waitFor(() => expect(screen.getByText('付款完成')).toBeInTheDocument());
     expect(screen.getByText('GOLD · 金卡會員 · 1,000 點')).toBeInTheDocument();
     expect(screen.getByText('咖啡滿百 9 折 · CAFE20')).toBeInTheDocument();

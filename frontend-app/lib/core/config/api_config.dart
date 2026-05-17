@@ -31,7 +31,7 @@ class ApiConfig {
   }
 
   Uri get pinLoginEndpoint {
-    return endpoint('/api/v1/pos/sessions/pin-login');
+    return endpoint('/api/v1/pos/auth/pin-login');
   }
 
   Uri get productsEndpoint {
