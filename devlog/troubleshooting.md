@@ -1385,3 +1385,34 @@ services:
 ## Verification
 
 - DOM snapshot 確認付款完成畫面顯示訂單號、品項、應收金額與正確找零。
+
+---
+
+# 2026-05-17 POS order number search input had no behavior
+
+## Issue
+
+- 場景：使用者進入 `/pos/orders` 訂單列表。
+- 異常行為：畫面上有「依訂單編號搜尋」輸入框，但輸入任何內容都不會篩選列表，也沒有無結果提示。
+
+## Root Cause
+
+- `OrderListPage` 只渲染了搜尋 `TextField`，沒有對應 state、onChange 或篩選後的顯示資料。
+- 桌面表格、手機卡片與統計卡都直接使用原始 `orders`。
+
+## Solution
+
+- 新增 `orderNoKeyword` state 與 `displayedOrders`。
+- 將訂單編號關鍵字套用到目前載入頁面的訂單列表。
+- 桌面表格、手機卡片與統計卡改用 `displayedOrders`。
+- 無搜尋結果時顯示明確空狀態與提示。
+
+## Verification
+
+- `npx tsc -b`：通過。
+- `npm test -- --run test/pos-orders/OrderListPage.test.tsx`：通過。
+- `npm run lint`：通過。
+- `npm test -- --run`：通過，12 files / 24 tests。
+- `npm run build`：通過。
+- Docker frontend 重建成功。
+- 瀏覽器驗證：搜尋 `74938` 只顯示 `000000-20260517145729-74938`；搜尋 `NO-MATCH-ORDER` 顯示「找不到符合條件的訂單」。
