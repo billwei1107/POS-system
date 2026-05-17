@@ -1445,3 +1445,30 @@ services:
 - `npm run build`：通過。
 - Docker frontend 重建成功。
 - 瀏覽器驗證：從 `/pos/orders` 點擊 `新增訂單` 會導向 `/pos/register`，並顯示收銀台主畫面。
+
+---
+
+# 2026-05-17 Homebrew cask API failed during Flutter Android setup
+
+## Issue
+
+- 場景：準備安裝 Flutter SDK 與 Android Studio 時執行 `brew info --cask flutter`、`brew info --cask android-studio`。
+- 錯誤訊息：`Error: undefined method 'to_sym' for nil`，堆疊位於 Homebrew `cask_struct_generator.rb`。
+
+## Root Cause
+
+- 當時 Homebrew cask API metadata 解析失敗，且本機 Homebrew 版本為 `5.1.8`。
+- `brew doctor` 顯示系統可用；後續 `brew tap` 觸發 Homebrew auto-update 後版本更新至 `5.1.11`，cask 查詢恢復正常。
+
+## Solution
+
+- 讓 Homebrew 完成 auto-update。
+- 重新執行 cask 查詢，確認 `flutter` 與 `android-studio` cask 可解析。
+- 使用 `brew install --cask flutter android-studio` 完成安裝。
+
+## Verification
+
+- `brew info flutter`：可顯示 Flutter SDK `3.41.9`。
+- `brew info --cask android-studio`：可顯示 Android Studio `2025.3.4.7`。
+- `flutter doctor -v`：Flutter 與 Android toolchain 通過。
+- `/tmp/pos_flutter_smoke` smoke app 可成功 `flutter build apk --debug` 並在 emulator 啟動。
