@@ -125,6 +125,9 @@ describe('CheckoutPage cash payment', () => {
     expect(screen.getByText('數量：1')).toBeInTheDocument();
     expect(screen.getByText('找零').parentElement).toHaveTextContent('$4');
     expect(screen.queryByText('購物車是空的')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '付款已完成' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '返回收銀台' })).toBeInTheDocument();
+    expect(screen.getByLabelText('收款金額')).toBeDisabled();
     expect(orderApiMock.create).toHaveBeenCalledWith(expect.objectContaining({
       storeId: 'store-from-session',
       terminalId: 'terminal-from-session',

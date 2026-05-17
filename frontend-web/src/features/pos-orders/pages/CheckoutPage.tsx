@@ -87,9 +87,10 @@ const CheckoutPage: React.FC = () => {
     const summaryDiscountSource = completedOrder && receiptSnapshot ? receiptSnapshot.discountSource : discountSource;
     const summaryPromotion = completedOrder && receiptSnapshot ? receiptSnapshot.appliedPromotion : appliedPromotion;
     const summaryDiscountLabel = completedOrder && receiptSnapshot ? receiptSnapshot.discountLabel : discountLabel;
+    const paymentCompleted = Boolean(completedOrder);
     const cashShortfall = Math.max(0, summaryTotals.total - cashTenderedAmount);
     const changeDue = Math.max(0, cashTenderedAmount - summaryTotals.total);
-    const cashPaymentInvalid = selectedMethod === 'cash' && !completedOrder && cashShortfall > 0;
+    const cashPaymentInvalid = selectedMethod === 'cash' && !paymentCompleted && cashShortfall > 0;
 
     const paymentMethods = [
         { id: 'cash', label: '現金', icon: <Payments sx={{ fontSize: 32 }} />, color: '#4CAF50', bg: 'rgba(76, 175, 80, 0.15)' },
@@ -332,6 +333,7 @@ const CheckoutPage: React.FC = () => {
                         <Button
                             key={method.id}
                             variant="outlined"
+                            disabled={paymentCompleted}
                             onClick={() => setSelectedMethod(method.id)}
                             sx={{
                                 border: selectedMethod === method.id ? '1px solid rgba(255,109,0,0.75)' : '1px solid rgba(255,255,255,0.05)',
@@ -392,12 +394,14 @@ const CheckoutPage: React.FC = () => {
                             value={cashTendered}
                             onChange={(event) => setCashTendered(event.target.value)}
                             inputProps={{ min: 0, step: 1 }}
+                            disabled={paymentCompleted}
                             fullWidth
                         />
                         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' }, gap: 1 }}>
                             <Button
                                 variant="outlined"
                                 onClick={() => setCashTendered(String(totals.total))}
+                                disabled={paymentCompleted}
                                 sx={{ minHeight: 56, color: 'text.primary', borderColor: 'rgba(255,255,255,0.12)' }}
                             >
                                 剛好
@@ -407,6 +411,7 @@ const CheckoutPage: React.FC = () => {
                                     key={amount}
                                     variant="outlined"
                                     onClick={() => addCashTendered(amount)}
+                                    disabled={paymentCompleted}
                                     sx={{ minHeight: 56, color: 'text.primary', borderColor: 'rgba(255,255,255,0.12)' }}
                                 >
                                     +{formatMoney(amount)}
@@ -428,7 +433,13 @@ const CheckoutPage: React.FC = () => {
                     <Button 
                         variant="contained" 
                         startIcon={<ArrowBack />} 
-                        onClick={() => navigate(-1)}
+                        onClick={() => {
+                            if (paymentCompleted) {
+                                navigate('/pos/register');
+                                return;
+                            }
+                            navigate(-1);
+                        }}
                         sx={{ 
                             flex: 1, 
                             py: 2, 
@@ -439,11 +450,11 @@ const CheckoutPage: React.FC = () => {
                             '&:hover': { bgcolor: 'rgba(255,255,255,0.12)' }
                         }}
                     >
-                        返回購物車
+                        {paymentCompleted ? '返回收銀台' : '返回購物車'}
                     </Button>
                     <Button 
                         variant="contained" 
-                        disabled={orderItems.length === 0 || submitting || cashPaymentInvalid}
+                        disabled={paymentCompleted || orderItems.length === 0 || submitting || cashPaymentInvalid}
                         onClick={handleConfirmPayment}
                         sx={{ 
                             flex: 2, 
@@ -455,7 +466,7 @@ const CheckoutPage: React.FC = () => {
                             fontSize: '16px'
                         }}
                     >
-                        {submitting ? '付款處理中' : '確認付款方式'}
+                        {paymentCompleted ? '付款已完成' : submitting ? '付款處理中' : '確認付款方式'}
                     </Button>
                 </Box>
                 {completedOrder && (
