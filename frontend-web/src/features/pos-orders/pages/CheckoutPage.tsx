@@ -10,7 +10,15 @@ import {
     Nfc, MoreHoriz, ArrowBack, ReceiptLong
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { calculateCartTotals, useCartStore } from '../store/cartStore';
+import {
+    calculateCartTotals,
+    useCartStore,
+    type CartDiscountSource,
+    type CartLine,
+    type CartMember,
+    type CartPromotion,
+    type CartTotals,
+} from '../store/cartStore';
 import { formatMoney } from '@shared/utils';
 import { orderApi } from '../api/orderApi';
 import type { Order, OrderDiscountSource, OrderType } from '../types';
@@ -30,6 +38,15 @@ type ApiErrorBody = {
     message?: string;
 };
 
+interface CheckoutReceiptSnapshot {
+    lines: CartLine[];
+    totals: CartTotals;
+    discountSource: CartDiscountSource | null;
+    selectedMember: CartMember | null;
+    appliedPromotion: CartPromotion | null;
+    discountLabel: string;
+}
+
 const toOrderDiscountSource = (source: 'manual' | 'member' | 'promotion' | null): OrderDiscountSource | undefined => {
     if (source === 'manual') return 'MANUAL';
     if (source === 'member') return 'MEMBER';
@@ -43,6 +60,7 @@ const CheckoutPage: React.FC = () => {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
+    const [receiptSnapshot, setReceiptSnapshot] = useState<CheckoutReceiptSnapshot | null>(null);
     const [cashTendered, setCashTendered] = useState('');
     const orderItems = useCartStore((state) => state.lines);
     const taxRate = useCartStore((state) => state.taxRate);
@@ -57,15 +75,21 @@ const CheckoutPage: React.FC = () => {
         const value = Number(cashTendered);
         return Number.isFinite(value) ? value : 0;
     }, [cashTendered]);
-    const cashShortfall = Math.max(0, totals.total - cashTenderedAmount);
-    const changeDue = Math.max(0, cashTenderedAmount - totals.total);
-    const cashPaymentInvalid = selectedMethod === 'cash' && cashShortfall > 0;
     const discountLabel = useMemo(() => {
         if (discountSource === 'member' && selectedMember) return '會員折扣';
         if (discountSource === 'promotion' && appliedPromotion) return appliedPromotion.name;
         if (discountSource === 'manual') return '手動折扣';
         return '折扣';
     }, [appliedPromotion, discountSource, selectedMember]);
+    const summaryLines = completedOrder && receiptSnapshot ? receiptSnapshot.lines : orderItems;
+    const summaryTotals = completedOrder && receiptSnapshot ? receiptSnapshot.totals : totals;
+    const summaryMember = completedOrder && receiptSnapshot ? receiptSnapshot.selectedMember : selectedMember;
+    const summaryDiscountSource = completedOrder && receiptSnapshot ? receiptSnapshot.discountSource : discountSource;
+    const summaryPromotion = completedOrder && receiptSnapshot ? receiptSnapshot.appliedPromotion : appliedPromotion;
+    const summaryDiscountLabel = completedOrder && receiptSnapshot ? receiptSnapshot.discountLabel : discountLabel;
+    const cashShortfall = Math.max(0, summaryTotals.total - cashTenderedAmount);
+    const changeDue = Math.max(0, cashTenderedAmount - summaryTotals.total);
+    const cashPaymentInvalid = selectedMethod === 'cash' && !completedOrder && cashShortfall > 0;
 
     const paymentMethods = [
         { id: 'cash', label: '現金', icon: <Payments sx={{ fontSize: 32 }} />, color: '#4CAF50', bg: 'rgba(76, 175, 80, 0.15)' },
@@ -101,6 +125,15 @@ const CheckoutPage: React.FC = () => {
         setSubmitting(true);
         setError(null);
         setCompletedOrder(null);
+        setReceiptSnapshot(null);
+        const pendingReceiptSnapshot: CheckoutReceiptSnapshot = {
+            lines: orderItems.map((item) => ({ ...item })),
+            totals,
+            discountSource,
+            selectedMember: selectedMember ? { ...selectedMember } : null,
+            appliedPromotion: appliedPromotion ? { ...appliedPromotion } : null,
+            discountLabel,
+        };
         try {
             const createResponse = await orderApi.create({
                 storeId: posContext.storeId,
@@ -141,6 +174,7 @@ const CheckoutPage: React.FC = () => {
                 throw new Error(completeResponse.message || '付款完成失敗。');
             }
 
+            setReceiptSnapshot(pendingReceiptSnapshot);
             setCompletedOrder(completeResponse.data);
             clearCart();
         } catch (err) {
@@ -178,9 +212,9 @@ const CheckoutPage: React.FC = () => {
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 5 }}>
                     <Box>
                         <Typography variant="h6" fontWeight="bold">訂單摘要</Typography>
-                        {selectedMember && (
+                        {summaryMember && (
                             <Typography variant="caption" color="text.secondary">
-                                {selectedMember.tier} · {selectedMember.name} · {selectedMember.points.toLocaleString()} 點
+                                {summaryMember.tier} · {summaryMember.name} · {summaryMember.points.toLocaleString()} 點
                             </Typography>
                         )}
                     </Box>
@@ -190,16 +224,16 @@ const CheckoutPage: React.FC = () => {
                             size="small"
                             sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: 'text.secondary', fontFamily: 'monospace', fontWeight: 800 }}
                         />
-                        {discountSource === 'member' && selectedMember && (
+                        {summaryDiscountSource === 'member' && summaryMember && (
                             <Chip
-                                label={`${selectedMember.discountPercent}% 會員折扣`}
+                                label={`${summaryMember.discountPercent}% 會員折扣`}
                                 size="small"
                                 sx={{ bgcolor: 'rgba(255,138,101,0.12)', color: '#FFAB91', fontWeight: 800 }}
                             />
                         )}
-                        {discountSource === 'promotion' && appliedPromotion && (
+                        {summaryDiscountSource === 'promotion' && summaryPromotion && (
                             <Chip
-                                label={appliedPromotion.code ? `${appliedPromotion.name} · ${appliedPromotion.code}` : appliedPromotion.name}
+                                label={summaryPromotion.code ? `${summaryPromotion.name} · ${summaryPromotion.code}` : summaryPromotion.name}
                                 size="small"
                                 sx={{ bgcolor: 'rgba(0,230,118,0.12)', color: '#7CFFB2', fontWeight: 800 }}
                             />
@@ -225,14 +259,14 @@ const CheckoutPage: React.FC = () => {
 
                 {/* 品項列表 / Items list */}
                 <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
-                    {orderItems.length === 0 && (
+                    {summaryLines.length === 0 && (
                         <Box sx={{ py: 8, textAlign: 'center', color: 'text.secondary' }}>
                             <Typography fontWeight={900} color="text.primary">購物車是空的</Typography>
                             <Typography variant="body2">返回收銀台加入商品後再選擇付款方式。</Typography>
                         </Box>
                     )}
 
-                    {orderItems.map((item) => (
+                    {summaryLines.map((item) => (
                         <Box key={item.itemId} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                                 <Avatar variant="rounded" src={item.imageUrl ?? undefined} sx={{ width: 56, height: 56, borderRadius: 2 }}>
@@ -254,22 +288,22 @@ const CheckoutPage: React.FC = () => {
                 <Box sx={{ mt: 2 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, color: 'text.secondary' }}>
                         <Typography variant="body2" letterSpacing={1} fontWeight="bold">小計</Typography>
-                        <Typography variant="body2">{formatMoney(totals.subtotal)}</Typography>
+                        <Typography variant="body2">{formatMoney(summaryTotals.subtotal)}</Typography>
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, color: 'text.secondary' }}>
                         <Typography variant="body2" letterSpacing={1} fontWeight="bold">稅額 (5%)</Typography>
-                        <Typography variant="body2">{formatMoney(totals.tax)}</Typography>
+                        <Typography variant="body2">{formatMoney(summaryTotals.tax)}</Typography>
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, color: '#FF8A65' }}>
-                        <Typography variant="body2" letterSpacing={1} fontWeight="bold">{discountLabel}</Typography>
-                        <Typography variant="body2">-{formatMoney(totals.discount)}</Typography>
+                        <Typography variant="body2" letterSpacing={1} fontWeight="bold">{summaryDiscountLabel}</Typography>
+                        <Typography variant="body2">-{formatMoney(summaryTotals.discount)}</Typography>
                     </Box>
                     
                     <Divider sx={{ borderColor: 'rgba(255,255,255,0.05)', mb: 3 }} />
                     
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                         <Typography variant="subtitle1" fontWeight="bold" letterSpacing={1} sx={{ color: 'text.secondary', mb: 1 }}>應收金額</Typography>
-                        <Typography variant="h2" fontWeight="bold" sx={{ color: '#E0E7FF' }}>{formatMoney(totals.total)}</Typography>
+                        <Typography variant="h2" fontWeight="bold" sx={{ color: '#E0E7FF' }}>{formatMoney(summaryTotals.total)}</Typography>
                     </Box>
                 </Box>
             </Box>
@@ -349,7 +383,7 @@ const CheckoutPage: React.FC = () => {
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
                             <Typography fontWeight={900}>現金收款</Typography>
                             <Typography variant="body2" color="text.secondary">
-                                應收 {formatMoney(totals.total)}
+                                應收 {formatMoney(summaryTotals.total)}
                             </Typography>
                         </Box>
                         <TextField

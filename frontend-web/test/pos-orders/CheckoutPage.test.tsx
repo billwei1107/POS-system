@@ -121,6 +121,10 @@ describe('CheckoutPage cash payment', () => {
     await user.click(screen.getByRole('button', { name: '確認付款方式' }));
 
     await waitFor(() => expect(screen.getByText('付款完成')).toBeInTheDocument());
+    expect(screen.getByText('拿鐵 12oz')).toBeInTheDocument();
+    expect(screen.getByText('數量：1')).toBeInTheDocument();
+    expect(screen.getByText('找零').parentElement).toHaveTextContent('$4');
+    expect(screen.queryByText('購物車是空的')).not.toBeInTheDocument();
     expect(orderApiMock.create).toHaveBeenCalledWith(expect.objectContaining({
       storeId: 'store-from-session',
       terminalId: 'terminal-from-session',
@@ -183,5 +187,9 @@ describe('CheckoutPage cash payment', () => {
       discountLabel: '咖啡滿百 9 折',
       memberId: 'member-gold',
     })));
+    await waitFor(() => expect(screen.getByText('付款完成')).toBeInTheDocument());
+    expect(screen.getByText('GOLD · 金卡會員 · 1,000 點')).toBeInTheDocument();
+    expect(screen.getByText('咖啡滿百 9 折 · CAFE20')).toBeInTheDocument();
+    expect(screen.queryByText('購物車是空的')).not.toBeInTheDocument();
   });
 });
