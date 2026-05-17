@@ -99,6 +99,7 @@ const OrderListPage: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<OrderStatus | ''>('');
+  const [orderNoKeyword, setOrderNoKeyword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -119,9 +120,15 @@ const OrderListPage: React.FC = () => {
     return new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', maximumFractionDigits: 0 }).format(amount);
   }
 
+  const displayedOrders = useMemo(() => {
+    const keyword = orderNoKeyword.trim().toLowerCase();
+    if (!keyword) return orders;
+    return orders.filter(order => order.orderNo.toLowerCase().includes(keyword));
+  }, [orderNoKeyword, orders]);
+
   const orderMetrics = useMemo(() => {
-    const activeCount = orders.filter(order => !['COMPLETED', 'CLOSED', 'VOIDED'].includes(order.status)).length;
-    const completedOrders = orders.filter(order => ['COMPLETED', 'CLOSED'].includes(order.status));
+    const activeCount = displayedOrders.filter(order => !['COMPLETED', 'CLOSED', 'VOIDED'].includes(order.status)).length;
+    const completedOrders = displayedOrders.filter(order => ['COMPLETED', 'CLOSED'].includes(order.status));
     const revenue = completedOrders.reduce((sum, order) => sum + order.grandTotal, 0);
     const averageTicket = completedOrders.length > 0 ? revenue / completedOrders.length : 0;
 
@@ -130,7 +137,7 @@ const OrderListPage: React.FC = () => {
       { label: '本頁營收', value: formatMoney(revenue), helper: `${completedOrders.length} 筆已完成訂單` },
       { label: '平均客單', value: formatMoney(averageTicket), helper: completedOrders.length > 0 ? '依本頁已完成訂單計算' : '首筆訂單後開始計算' },
     ];
-  }, [orders, page, total]);
+  }, [displayedOrders, page, total]);
 
   const loadOrderClosureStatuses = useCallback(async (orderList: Order[]) => {
     const closedOrders = orderList.filter(order => ['COMPLETED', 'CLOSED'].includes(order.status));
@@ -397,6 +404,8 @@ const OrderListPage: React.FC = () => {
         <TextField
           size="small"
           placeholder="依訂單編號搜尋"
+          value={orderNoKeyword}
+          onChange={(event) => setOrderNoKeyword(event.target.value)}
           sx={{ flex: '1 1 260px', '& fieldset': { borderColor: 'rgba(255,255,255,0.08)' } }}
         />
       </Box>
@@ -409,15 +418,19 @@ const OrderListPage: React.FC = () => {
             </CardContent>
           </Card>
         )}
-        {!loading && orders.length === 0 && (
+        {!loading && displayedOrders.length === 0 && (
           <Card sx={{ bgcolor: 'background.paper', borderRadius: 3, border: '1px solid rgba(255,255,255,0.06)', boxShadow: 'none' }}>
             <CardContent sx={{ py: 5, textAlign: 'center' }}>
-              <Typography variant="h6" fontWeight={800}>目前沒有訂單</Typography>
-              <Typography variant="body2" color="text.secondary">建立銷售後，訂單會顯示在這裡。</Typography>
+              <Typography variant="h6" fontWeight={800}>
+                {orders.length === 0 ? '目前沒有訂單' : '找不到符合條件的訂單'}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {orders.length === 0 ? '建立銷售後，訂單會顯示在這裡。' : '請調整訂單編號關鍵字或清除搜尋。'}
+              </Typography>
             </CardContent>
           </Card>
         )}
-        {!loading && orders.map(order => (
+        {!loading && displayedOrders.map(order => (
           <Card key={order.id} sx={{ bgcolor: 'background.paper', borderRadius: 3, border: '1px solid rgba(255,255,255,0.06)', boxShadow: 'none' }}>
             <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, '&:last-child': { pb: 2 } }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1.5, alignItems: 'flex-start' }}>
@@ -479,16 +492,18 @@ const OrderListPage: React.FC = () => {
               <TableRow>
                 <TableCell colSpan={10} align="center"><CircularProgress size={24} /></TableCell>
               </TableRow>
-            ) : orders.length === 0 ? (
+            ) : displayedOrders.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={10} align="center" sx={{ py: 8 }}>
-                  <Typography variant="h6" fontWeight={800}>目前沒有訂單</Typography>
+                  <Typography variant="h6" fontWeight={800}>
+                    {orders.length === 0 ? '目前沒有訂單' : '找不到符合條件的訂單'}
+                  </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    選擇門店並建立銷售後，訂單會顯示在這裡。
+                    {orders.length === 0 ? '選擇門店並建立銷售後，訂單會顯示在這裡。' : '請調整訂單編號關鍵字或清除搜尋。'}
                   </Typography>
                 </TableCell>
               </TableRow>
-            ) : orders.map(order => (
+            ) : displayedOrders.map(order => (
               <TableRow key={order.id} hover>
                 <TableCell><Typography variant="body2" fontFamily="monospace">{order.orderNo}</Typography></TableCell>
                 <TableCell>

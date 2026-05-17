@@ -74,6 +74,29 @@ const promotionOrder: Order = {
   }],
 };
 
+const manualOrder: Order = {
+  ...promotionOrder,
+  id: 'order-002',
+  orderNo: '000000-20260517145729-74938',
+  discountTotal: 0,
+  discountSource: null,
+  promotionRuleId: null,
+  promotionCode: null,
+  discountLabel: null,
+  grandTotal: 95,
+  paidTotal: 95,
+  items: [{
+    id: 'item-row-002',
+    itemId: 'item-americano',
+    itemNameSnapshot: '美式咖啡 12oz',
+    skuSnapshot: 'DEMO-AMERICANO-12OZ',
+    unitPrice: 90,
+    quantity: 1,
+    discountAmount: 0,
+    lineTotal: 90,
+  }],
+};
+
 const paymentTransaction: PaymentTransaction = {
   id: 'txn-001',
   orderId: promotionOrder.id,
@@ -132,8 +155,8 @@ beforeEach(() => {
     message: 'ok',
     code: 200,
     data: {
-      content: [promotionOrder],
-      totalElements: 1,
+      content: [promotionOrder, manualOrder],
+      totalElements: 2,
       totalPages: 1,
       size: 20,
       number: 0,
@@ -171,5 +194,23 @@ describe('OrderListPage order details', () => {
     expect(scopedDialog.getByText('CAFE20')).toBeInTheDocument();
     expect(scopedDialog.getByText('燕麥拿鐵 12oz')).toBeInTheDocument();
     expect(scopedDialog.getByText('DEMO-OAT-LATTE-12OZ')).toBeInTheDocument();
+  });
+
+  it('filters the visible order list by order number keyword', async () => {
+    const user = userEvent.setup();
+    renderOrderList();
+
+    await waitFor(() => expect(screen.getAllByText(promotionOrder.orderNo).length).toBeGreaterThan(0));
+    expect(screen.getAllByText(manualOrder.orderNo).length).toBeGreaterThan(0);
+
+    await user.type(screen.getByPlaceholderText('依訂單編號搜尋'), '145729');
+
+    expect(screen.queryAllByText(promotionOrder.orderNo)).toHaveLength(0);
+    expect(screen.getAllByText(manualOrder.orderNo).length).toBeGreaterThan(0);
+
+    await user.clear(screen.getByPlaceholderText('依訂單編號搜尋'));
+    await user.type(screen.getByPlaceholderText('依訂單編號搜尋'), 'NO-MATCH');
+
+    expect(screen.getAllByText('找不到符合條件的訂單').length).toBeGreaterThan(0);
   });
 });
