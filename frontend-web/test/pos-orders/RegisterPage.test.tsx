@@ -92,6 +92,25 @@ beforeEach(() => {
 });
 
 describe('RegisterPage barcode search mode', () => {
+  it('submits typed keyword through the touch search button', async () => {
+    const user = userEvent.setup();
+    renderRegisterPage();
+
+    expect(await screen.findByText('美式咖啡 12oz')).toBeInTheDocument();
+
+    const searchInput = screen.getByPlaceholderText('搜尋商品、SKU 或條碼');
+    await user.type(searchInput, 'DEMO-AMERICANO');
+    await user.click(screen.getByRole('button', { name: '搜尋商品' }));
+
+    await waitFor(() => {
+      expect(productApiMock.getProducts).toHaveBeenLastCalledWith(expect.objectContaining({
+        page: 0,
+        size: 60,
+        keyword: 'DEMO-AMERICANO',
+      }));
+    });
+  });
+
   it('focuses the search field and submits barcode keyword with Enter', async () => {
     const user = userEvent.setup();
     renderRegisterPage();

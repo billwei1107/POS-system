@@ -8,16 +8,17 @@ import React, { useMemo, useState } from 'react';
 import {
   Box, Collapse, Drawer, List, ListItem, ListItemIcon, ListItemText, IconButton,
   useTheme, useMediaQuery, Typography, Avatar, Divider, ListItemButton,
-  Paper, Button, BottomNavigation, BottomNavigationAction
+  Paper, Button, BottomNavigation, BottomNavigationAction, Badge as MuiBadge
 } from '@mui/material';
 import {
   PointOfSale, Receipt, Inventory, Settings, Category, LocalCafe, Replay,
   LockOutlined, Menu as MenuIcon, ShoppingCart, Wifi, Circle, ReceiptLong,
-  Badge, FactCheck, KeyboardArrowDown, KeyboardArrowRight, PeopleAlt
+  Badge as BadgeIcon, FactCheck, KeyboardArrowDown, KeyboardArrowRight, PeopleAlt
 } from '@mui/icons-material';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@shared/store/authStore';
 import { readPosSession } from '@features/pos-orders/posSession';
+import { useCartStore } from '@features/pos-orders/store/cartStore';
 
 const SIDEBAR_EXPANDED_WIDTH = 240;
 const CART_WIDTH = 340;
@@ -52,6 +53,7 @@ const PosLayout: React.FC = () => {
   const location = useLocation();
   const logout = useAuthStore((state) => state.logout);
   const authUser = useAuthStore((state) => state.user);
+  const cartItemCount = useCartStore((state) => state.itemCount());
   const posSession = useMemo(() => readPosSession(), []);
   const storeLabel = posSession?.storeName?.trim() || 'POS 門店';
   const terminalLabel = posSession?.terminalName?.trim()
@@ -107,7 +109,7 @@ const PosLayout: React.FC = () => {
     },
     { text: '發票', icon: <ReceiptLong />, path: '/pos/invoices' },
     { text: '會員', icon: <PeopleAlt />, path: '/pos/members' },
-    { text: '班次', icon: <Badge />, path: '/pos/shifts' },
+    { text: '班次', icon: <BadgeIcon />, path: '/pos/shifts' },
     { text: '對帳', icon: <FactCheck />, path: '/pos/reconciliation' },
   ];
   const mobileDockItems = menuItems.filter((item) => ['收銀台', '訂單', '商品', '庫存'].includes(item.text));
@@ -299,7 +301,14 @@ const PosLayout: React.FC = () => {
                     bgcolor: cartOpen ? 'rgba(112, 72, 232, 0.1)' : 'transparent',
                   }}
               >
-                <ShoppingCart />
+                <MuiBadge
+                  badgeContent={cartItemCount}
+                  color="secondary"
+                  invisible={cartItemCount === 0}
+                  overlap="circular"
+                >
+                  <ShoppingCart />
+                </MuiBadge>
               </IconButton>
             )}
             <Avatar sx={{ width: 36, height: 36, ml: 1 }}>{operatorInitial}</Avatar>

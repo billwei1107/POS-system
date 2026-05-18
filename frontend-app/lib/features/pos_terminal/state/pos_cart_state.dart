@@ -49,6 +49,53 @@ class PosCartState {
   }
 
   // ========================================
+  // 調整商品數量 / Adjust Product Quantity
+  // ========================================
+  PosCartState increaseProduct(String productId) {
+    return _updateQuantity(productId, 1);
+  }
+
+  PosCartState decreaseProduct(String productId) {
+    return _updateQuantity(productId, -1);
+  }
+
+  PosCartState removeProduct(String productId) {
+    final nextItems = items
+        .where((item) => item.product.id != productId)
+        .toList(growable: false);
+
+    if (nextItems.length == items.length) {
+      return this;
+    }
+
+    return PosCartState(items: nextItems);
+  }
+
+  PosCartState _updateQuantity(String productId, int delta) {
+    final nextItems = <CartItem>[];
+    var changed = false;
+
+    for (final item in items) {
+      if (item.product.id != productId) {
+        nextItems.add(item);
+        continue;
+      }
+
+      changed = true;
+      final nextQuantity = item.quantity + delta;
+      if (nextQuantity > 0) {
+        nextItems.add(item.copyWith(quantity: nextQuantity));
+      }
+    }
+
+    if (!changed) {
+      return this;
+    }
+
+    return PosCartState(items: nextItems);
+  }
+
+  // ========================================
   // 清空購物車 / Clear Cart
   // ========================================
   PosCartState clear() {

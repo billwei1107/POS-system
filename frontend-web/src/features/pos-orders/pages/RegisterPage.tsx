@@ -7,7 +7,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     Alert, Box, TextField, InputAdornment, Button, Card, CardContent,
-    Typography, Chip, IconButton, Tooltip, CircularProgress
+    Typography, Chip, Tooltip, CircularProgress
 } from '@mui/material';
 import { AddShoppingCart, Bolt, GridView, LocalOffer, QrCodeScanner, Search } from '@mui/icons-material';
 import { createPortal } from 'react-dom';
@@ -226,7 +226,7 @@ const RegisterPage: React.FC = () => {
             <Box sx={{
                 mb: 3,
                 display: 'grid',
-                gridTemplateColumns: { xs: '1fr', md: 'minmax(260px, 360px) 1fr auto' },
+                gridTemplateColumns: { xs: '1fr', md: 'minmax(260px, 360px) 1fr auto auto' },
                 gap: 2,
                 alignItems: 'center'
             }}>
@@ -284,20 +284,36 @@ const RegisterPage: React.FC = () => {
                     })}
                 </Box>
 
-                <Tooltip title="掃描條碼">
-                    <IconButton aria-label="掃描條碼" onClick={handleBarcodeScanClick} sx={{
-                        minWidth: 52,
-                        width: 52,
+                <Button
+                    aria-label="搜尋商品"
+                    variant="contained"
+                    color="primary"
+                    startIcon={<Search />}
+                    onClick={handleSearch}
+                    sx={{
                         minHeight: 52,
+                        px: 2.25,
+                        fontWeight: 900,
+                        whiteSpace: 'nowrap',
+                        boxShadow: 'none'
+                    }}
+                >
+                    搜尋
+                </Button>
+
+                <Tooltip title="掃描條碼">
+                    <Button aria-label="掃描條碼" variant="outlined" onClick={handleBarcodeScanClick} sx={{
+                        minHeight: 52,
+                        px: 2,
                         height: 52,
-                        justifySelf: { xs: 'stretch', md: 'stretch' },
                         bgcolor: 'rgba(255,109,0,0.14)',
                         color: 'secondary.main',
+                        borderColor: 'rgba(255,109,0,0.34)',
                         borderRadius: 2,
                         '&:hover': { bgcolor: 'rgba(255,109,0,0.22)' }
                     }}>
                         <QrCodeScanner />
-                    </IconButton>
+                    </Button>
                 </Tooltip>
             </Box>
 

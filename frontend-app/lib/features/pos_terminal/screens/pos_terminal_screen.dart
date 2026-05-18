@@ -89,6 +89,18 @@ class _PosTerminalScreenState extends State<PosTerminalScreen> {
     setState(() => _cart = _cart.clear());
   }
 
+  void _increaseItem(CartItem item) {
+    setState(() => _cart = _cart.increaseProduct(item.product.id));
+  }
+
+  void _decreaseItem(CartItem item) {
+    setState(() => _cart = _cart.decreaseProduct(item.product.id));
+  }
+
+  void _removeItem(CartItem item) {
+    setState(() => _cart = _cart.removeProduct(item.product.id));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -143,6 +155,9 @@ class _PosTerminalScreenState extends State<PosTerminalScreen> {
           discount: _cart.discount,
           total: _cart.total,
           onClear: _clearCart,
+          onIncrease: _increaseItem,
+          onDecrease: _decreaseItem,
+          onRemove: _removeItem,
         ),
       ],
     );
@@ -187,6 +202,9 @@ class _PosTerminalScreenState extends State<PosTerminalScreen> {
             discount: _cart.discount,
             total: _cart.total,
             onClear: _clearCart,
+            onIncrease: _increaseItem,
+            onDecrease: _decreaseItem,
+            onRemove: _removeItem,
           ),
         ),
       ],
@@ -604,6 +622,9 @@ class _CartPanel extends StatelessWidget {
     required this.discount,
     required this.total,
     required this.onClear,
+    required this.onIncrease,
+    required this.onDecrease,
+    required this.onRemove,
     this.width = 360,
   });
 
@@ -613,6 +634,9 @@ class _CartPanel extends StatelessWidget {
   final int discount;
   final int total;
   final VoidCallback onClear;
+  final ValueChanged<CartItem> onIncrease;
+  final ValueChanged<CartItem> onDecrease;
+  final ValueChanged<CartItem> onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -662,7 +686,12 @@ class _CartPanel extends StatelessWidget {
                 : ListView.separated(
                     itemBuilder: (context, index) {
                       final item = items[index];
-                      return _CartItemRow(item: item);
+                      return _CartItemRow(
+                        item: item,
+                        onIncrease: () => onIncrease(item),
+                        onDecrease: () => onDecrease(item),
+                        onRemove: () => onRemove(item),
+                      );
                     },
                     separatorBuilder: (context, index) =>
                         const Divider(color: Color(0xFF3A3E4F)),
@@ -710,9 +739,17 @@ class _CartPanel extends StatelessWidget {
 }
 
 class _CartItemRow extends StatelessWidget {
-  const _CartItemRow({required this.item});
+  const _CartItemRow({
+    required this.item,
+    required this.onIncrease,
+    required this.onDecrease,
+    required this.onRemove,
+  });
 
   final CartItem item;
+  final VoidCallback onIncrease;
+  final VoidCallback onDecrease;
+  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -727,6 +764,8 @@ class _CartItemRow extends StatelessWidget {
                 Text(
                   item.product.name,
                   style: const TextStyle(fontWeight: FontWeight.w800),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -736,9 +775,40 @@ class _CartItemRow extends StatelessWidget {
               ],
             ),
           ),
-          Text(
-            '\$${item.subtotal}',
-            style: const TextStyle(fontWeight: FontWeight.w900),
+          const SizedBox(width: 8),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton.filledTonal(
+                key: ValueKey('decrease-cart-${item.product.id}'),
+                tooltip: '減少',
+                onPressed: onDecrease,
+                icon: const Icon(Icons.remove),
+              ),
+              const SizedBox(width: 6),
+              IconButton.filledTonal(
+                key: ValueKey('increase-cart-${item.product.id}'),
+                tooltip: '增加',
+                onPressed: onIncrease,
+                icon: const Icon(Icons.add),
+              ),
+              const SizedBox(width: 6),
+              IconButton(
+                key: ValueKey('remove-cart-${item.product.id}'),
+                tooltip: '移除',
+                onPressed: onRemove,
+                icon: const Icon(Icons.delete_outline),
+              ),
+            ],
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 56,
+            child: Text(
+              '\$${item.subtotal}',
+              textAlign: TextAlign.right,
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
           ),
         ],
       ),

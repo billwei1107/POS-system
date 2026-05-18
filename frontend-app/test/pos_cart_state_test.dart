@@ -51,6 +51,29 @@ void main() {
       expect(cart.total, 238);
     });
 
+    test('adjusts and removes product quantities', () {
+      final americano = demoCatalog.firstWhere(
+        (product) => product.id == 'demo-americano-12oz',
+      );
+
+      final cart = PosCartState.empty()
+          .addProduct(americano)
+          .increaseProduct(americano.id);
+
+      expect(cart.items.single.quantity, 2);
+      expect(cart.total, 180);
+
+      final decreased = cart.decreaseProduct(americano.id);
+      expect(decreased.items.single.quantity, 1);
+      expect(decreased.total, 90);
+
+      final removedByDecrement = decreased.decreaseProduct(americano.id);
+      expect(removedByDecrement.items, isEmpty);
+
+      final removed = cart.removeProduct(americano.id);
+      expect(removed.items, isEmpty);
+    });
+
     test('clear returns an empty cart without mutating previous state', () {
       final croissant = demoCatalog.firstWhere(
         (product) => product.id == 'demo-croissant',

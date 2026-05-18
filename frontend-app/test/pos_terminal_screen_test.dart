@@ -97,6 +97,39 @@ void main() {
     expect(checkoutButton.onPressed, isNull);
   });
 
+  testWidgets('adjusts cart quantities with touch controls', (tester) async {
+    await pumpTabletApp(tester);
+    await loginWithDemoPin(tester);
+
+    await tester.tap(
+      find.byKey(const ValueKey('product-tile-demo-americano-12oz')),
+    );
+    await tester.pump();
+
+    await tester.tap(
+      find.byKey(const ValueKey('increase-cart-demo-americano-12oz')),
+    );
+    await tester.pump();
+
+    expect(find.text('x 2'), findsOneWidget);
+    expect(find.text('\$180'), findsWidgets);
+
+    await tester.tap(
+      find.byKey(const ValueKey('decrease-cart-demo-americano-12oz')),
+    );
+    await tester.pump();
+
+    expect(find.text('x 1'), findsOneWidget);
+    expect(find.text('\$90'), findsWidgets);
+
+    await tester.tap(
+      find.byKey(const ValueKey('remove-cart-demo-americano-12oz')),
+    );
+    await tester.pump();
+
+    expect(find.text('尚未加入商品'), findsOneWidget);
+  });
+
   testWidgets('locks terminal and returns to PIN login', (tester) async {
     await pumpTabletApp(tester);
     await loginWithDemoPin(tester);
