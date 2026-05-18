@@ -375,12 +375,12 @@ const PosLayout: React.FC = () => {
       }}>
         {/* 桌面狀態列 / Desktop status bar */}
         {!isSmallScreen && (
-           <Box sx={{ height: 64, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', px: { lg: 2, xl: 4 }, gap: { lg: 1.25, xl: 2.5 }, minWidth: 0 }}>
+           <Box sx={{ height: 64, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', px: { lg: 3, xl: 5 }, gap: { lg: 2, xl: 3 }, minWidth: 0 }}>
              <Box sx={{ mr: 'auto', minWidth: 0 }}>
-                <Typography variant="h6" fontWeight={900} noWrap sx={{ maxWidth: { lg: 220, xl: 420 } }}>{storeLabel}</Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: { lg: 220, xl: 420 } }}>營業班次 · {terminalLabel}</Typography>
+                <Typography variant="h6" fontWeight={900} noWrap sx={{ maxWidth: { lg: 300, xl: 460 } }}>{storeLabel}</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: { lg: 300, xl: 460 } }}>營業班次 · {terminalLabel}</Typography>
               </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'success.main', bgcolor: 'rgba(35, 193, 107, 0.1)', px: { lg: 1.25, xl: 2 }, py: 0.5, borderRadius: 5, flexShrink: 0 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'success.main', bgcolor: 'rgba(35, 193, 107, 0.1)', px: 2, py: 0.5, borderRadius: 5, minHeight: 44, flexShrink: 0 }}>
                  <Wifi fontSize="small" />
                  <Typography variant="caption" fontWeight="bold">線上</Typography>
               </Box>
@@ -390,11 +390,36 @@ const PosLayout: React.FC = () => {
                 color="secondary"
                 startIcon={<Settings />}
                 onClick={handleOpenAdmin}
-                sx={{ minHeight: 48, px: { lg: 1.5, xl: 2 }, fontWeight: 900, flexShrink: 0, whiteSpace: 'nowrap' }}
+                sx={{ minHeight: 50, px: 2.25, fontWeight: 900, flexShrink: 0, whiteSpace: 'nowrap' }}
               >
                 進入後台
               </Button>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, bgcolor: 'rgba(255,255,255,0.04)', px: 1.25, py: 0.75, borderRadius: 2, minHeight: 48, maxWidth: { lg: 190, xl: 240 }, minWidth: 0, flexShrink: 0 }}>
+              <Box
+                sx={{
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.5,
+                  bgcolor: 'rgba(255,255,255,0.04)',
+                  px: 1.75,
+                  py: 0.75,
+                  ml: { lg: 1.25, xl: 1.75 },
+                  borderRadius: 2,
+                  minHeight: 50,
+                  maxWidth: { lg: 230, xl: 260 },
+                  minWidth: 0,
+                  flexShrink: 0,
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    left: { lg: -18, xl: -22 },
+                    top: 10,
+                    bottom: 10,
+                    width: '1px',
+                    bgcolor: 'rgba(255,255,255,0.12)',
+                  },
+                }}
+              >
                 <Avatar sx={{ width: 32, height: 32, cursor: 'pointer', flexShrink: 0 }}>{operatorInitial}</Avatar>
                 <Box sx={{ minWidth: 0 }}>
                   <Typography variant="body2" fontWeight={800} sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>操作員 {operatorName}</Typography>
