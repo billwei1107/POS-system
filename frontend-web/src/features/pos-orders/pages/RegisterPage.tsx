@@ -204,7 +204,7 @@ const RegisterPage: React.FC = () => {
                         快速查找商品、觸控式點單，並即時掌握結帳狀態。
                     </Typography>
                 </Box>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: { xs: 'flex-start', md: 'flex-end' }, alignSelf: { md: 'center' } }}>
                     {QUICK_ACTIONS.map(action => (
                         <Button
                             key={action.label}
