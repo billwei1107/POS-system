@@ -207,6 +207,33 @@ describe('OrderListPage order details', () => {
     expect(scopedDialog.getByText('DEMO-OAT-LATTE-12OZ')).toBeInTheDocument();
   });
 
+  it('opens detail dialog when clicking the desktop table row', async () => {
+    const user = userEvent.setup();
+    renderOrderList();
+
+    await waitFor(() => expect(screen.getAllByText(promotionOrder.orderNo).length).toBeGreaterThan(0));
+    const orderCellText = within(screen.getByTestId('orders-desktop-table')).getByText(promotionOrder.orderNo, { selector: 'p' });
+    const orderRow = orderCellText.closest('tr');
+
+    expect(orderRow).not.toBeNull();
+    await user.click(orderRow!);
+
+    expect(await screen.findByRole('dialog', { name: `訂單詳情 ${promotionOrder.orderNo}` })).toBeInTheDocument();
+  });
+
+  it('keeps the desktop order table on a single horizontal scroll surface', async () => {
+    renderOrderList();
+
+    await waitFor(() => expect(screen.getAllByText(promotionOrder.orderNo).length).toBeGreaterThan(0));
+
+    const desktopTable = screen.getByTestId('orders-desktop-table');
+
+    expect(screen.getByTestId('orders-desktop-table-container')).toHaveStyle({ overflowX: 'auto' });
+    expect(desktopTable).toHaveStyle({ minWidth: '1280px' });
+    expect(within(desktopTable).getByText('訂單編號', { selector: 'th' })).toHaveStyle({ whiteSpace: 'nowrap' });
+    expect(within(desktopTable).getByText(promotionOrder.orderNo, { selector: 'p' })).toHaveStyle({ whiteSpace: 'nowrap' });
+  });
+
   it('filters the visible order list by order number keyword', async () => {
     const user = userEvent.setup();
     renderOrderList();

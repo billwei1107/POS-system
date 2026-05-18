@@ -75,6 +75,40 @@ const INVOICE_STATUS_COLOR: Record<InvoiceStatusSummary, 'default' | 'success' |
   MISSING: 'default',
 };
 
+const ORDER_TABLE_MIN_WIDTH = 1280;
+
+const tableHeaderSx = {
+  whiteSpace: 'nowrap',
+  fontWeight: 900,
+  bgcolor: 'background.paper',
+} as const;
+
+const tableBodyCellSx = {
+  whiteSpace: 'nowrap',
+  verticalAlign: 'middle',
+} as const;
+
+const stickyOrderCellSx = {
+  ...tableBodyCellSx,
+  position: 'sticky',
+  left: 0,
+  zIndex: 2,
+  minWidth: 260,
+  maxWidth: 260,
+  bgcolor: 'background.paper',
+  borderRight: '1px solid rgba(255,255,255,0.08)',
+} as const;
+
+const stickyOrderHeadSx = {
+  ...tableHeaderSx,
+  position: 'sticky',
+  left: 0,
+  zIndex: 3,
+  minWidth: 260,
+  maxWidth: 260,
+  borderRight: '1px solid rgba(255,255,255,0.08)',
+} as const;
+
 const DISCOUNT_SOURCE_LABEL: Record<NonNullable<Order['discountSource']>, string> = {
   MANUAL: '手動折扣',
   MEMBER: '會員折扣',
@@ -298,12 +332,19 @@ const OrderListPage: React.FC = () => {
     );
   };
 
+  const stopRowClick = (event: React.MouseEvent) => {
+    event.stopPropagation();
+  };
+
   const renderOrderActions = (order: Order) => (
     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: { xs: 'stretch', md: 'flex-start' } }}>
       <Button
         size="small"
         variant="outlined"
-        onClick={() => setDetailTarget(order)}
+        onClick={(event) => {
+          stopRowClick(event);
+          setDetailTarget(order);
+        }}
         sx={{ flex: { xs: '1 1 120px', md: '0 0 auto' } }}
       >
         詳情
@@ -313,7 +354,10 @@ const OrderListPage: React.FC = () => {
           <Button
             size="small"
             variant="outlined"
-            onClick={() => handleOpenPayments(order)}
+            onClick={(event) => {
+              stopRowClick(event);
+              handleOpenPayments(order);
+            }}
             sx={{ flex: { xs: '1 1 120px', md: '0 0 auto' } }}
           >
             付款記錄
@@ -321,7 +365,10 @@ const OrderListPage: React.FC = () => {
           <Button
             size="small"
             color="secondary"
-            onClick={() => navigate(`/pos/refunds?orderId=${order.id}&amount=${order.grandTotal}&orderNo=${encodeURIComponent(order.orderNo)}`)}
+            onClick={(event) => {
+              stopRowClick(event);
+              navigate(`/pos/refunds?orderId=${order.id}&amount=${order.grandTotal}&orderNo=${encodeURIComponent(order.orderNo)}`);
+            }}
             sx={{ flex: { xs: '1 1 120px', md: '0 0 auto' } }}
           >
             退款
@@ -332,7 +379,11 @@ const OrderListPage: React.FC = () => {
         <Button
           size="small"
           color="error"
-          onClick={() => { setVoidTarget(order); setVoidDialog(true); }}
+          onClick={(event) => {
+            stopRowClick(event);
+            setVoidTarget(order);
+            setVoidDialog(true);
+          }}
           sx={{ flex: { xs: '1 1 120px', md: '0 0 auto' } }}
         >
           作廢
@@ -472,20 +523,24 @@ const OrderListPage: React.FC = () => {
         ))}
       </Box>
 
-      <TableContainer component={Paper} sx={{ display: { xs: 'none', md: 'block' }, flexGrow: 1, bgcolor: 'background.paper', borderRadius: 3, border: '1px solid rgba(255,255,255,0.06)', boxShadow: 'none' }}>
-        <Table>
+      <TableContainer
+        component={Paper}
+        data-testid="orders-desktop-table-container"
+        sx={{ display: { xs: 'none', md: 'block' }, flexGrow: 1, bgcolor: 'background.paper', borderRadius: 3, border: '1px solid rgba(255,255,255,0.06)', boxShadow: 'none', overflowX: 'auto' }}
+      >
+        <Table stickyHeader data-testid="orders-desktop-table" sx={{ minWidth: ORDER_TABLE_MIN_WIDTH }}>
           <TableHead>
             <TableRow>
-              <TableCell>訂單編號</TableCell>
-              <TableCell>狀態</TableCell>
-              <TableCell>類型</TableCell>
-              <TableCell>品項</TableCell>
-              <TableCell>付款狀態</TableCell>
-              <TableCell>發票狀態</TableCell>
-              <TableCell>折扣</TableCell>
-              <TableCell align="right">合計</TableCell>
-              <TableCell>建立時間</TableCell>
-              <TableCell>操作</TableCell>
+              <TableCell sx={stickyOrderHeadSx}>訂單編號</TableCell>
+              <TableCell sx={tableHeaderSx}>狀態</TableCell>
+              <TableCell sx={tableHeaderSx}>類型</TableCell>
+              <TableCell sx={tableHeaderSx}>品項</TableCell>
+              <TableCell sx={tableHeaderSx}>付款狀態</TableCell>
+              <TableCell sx={tableHeaderSx}>發票狀態</TableCell>
+              <TableCell sx={{ ...tableHeaderSx, minWidth: 190 }}>折扣</TableCell>
+              <TableCell align="right" sx={tableHeaderSx}>合計</TableCell>
+              <TableCell sx={{ ...tableHeaderSx, minWidth: 180 }}>建立時間</TableCell>
+              <TableCell sx={{ ...tableHeaderSx, minWidth: 180 }}>操作</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -505,14 +560,38 @@ const OrderListPage: React.FC = () => {
                 </TableCell>
               </TableRow>
             ) : displayedOrders.map(order => (
-              <TableRow key={order.id} hover>
-                <TableCell><Typography variant="body2" fontFamily="monospace">{order.orderNo}</Typography></TableCell>
-                <TableCell>
+              <TableRow
+                key={order.id}
+                hover
+                tabIndex={0}
+                aria-label={`查看訂單 ${order.orderNo}`}
+                onClick={() => setDetailTarget(order)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setDetailTarget(order);
+                  }
+                }}
+                sx={{
+                  cursor: 'pointer',
+                  '&:hover td': { bgcolor: 'rgba(255,255,255,0.04)' },
+                  '&:focus-visible td': {
+                    outline: '2px solid rgba(255,109,0,0.72)',
+                    outlineOffset: -2,
+                  },
+                }}
+              >
+                <TableCell sx={stickyOrderCellSx}>
+                  <Typography variant="body2" fontFamily="monospace" sx={{ whiteSpace: 'nowrap' }}>
+                    {order.orderNo}
+                  </Typography>
+                </TableCell>
+                <TableCell sx={tableBodyCellSx}>
                   <Chip label={ORDER_STATUS_LABEL[order.status]} color={STATUS_COLOR[order.status]} size="small" />
                 </TableCell>
-                <TableCell>{order.orderType}</TableCell>
-                <TableCell>{order.items?.length ?? 0}</TableCell>
-                <TableCell>
+                <TableCell sx={tableBodyCellSx}>{order.orderType}</TableCell>
+                <TableCell sx={tableBodyCellSx}>{order.items?.length ?? 0}</TableCell>
+                <TableCell sx={tableBodyCellSx}>
                   {['COMPLETED', 'CLOSED'].includes(order.status) ? (
                     <Chip
                       label={PAYMENT_STATUS_LABEL[getPaymentSummary(order)]}
@@ -523,7 +602,7 @@ const OrderListPage: React.FC = () => {
                     <Typography variant="caption" color="text.secondary">-</Typography>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell sx={tableBodyCellSx}>
                   {['COMPLETED', 'CLOSED'].includes(order.status) ? (
                     <Chip
                       label={INVOICE_STATUS_LABEL[getInvoiceSummary(order)]}
@@ -534,10 +613,10 @@ const OrderListPage: React.FC = () => {
                     <Typography variant="caption" color="text.secondary">-</Typography>
                   )}
                 </TableCell>
-                <TableCell>{renderDiscountChip(order)}</TableCell>
-                <TableCell align="right">{formatMoney(order.grandTotal)}</TableCell>
-                <TableCell>{formatDateTime(order.createdAt)}</TableCell>
-                <TableCell>
+                <TableCell sx={{ ...tableBodyCellSx, minWidth: 190 }}>{renderDiscountChip(order)}</TableCell>
+                <TableCell align="right" sx={tableBodyCellSx}>{formatMoney(order.grandTotal)}</TableCell>
+                <TableCell sx={{ ...tableBodyCellSx, minWidth: 180 }}>{formatDateTime(order.createdAt)}</TableCell>
+                <TableCell sx={{ ...tableBodyCellSx, minWidth: 180 }}>
                   {renderOrderActions(order)}
                 </TableCell>
               </TableRow>

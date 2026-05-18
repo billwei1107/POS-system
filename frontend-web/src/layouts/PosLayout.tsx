@@ -354,22 +354,22 @@ const PosLayout: React.FC = () => {
       }}>
         {/* 桌面狀態列 / Desktop status bar */}
         {!isSmallScreen && (
-           <Box sx={{ height: 64, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', px: 4, gap: 3 }}>
-             <Box sx={{ mr: 'auto' }}>
+           <Box sx={{ height: 64, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', px: 4, gap: 2.5, minWidth: 0 }}>
+             <Box sx={{ mr: 'auto', minWidth: 0 }}>
                 <Typography variant="h6" fontWeight={900}>{storeLabel}</Typography>
-                <Typography variant="caption" color="text.secondary">營業班次 · {terminalLabel}</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 420 }}>營業班次 · {terminalLabel}</Typography>
               </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'success.main', bgcolor: 'rgba(35, 193, 107, 0.1)', px: 2, py: 0.5, borderRadius: 5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'success.main', bgcolor: 'rgba(35, 193, 107, 0.1)', px: 2, py: 0.5, borderRadius: 5, flexShrink: 0 }}>
                  <Wifi fontSize="small" />
                  <Typography variant="caption" fontWeight="bold">線上</Typography>
               </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, bgcolor: 'rgba(255,255,255,0.04)', px: 1.5, py: 0.75, borderRadius: 3 }}>
-                <Avatar sx={{ width: 32, height: 32, cursor: 'pointer' }}>{operatorInitial}</Avatar>
-                <Box>
-                  <Typography variant="body2" fontWeight={800}>操作員 {operatorName}</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, bgcolor: 'rgba(255,255,255,0.04)', px: 1.25, py: 0.75, borderRadius: 2, minHeight: 48, maxWidth: 240, minWidth: 0, flexShrink: 0 }}>
+                <Avatar sx={{ width: 32, height: 32, cursor: 'pointer', flexShrink: 0 }}>{operatorInitial}</Avatar>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="body2" fontWeight={800} sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>操作員 {operatorName}</Typography>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <Circle sx={{ fontSize: 8, color: 'success.main' }} />
-                    <Typography variant="caption" color="text.secondary">{roleLabel}</Typography>
+                    <Circle sx={{ fontSize: 8, color: 'success.main', flexShrink: 0 }} />
+                    <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{roleLabel}</Typography>
                   </Box>
                 </Box>
               </Box>

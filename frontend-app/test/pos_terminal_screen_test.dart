@@ -39,10 +39,8 @@ void main() {
     await loginWithDemoPin(tester);
 
     expect(find.text('Xinyi Flagship Store'), findsOneWidget);
-    expect(
-      find.text('Android Tablet POS · Demo Terminal 01 · Demo Cashier'),
-      findsOneWidget,
-    );
+    expect(find.text('Android Tablet POS · Demo Terminal 01'), findsOneWidget);
+    expect(find.text('Demo Cashier'), findsOneWidget);
     expect(find.text('線上'), findsOneWidget);
     expect(find.text('待同步 0'), findsOneWidget);
     expect(find.text('現金結帳'), findsOneWidget);

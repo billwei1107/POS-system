@@ -181,6 +181,7 @@ class _PosTerminalScreenState extends State<PosTerminalScreen> {
         SizedBox(
           height: 300,
           child: _CartPanel(
+            width: double.infinity,
             items: _cart.items,
             subtotal: _cart.subtotal,
             discount: _cart.discount,
@@ -303,9 +304,9 @@ class _TerminalHeader extends StatelessWidget {
           style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 6),
-        Text(
-          'Android Tablet POS · Demo Terminal 01 · $cashierName',
-          style: const TextStyle(color: Color(0xFFAEB2C3)),
+        const Text(
+          'Android Tablet POS · Demo Terminal 01',
+          style: TextStyle(color: Color(0xFFAEB2C3)),
         ),
       ],
     );
@@ -325,6 +326,8 @@ class _TerminalHeader extends StatelessWidget {
           color: Color(0xFFB8C7FF),
           background: Color(0xFF242C49),
         ),
+        const SizedBox(width: 12),
+        _OperatorBadge(name: cashierName),
         if (onLogout != null) ...[
           const SizedBox(width: 12),
           IconButton.filledTonal(
@@ -360,6 +363,50 @@ class _TerminalHeader extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _OperatorBadge extends StatelessWidget {
+  const _OperatorBadge({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = name.isEmpty ? '?' : name.substring(0, 1).toUpperCase();
+
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 190),
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF242736),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF383C4D)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(
+            radius: 14,
+            backgroundColor: const Color(0xFF3B425F),
+            child: Text(
+              initial,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              name,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -508,6 +555,8 @@ class _ProductTile extends StatelessWidget {
                   color: Color(0xFFAEB2C3),
                   fontWeight: FontWeight.w700,
                 ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
               ),
               const SizedBox(height: 10),
               Text(
@@ -516,6 +565,8 @@ class _ProductTile extends StatelessWidget {
                   fontSize: 20,
                   fontWeight: FontWeight.w900,
                 ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 2,
               ),
               const Spacer(),
               Row(
@@ -553,8 +604,10 @@ class _CartPanel extends StatelessWidget {
     required this.discount,
     required this.total,
     required this.onClear,
+    this.width = 360,
   });
 
+  final double width;
   final List<CartItem> items;
   final int subtotal;
   final int discount;
@@ -564,7 +617,7 @@ class _CartPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 360,
+      width: width,
       padding: const EdgeInsets.all(22),
       decoration: const BoxDecoration(
         color: Color(0xFF252837),
