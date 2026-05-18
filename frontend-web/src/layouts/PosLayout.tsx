@@ -21,6 +21,7 @@ import { useCartStore } from '@features/pos-orders/store/cartStore';
 
 const SIDEBAR_EXPANDED_WIDTH = 240;
 const CART_WIDTH = 340;
+const DESKTOP_STATUS_BAR_HEIGHT = 96;
 
 const ROLE_LABELS: Record<string, string> = {
   STORE_MANAGER: '店長',
@@ -375,7 +376,7 @@ const PosLayout: React.FC = () => {
       }}>
         {/* 桌面狀態列 / Desktop status bar */}
         {!isSmallScreen && (
-           <Box sx={{ height: 64, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', px: { lg: 3, xl: 5 }, gap: { lg: 2, xl: 3 }, minWidth: 0 }}>
+           <Box sx={{ height: DESKTOP_STATUS_BAR_HEIGHT, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', px: { lg: 3, xl: 5 }, gap: { lg: 2, xl: 3 }, minWidth: 0 }}>
              <Box sx={{ mr: 'auto', minWidth: 0 }}>
                 <Typography variant="h6" fontWeight={900} noWrap sx={{ maxWidth: { lg: 300, xl: 460 } }}>{storeLabel}</Typography>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: { lg: 300, xl: 460 } }}>營業班次 · {terminalLabel}</Typography>
@@ -431,7 +432,7 @@ const PosLayout: React.FC = () => {
               </Box>
            </Box>
         )}
-        <Box sx={{ p: isSmallScreen ? 2 : 4, pt: isSmallScreen ? 2 : 0, height: !isSmallScreen ? 'calc(100vh - 64px)' : '100%' }}>
+        <Box sx={{ p: isSmallScreen ? 2 : 4, pt: isSmallScreen ? 2 : 0, height: !isSmallScreen ? `calc(100vh - ${DESKTOP_STATUS_BAR_HEIGHT}px)` : '100%' }}>
             <Outlet />
         </Box>
       </Box>
