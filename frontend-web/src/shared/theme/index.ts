@@ -1,8 +1,18 @@
+/**
+ * @file index.ts
+ * @description POS 主題設定 / POS theme configuration
+ * @description_en Builds MUI themes for dark and light POS modes
+ * @description_zh 建立 POS 深色與淺色模式的 MUI 主題
+ */
 import { createTheme } from '@mui/material/styles';
 
-export const posTheme = createTheme({
+export type AppThemeMode = 'dark' | 'light';
+
+export const THEME_MODE_STORAGE_KEY = 'pos-theme-mode';
+
+export const createPosTheme = (mode: AppThemeMode) => createTheme({
   palette: {
-    mode: 'dark',
+    mode,
     primary: {
       main: '#7048E8', // Titanium POS sidebar active color
       contrastText: '#FFFFFF',
@@ -12,12 +22,12 @@ export const posTheme = createTheme({
       contrastText: '#FFFFFF',
     },
     background: {
-      default: '#1A1C23', // App background
-      paper: '#252836', // Cards, sidebar, drawer
+      default: mode === 'dark' ? '#1A1C23' : '#F4F6FB', // App background
+      paper: mode === 'dark' ? '#252836' : '#FFFFFF', // Cards, sidebar, drawer
     },
     text: {
-      primary: '#FFFFFF',
-      secondary: '#B2B3BD',
+      primary: mode === 'dark' ? '#FFFFFF' : '#111827',
+      secondary: mode === 'dark' ? '#B2B3BD' : '#5F6675',
     },
     success: {
       main: '#23C16B',
@@ -125,7 +135,7 @@ export const posTheme = createTheme({
       styleOverrides: {
         root: {
           backgroundImage: 'none',
-          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+          boxShadow: mode === 'dark' ? '0 4px 6px rgba(0,0,0,0.1)' : '0 10px 24px rgba(17,24,39,0.08)',
         },
       },
     },
@@ -133,8 +143,8 @@ export const posTheme = createTheme({
       styleOverrides: {
         paper: {
           backgroundImage: 'none',
-          borderRight: '1px solid rgba(255,255,255,0.05)',
-          borderLeft: '1px solid rgba(255,255,255,0.05)',
+          borderRight: `1px solid ${mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(17,24,39,0.08)'}`,
+          borderLeft: `1px solid ${mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(17,24,39,0.08)'}`,
         },
       },
     },
@@ -149,13 +159,15 @@ export const posTheme = createTheme({
     MuiTableCell: {
       styleOverrides: {
         root: {
-          borderBottomColor: 'rgba(255,255,255,0.08)',
+          borderBottomColor: mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(17,24,39,0.08)',
         },
         head: {
           fontWeight: 800,
-          color: '#D8D9E2',
+          color: mode === 'dark' ? '#D8D9E2' : '#374151',
         },
       },
     },
   },
 });
+
+export const posTheme = createPosTheme('dark');

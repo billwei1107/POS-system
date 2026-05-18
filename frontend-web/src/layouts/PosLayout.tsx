@@ -16,6 +16,7 @@ import {
 } from '@mui/icons-material';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@shared/store/authStore';
+import { ThemeModeToggle } from '@shared/components';
 import { readPosSession } from '@features/pos-orders/posSession';
 import { useCartStore } from '@features/pos-orders/store/cartStore';
 
@@ -45,6 +46,7 @@ const PosLayout: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'lg'));
   const isSmallScreen = useMediaQuery(theme.breakpoints.down('lg'));
+  const isLightMode = theme.palette.mode === 'light';
   
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
@@ -125,7 +127,17 @@ const PosLayout: React.FC = () => {
           </Typography>
         </Box>
       </Box>
-      <Box sx={{ mx: 2, p: 2, display: 'flex', alignItems: 'center', gap: 2, mb: 2, borderRadius: 3, bgcolor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <Box sx={{
+        mx: 2,
+        p: 2,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 2,
+        mb: 2,
+        borderRadius: 3,
+        bgcolor: isLightMode ? 'rgba(112,72,232,0.06)' : 'rgba(255,255,255,0.04)',
+        border: isLightMode ? '1px solid rgba(112,72,232,0.12)' : '1px solid rgba(255,255,255,0.05)'
+      }}>
         <Box>
           <Typography variant="subtitle1" fontWeight={900}>{terminalLabel}</Typography>
           <Typography variant="body2" color="text.secondary">{roleLabel} · {operatorName}</Typography>
@@ -147,7 +159,7 @@ const PosLayout: React.FC = () => {
                     bgcolor: isActive ? 'primary.main' : 'transparent',
                     background: isActive ? 'linear-gradient(90deg, #7048E8 0%, #4D329A 100%)' : 'transparent',
                     '&:hover': {
-                      bgcolor: isActive ? 'primary.dark' : 'rgba(255,255,255,0.05)',
+                      bgcolor: isActive ? 'primary.dark' : (isLightMode ? 'rgba(112,72,232,0.06)' : 'rgba(255,255,255,0.05)'),
                     },
                     '&.Mui-selected': {
                        bgcolor: 'primary.main',
@@ -188,10 +200,10 @@ const PosLayout: React.FC = () => {
                             sx={{
                               borderRadius: 2,
                               minHeight: 48,
-                              bgcolor: childActive ? 'rgba(255,109,0,0.16)' : 'rgba(255,255,255,0.03)',
+                              bgcolor: childActive ? 'rgba(255,109,0,0.16)' : (isLightMode ? 'rgba(17,24,39,0.03)' : 'rgba(255,255,255,0.03)'),
                               color: childActive ? 'secondary.main' : 'text.secondary',
                               '&:hover': {
-                                bgcolor: childActive ? 'rgba(255,109,0,0.22)' : 'rgba(255,255,255,0.07)',
+                                bgcolor: childActive ? 'rgba(255,109,0,0.22)' : (isLightMode ? 'rgba(17,24,39,0.07)' : 'rgba(255,255,255,0.07)'),
                               },
                               '&.Mui-selected': {
                                 bgcolor: 'rgba(255,109,0,0.16)',
@@ -217,7 +229,7 @@ const PosLayout: React.FC = () => {
           );
         })}
       </List>
-      <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
+      <Divider sx={{ borderColor: isLightMode ? 'rgba(17,24,39,0.1)' : 'rgba(255,255,255,0.1)' }} />
       <Box sx={{ p: 2 }}>
         <ListItem disablePadding>
            <ListItemButton sx={{ borderRadius: 2, minHeight: 56 }}>
@@ -235,8 +247,8 @@ const PosLayout: React.FC = () => {
                 minHeight: 52,
                 color: 'text.primary',
                 borderColor: 'rgba(178,198,255,0.32)',
-                bgcolor: 'rgba(178,198,255,0.08)',
-                '&:hover': { bgcolor: 'rgba(178,198,255,0.14)', borderColor: 'rgba(178,198,255,0.48)' }
+                bgcolor: isLightMode ? 'rgba(112,72,232,0.06)' : 'rgba(178,198,255,0.08)',
+                '&:hover': { bgcolor: isLightMode ? 'rgba(112,72,232,0.1)' : 'rgba(178,198,255,0.14)', borderColor: 'rgba(178,198,255,0.48)' }
             }}
         >
           管理後台
@@ -251,8 +263,8 @@ const PosLayout: React.FC = () => {
                 minHeight: 56,
                 color: 'text.secondary', 
                 borderColor: 'rgba(255,255,255,0.2)',
-                bgcolor: 'rgba(0,0,0,0.2)',
-                '&:hover': { bgcolor: 'rgba(0,0,0,0.4)', borderColor: 'rgba(255,255,255,0.3)' } 
+                bgcolor: isLightMode ? 'rgba(17,24,39,0.03)' : 'rgba(0,0,0,0.2)',
+                '&:hover': { bgcolor: isLightMode ? 'rgba(17,24,39,0.07)' : 'rgba(0,0,0,0.4)', borderColor: 'rgba(255,255,255,0.3)' }
             }}
         >
           鎖定終端
@@ -285,6 +297,7 @@ const PosLayout: React.FC = () => {
           )}
           
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <ThemeModeToggle />
             <Button
               aria-label="進入後台"
               variant="outlined"
@@ -376,11 +389,12 @@ const PosLayout: React.FC = () => {
       }}>
         {/* 桌面狀態列 / Desktop status bar */}
         {!isSmallScreen && (
-           <Box sx={{ height: DESKTOP_STATUS_BAR_HEIGHT, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', px: { lg: 3, xl: 5 }, gap: { lg: 2, xl: 3 }, minWidth: 0 }}>
+           <Box sx={{ height: DESKTOP_STATUS_BAR_HEIGHT, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', px: { lg: 3, xl: 5 }, gap: { lg: 1.5, xl: 2.5 }, minWidth: 0 }}>
              <Box sx={{ mr: 'auto', minWidth: 0 }}>
                 <Typography variant="h6" fontWeight={900} noWrap sx={{ maxWidth: { lg: 300, xl: 460 } }}>{storeLabel}</Typography>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: { lg: 300, xl: 460 } }}>營業班次 · {terminalLabel}</Typography>
               </Box>
+              <ThemeModeToggle />
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'success.main', bgcolor: 'rgba(35, 193, 107, 0.1)', px: 2, py: 0.5, borderRadius: 5, minHeight: 44, flexShrink: 0 }}>
                  <Wifi fontSize="small" />
                  <Typography variant="caption" fontWeight="bold">線上</Typography>
@@ -401,7 +415,7 @@ const PosLayout: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 1.5,
-                  bgcolor: 'rgba(255,255,255,0.04)',
+                  bgcolor: isLightMode ? 'rgba(17,24,39,0.06)' : 'rgba(255,255,255,0.04)',
                   px: 1.75,
                   py: 0.75,
                   ml: { lg: 1.25, xl: 1.75 },
@@ -417,7 +431,7 @@ const PosLayout: React.FC = () => {
                     top: 10,
                     bottom: 10,
                     width: '1px',
-                    bgcolor: 'rgba(255,255,255,0.12)',
+                    bgcolor: isLightMode ? 'rgba(17,24,39,0.14)' : 'rgba(255,255,255,0.12)',
                   },
                 }}
               >

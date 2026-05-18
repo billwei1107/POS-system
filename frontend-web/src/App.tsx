@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
-import { CssBaseline, ThemeProvider } from '@mui/material';
-import { posTheme } from './shared/theme';
+import { CssBaseline } from '@mui/material';
+import { ThemeModeProvider } from './shared/theme/ThemeModeProvider';
 import { ProtectedRoute } from './shared/auth';
 
 // 引入 auth 頁面
@@ -60,7 +60,7 @@ const LegacyStockTakeRedirect = () => {
 
 function App() {
   return (
-    <ThemeProvider theme={posTheme}>
+    <ThemeModeProvider>
       <CssBaseline />
       <Router>
         <Routes>
@@ -171,7 +171,7 @@ function App() {
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>
-    </ThemeProvider>
+    </ThemeModeProvider>
   );
 }
 

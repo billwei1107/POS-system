@@ -15,6 +15,7 @@ import {
   ListItemText,
   Toolbar,
   Typography,
+  useTheme,
 } from '@mui/material';
 import ApartmentIcon from '@mui/icons-material/Apartment';
 import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
@@ -35,6 +36,7 @@ import StorefrontIcon from '@mui/icons-material/Storefront';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { NotificationBell } from '@features/notification/components/NotificationBell';
 import { useAuthStore } from '@shared/store/authStore';
+import { ThemeModeToggle } from '@shared/components';
 
 const drawerWidth = 272;
 
@@ -122,7 +124,9 @@ const AdminNavItem = ({
   icon: React.ReactNode;
 }) => {
   const location = useLocation();
+  const theme = useTheme();
   const selected = location.pathname === path;
+  const isLightMode = theme.palette.mode === 'light';
 
   return (
     <ListItemButton
@@ -142,6 +146,9 @@ const AdminNavItem = ({
         '&.Mui-selected:hover': {
           bgcolor: 'rgba(255, 109, 0, 0.24)',
         },
+        '&:hover': {
+          bgcolor: selected ? 'rgba(255, 109, 0, 0.24)' : (isLightMode ? 'rgba(112,72,232,0.06)' : 'rgba(255,255,255,0.05)'),
+        },
       }}
     >
       <ListItemIcon sx={{ minWidth: 40, color: 'inherit' }}>{icon}</ListItemIcon>
@@ -150,57 +157,64 @@ const AdminNavItem = ({
   );
 };
 
-const AdminSidebar = () => (
-  <Box
-    sx={{
-      width: drawerWidth,
-      height: '100%',
-      px: 2,
-      py: 2.5,
-      bgcolor: '#222532',
-      overflowY: 'auto',
-    }}
-  >
-    <Box sx={{ px: 1, mb: 3 }}>
-      <Typography variant="h5" fontWeight={900}>
-        Titanium POS
-      </Typography>
-      <Typography color="text.secondary" fontWeight={700}>
-        後台管理
-      </Typography>
-    </Box>
+const AdminSidebar = () => {
+  const theme = useTheme();
+  const isLightMode = theme.palette.mode === 'light';
 
-    {navGroups.map((group) => (
-      <Box key={group.title} sx={{ mb: 2.5 }}>
-        <Typography
-          sx={{
-            px: 1,
-            mb: 1,
-            fontSize: 13,
-            fontWeight: 900,
-            color: '#D4D6E2',
-          }}
-        >
-          {group.title}
+  return (
+    <Box
+      sx={{
+        width: drawerWidth,
+        height: '100%',
+        px: 2,
+        py: 2.5,
+        bgcolor: 'background.paper',
+        overflowY: 'auto',
+      }}
+    >
+      <Box sx={{ px: 1, mb: 3 }}>
+        <Typography variant="h5" fontWeight={900}>
+          Titanium POS
         </Typography>
-        <List dense disablePadding>
-          {group.items.map((item) => (
-            <AdminNavItem key={item.path} {...item} />
-          ))}
-        </List>
+        <Typography color="text.secondary" fontWeight={700}>
+          後台管理
+        </Typography>
       </Box>
-    ))}
-  </Box>
-);
+
+      {navGroups.map((group) => (
+        <Box key={group.title} sx={{ mb: 2.5 }}>
+          <Typography
+            sx={{
+              px: 1,
+              mb: 1,
+              fontSize: 13,
+              fontWeight: 900,
+              color: isLightMode ? '#6B7280' : '#D4D6E2',
+            }}
+          >
+            {group.title}
+          </Typography>
+          <List dense disablePadding>
+            {group.items.map((item) => (
+              <AdminNavItem key={item.path} {...item} />
+            ))}
+          </List>
+        </Box>
+      ))}
+    </Box>
+  );
+};
 
 /**
  * 後台版面 / Admin layout
  */
 export default function AdminLayout() {
   const logout = useAuthStore((state) => state.logout);
+  const theme = useTheme();
+  const isLightMode = theme.palette.mode === 'light';
 
   return (
-    <Box sx={{ minHeight: '100vh', display: 'flex', bgcolor: '#171A21' }}>
+    <Box sx={{ minHeight: '100vh', display: 'flex', bgcolor: 'background.default' }}>
       <Drawer
         variant="permanent"
         sx={{
@@ -210,7 +224,7 @@ export default function AdminLayout() {
           '& .MuiDrawer-paper': {
             width: drawerWidth,
             boxSizing: 'border-box',
-            borderRight: '1px solid rgba(255,255,255,0.08)',
+            borderRight: isLightMode ? '1px solid rgba(17,24,39,0.08)' : '1px solid rgba(255,255,255,0.08)',
           },
         }}
       >
@@ -223,8 +237,8 @@ export default function AdminLayout() {
           color="transparent"
           elevation={0}
           sx={{
-            bgcolor: 'rgba(23, 26, 33, 0.94)',
-            borderBottom: '1px solid rgba(255,255,255,0.08)',
+            bgcolor: isLightMode ? 'rgba(255,255,255,0.92)' : 'rgba(23, 26, 33, 0.94)',
+            borderBottom: isLightMode ? '1px solid rgba(17,24,39,0.08)' : '1px solid rgba(255,255,255,0.08)',
             backdropFilter: 'blur(12px)',
           }}
         >
@@ -232,6 +246,7 @@ export default function AdminLayout() {
             <Typography variant="h6" fontWeight={900} sx={{ flexGrow: 1 }}>
               管理後台
             </Typography>
+            <ThemeModeToggle />
             <NotificationBell />
             <Button component={Link} to="/pos/register" variant="outlined" color="secondary">
               收銀台

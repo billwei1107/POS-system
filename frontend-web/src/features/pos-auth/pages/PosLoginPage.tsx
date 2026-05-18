@@ -5,13 +5,14 @@
  * @description_zh 實體 POS 機專用的全螢幕 PIN 碼登入介面
  */
 import React, { useState, useEffect } from 'react';
-import { Alert, Box, Typography, Avatar, IconButton, Button, AvatarGroup, CircularProgress } from '@mui/material';
+import { Alert, Box, Typography, Avatar, IconButton, Button, AvatarGroup, CircularProgress, useTheme } from '@mui/material';
 import { ArrowForward, Backspace, PointOfSale, Add } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { isTokenExpired, useAuthStore } from '../../../shared/store/authStore';
 import { pinLoginApi } from '../api/posAuthApi';
 import { formatPosClock } from '@shared/utils';
+import { ThemeModeToggle } from '@shared/components';
 
 const DEFAULT_TERMINAL_CODE = import.meta.env.VITE_DEFAULT_TERMINAL_CODE || 'DEMO-T-001';
 const DEFAULT_REDIRECT_PATH = '/pos/register';
@@ -30,6 +31,8 @@ const PosLoginPage: React.FC = () => {
     const [error, setError] = useState('');
     const navigate = useNavigate();
     const location = useLocation();
+    const theme = useTheme();
+    const isLightMode = theme.palette.mode === 'light';
     const setAuth = useAuthStore((state) => state.setAuth);
     const logout = useAuthStore((state) => state.logout);
     const token = useAuthStore((state) => state.token);
@@ -112,8 +115,8 @@ const PosLoginPage: React.FC = () => {
         <Box sx={{ 
             height: '100vh', 
             width: '100vw', 
-            bgcolor: '#16171D',
-            color: 'white',
+            bgcolor: 'background.default',
+            color: 'text.primary',
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden'
@@ -133,10 +136,13 @@ const PosLoginPage: React.FC = () => {
                         <Typography variant="caption" sx={{ color: '#4CAF50', fontWeight: 'bold' }}>Online</Typography>
                     </Box>
                 </Box>
-                <Box sx={{ bgcolor: 'rgba(255,255,255,0.05)', px: 2, py: 1, borderRadius: 2 }}>
-                    <Typography variant="body2" color="text.secondary" fontWeight="500">
-                        {formatPosClock(currentTime)}
-                    </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <ThemeModeToggle />
+                    <Box sx={{ bgcolor: isLightMode ? 'rgba(17,24,39,0.06)' : 'rgba(255,255,255,0.05)', px: 2, py: 1, borderRadius: 2 }}>
+                        <Typography variant="body2" color="text.secondary" fontWeight="500">
+                            {formatPosClock(currentTime)}
+                        </Typography>
+                    </Box>
                 </Box>
             </Box>
 
@@ -152,7 +158,7 @@ const PosLoginPage: React.FC = () => {
                 {/* Store & User Info */}
                 <Avatar 
                     src="https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=150&q=80" 
-                    sx={{ width: 80, height: 80, mb: 3, border: '3px solid rgba(255,255,255,0.1)' }}
+                    sx={{ width: 80, height: 80, mb: 3, border: isLightMode ? '3px solid rgba(17,24,39,0.08)' : '3px solid rgba(255,255,255,0.1)' }}
                 />
                 <Typography variant="h4" fontWeight="bold" sx={{ mb: 1 }}>
                     Xinyi Flagship Store
@@ -176,7 +182,7 @@ const PosLoginPage: React.FC = () => {
                                 height: 14,
                                 borderRadius: '50%',
                                 transition: 'all 0.2s',
-                                bgcolor: i < pin.length ? '#b69aff' : 'rgba(255,255,255,0.1)',
+                                bgcolor: i < pin.length ? '#7048E8' : (isLightMode ? 'rgba(17,24,39,0.12)' : 'rgba(255,255,255,0.1)'),
                                 boxShadow: i < pin.length ? '0 0 10px rgba(182, 154, 255, 0.5)' : 'none'
                             }}
                         />
@@ -194,14 +200,14 @@ const PosLoginPage: React.FC = () => {
                                 width: 80,
                                 height: 80,
                                 borderRadius: 3,
-                                bgcolor: 'rgba(255,255,255,0.08)',
+                                bgcolor: isLightMode ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.08)',
                                 fontSize: '28px',
                                 fontWeight: 'bold',
-                                color: 'white',
-                                boxShadow: 'none',
+                                color: 'text.primary',
+                                boxShadow: isLightMode ? '0 10px 20px rgba(17,24,39,0.08)' : 'none',
                                 transition: 'all 0.1s',
                                 '&:hover': {
-                                    bgcolor: 'rgba(255,255,255,0.15)',
+                                    bgcolor: isLightMode ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,0.15)',
                                     transform: 'scale(1.05)'
                                 }
                             }}
@@ -219,11 +225,11 @@ const PosLoginPage: React.FC = () => {
                             width: 80,
                             height: 80,
                             borderRadius: 3,
-                            bgcolor: 'rgba(255,255,255,0.05)',
+                            bgcolor: isLightMode ? 'rgba(17,24,39,0.06)' : 'rgba(255,255,255,0.05)',
                             color: 'text.secondary',
                             boxShadow: 'none',
-                            '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' },
-                            '&.Mui-disabled': { bgcolor: 'rgba(255,255,255,0.02)', color: 'rgba(255,255,255,0.1)' }
+                            '&:hover': { bgcolor: isLightMode ? 'rgba(17,24,39,0.1)' : 'rgba(255,255,255,0.1)' },
+                            '&.Mui-disabled': { bgcolor: isLightMode ? 'rgba(17,24,39,0.03)' : 'rgba(255,255,255,0.02)', color: isLightMode ? 'rgba(17,24,39,0.2)' : 'rgba(255,255,255,0.1)' }
                         }}
                     >
                         <Backspace />
@@ -237,12 +243,12 @@ const PosLoginPage: React.FC = () => {
                             width: 80,
                             height: 80,
                             borderRadius: 3,
-                            bgcolor: 'rgba(255,255,255,0.08)',
+                            bgcolor: isLightMode ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.08)',
                             fontSize: '28px',
                             fontWeight: 'bold',
-                            color: 'white',
-                            boxShadow: 'none',
-                            '&:hover': { bgcolor: 'rgba(255,255,255,0.15)', transform: 'scale(1.05)' }
+                            color: 'text.primary',
+                            boxShadow: isLightMode ? '0 10px 20px rgba(17,24,39,0.08)' : 'none',
+                            '&:hover': { bgcolor: isLightMode ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,0.15)', transform: 'scale(1.05)' }
                         }}
                     >
                         0
@@ -257,7 +263,7 @@ const PosLoginPage: React.FC = () => {
                             width: 80,
                             height: 80,
                             borderRadius: 3,
-                            background: pin.length >= 4 ? 'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)' : 'rgba(255,255,255,0.05)',
+                            background: pin.length >= 4 ? 'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)' : (isLightMode ? 'rgba(17,24,39,0.06)' : 'rgba(255,255,255,0.05)'),
                             ...(pin.length >= 4 && { background: 'linear-gradient(90deg, #7048E8 0%, #4D329A 100%)' }),
                             color: 'white',
                             boxShadow: pin.length >= 4 ? '0 4px 15px rgba(112, 72, 232, 0.4)' : 'none',
@@ -265,13 +271,13 @@ const PosLoginPage: React.FC = () => {
                                 filter: 'brightness(1.1)',
                                 transform: pin.length >= 4 ? 'scale(1.05)' : 'none'
                              },
-                            '&.Mui-disabled': { background: 'rgba(255,255,255,0.05)' }
+                            '&.Mui-disabled': { background: isLightMode ? 'rgba(17,24,39,0.06)' : 'rgba(255,255,255,0.05)' }
                         }}
                     >
                         {loading ? (
                             <CircularProgress size={28} color="inherit" />
                         ) : (
-                            <ArrowForward fontSize="large" sx={{ color: pin.length >= 4 ? 'white' : 'rgba(255,255,255,0.2)' }} />
+                            <ArrowForward fontSize="large" sx={{ color: pin.length >= 4 ? 'white' : (isLightMode ? 'rgba(17,24,39,0.28)' : 'rgba(255,255,255,0.2)') }} />
                         )}
                     </Button>
                 </Box>
@@ -288,15 +294,15 @@ const PosLoginPage: React.FC = () => {
                     OTHER LOGGED-IN STAFF
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                    <AvatarGroup max={4} sx={{ '& .MuiAvatar-root': { width: 40, height: 40, borderColor: '#16171D' } }}>
+                    <AvatarGroup max={4} sx={{ '& .MuiAvatar-root': { width: 40, height: 40, borderColor: isLightMode ? '#F4F6FB' : '#16171D' } }}>
                         <Avatar src="https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=100&q=80" />
                         <Avatar src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&q=80" />
                     </AvatarGroup>
                     <IconButton sx={{ 
-                        bgcolor: 'rgba(255,255,255,0.1)', 
-                        color: 'white', 
+                        bgcolor: isLightMode ? 'rgba(17,24,39,0.08)' : 'rgba(255,255,255,0.1)',
+                        color: 'text.primary',
                         width: 40, height: 40,
-                        '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' }
+                        '&:hover': { bgcolor: isLightMode ? 'rgba(17,24,39,0.12)' : 'rgba(255,255,255,0.2)' }
                     }}>
                         <Add fontSize="small" />
                     </IconButton>
