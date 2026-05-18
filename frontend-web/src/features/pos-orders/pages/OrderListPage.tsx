@@ -13,7 +13,7 @@ import {
 } from '@mui/material';
 import { orderApi } from '../api/orderApi';
 import type { Order, OrderStatus, OrderListParams } from '../types';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { paymentApi } from '../../pos-payment/api/paymentApi';
 import type { PaymentTransaction } from '../../pos-payment/types';
 import { invoiceApi } from '../../pos-tax/api/taxApi';
@@ -129,6 +129,7 @@ const summarizeInvoiceStatus = (invoice: Invoice | null): InvoiceStatusSummary =
 
 const OrderListPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [orders, setOrders] = useState<Order[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -149,6 +150,7 @@ const OrderListPage: React.FC = () => {
   const [paymentStatusByOrder, setPaymentStatusByOrder] = useState<Record<string, PaymentStatusSummary>>({});
   const [invoiceStatusByOrder, setInvoiceStatusByOrder] = useState<Record<string, InvoiceStatusSummary>>({});
   const [detailTarget, setDetailTarget] = useState<Order | null>(null);
+  const refundBasePath = location.pathname.startsWith('/admin') ? '/admin/pos/refunds' : '/pos/refunds';
 
   function formatMoney(amount: number) {
     return new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', maximumFractionDigits: 0 }).format(amount);
@@ -367,7 +369,7 @@ const OrderListPage: React.FC = () => {
             color="secondary"
             onClick={(event) => {
               stopRowClick(event);
-              navigate(`/pos/refunds?orderId=${order.id}&amount=${order.grandTotal}&orderNo=${encodeURIComponent(order.orderNo)}`);
+              navigate(`${refundBasePath}?orderId=${order.id}&amount=${order.grandTotal}&orderNo=${encodeURIComponent(order.orderNo)}`);
             }}
             sx={{ flex: { xs: '1 1 120px', md: '0 0 auto' } }}
           >

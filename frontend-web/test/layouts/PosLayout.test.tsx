@@ -5,6 +5,7 @@
  * @description_zh 驗證 POS 版面會顯示目前工作階段的門店、終端與操作員
  */
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import PosLayout from '../../src/layouts/PosLayout';
@@ -15,6 +16,7 @@ const renderPosLayout = () => render(
       <Route path="/pos" element={<PosLayout />}>
         <Route path="register" element={<div>Register outlet</div>} />
       </Route>
+      <Route path="/admin/dashboard" element={<div>Admin dashboard outlet</div>} />
     </Routes>
   </MemoryRouter>
 );
@@ -39,5 +41,22 @@ describe('PosLayout', () => {
     expect(screen.getAllByText('Browser Demo Terminal').length).toBeGreaterThan(0);
     expect(screen.getByText('操作員 cashier')).toBeInTheDocument();
     expect(screen.getAllByText('店長').length).toBeGreaterThan(0);
+  });
+
+  it('keeps management modules out of the POS foreground navigation', async () => {
+    const user = userEvent.setup();
+    renderPosLayout();
+
+    expect(screen.getByRole('button', { name: '收銀台' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '訂單' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '商品' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '庫存' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '會員' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '班次' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '對帳' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '管理後台' }));
+
+    expect(await screen.findByText('Admin dashboard outlet')).toBeInTheDocument();
   });
 });

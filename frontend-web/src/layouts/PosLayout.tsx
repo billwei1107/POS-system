@@ -11,9 +11,8 @@ import {
   Paper, Button, BottomNavigation, BottomNavigationAction, Badge as MuiBadge
 } from '@mui/material';
 import {
-  PointOfSale, Receipt, Inventory, Settings, Category, LocalCafe, Replay,
-  LockOutlined, Menu as MenuIcon, ShoppingCart, Wifi, Circle, ReceiptLong,
-  Badge as BadgeIcon, FactCheck, KeyboardArrowDown, KeyboardArrowRight, PeopleAlt
+  PointOfSale, Receipt, Settings, Replay, LockOutlined, Menu as MenuIcon,
+  ShoppingCart, Wifi, Circle, KeyboardArrowDown, KeyboardArrowRight
 } from '@mui/icons-material';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@shared/store/authStore';
@@ -88,40 +87,14 @@ const PosLayout: React.FC = () => {
         { text: '退款處理', icon: <Replay />, path: '/pos/refunds' },
       ],
     },
-    {
-      text: '商品',
-      icon: <LocalCafe />,
-      path: '/pos/products',
-      children: [
-        { text: '商品管理', icon: <LocalCafe />, path: '/pos/products' },
-        { text: '分類管理', icon: <Category />, path: '/pos/categories' },
-      ],
-    },
-    {
-      text: '庫存',
-      icon: <Inventory />,
-      path: '/pos/inventory',
-      children: [
-        { text: '庫存總覽', icon: <Inventory />, path: '/pos/inventory' },
-        { text: '進貨驗收', icon: <Inventory />, path: '/pos/inventory/receiving' },
-        { text: '盤點單', icon: <FactCheck />, path: '/pos/inventory/stock-takes' },
-      ],
-    },
-    { text: '發票', icon: <ReceiptLong />, path: '/pos/invoices' },
-    { text: '會員', icon: <PeopleAlt />, path: '/pos/members' },
-    { text: '班次', icon: <BadgeIcon />, path: '/pos/shifts' },
-    { text: '對帳', icon: <FactCheck />, path: '/pos/reconciliation' },
   ];
-  const mobileDockItems = menuItems.filter((item) => ['收銀台', '訂單', '商品', '庫存'].includes(item.text));
+  const mobileDockItems = menuItems;
 
   const isItemActive = (item: NavItem) =>
     location.pathname.includes(item.path)
     || Boolean(item.children?.some((child) => location.pathname.includes(child.path)));
 
-  const isChildActive = (item: NavItem) =>
-    item.path === '/pos/inventory'
-      ? location.pathname === item.path
-      : location.pathname.includes(item.path);
+  const isChildActive = (item: NavItem) => location.pathname.includes(item.path);
 
   const handleMenuNavigate = (item: NavItem, isExpanded?: boolean) => {
     if (item.children) {
@@ -247,6 +220,22 @@ const PosLayout: React.FC = () => {
              <ListItemText primary="支援" sx={{ color: 'text.secondary' }} />
            </ListItemButton>
         </ListItem>
+        <Button
+            variant="outlined"
+            fullWidth
+            startIcon={<Settings />}
+            onClick={() => navigate('/admin/dashboard')}
+            sx={{
+                mt: 1.5,
+                minHeight: 52,
+                color: 'text.primary',
+                borderColor: 'rgba(178,198,255,0.32)',
+                bgcolor: 'rgba(178,198,255,0.08)',
+                '&:hover': { bgcolor: 'rgba(178,198,255,0.14)', borderColor: 'rgba(178,198,255,0.48)' }
+            }}
+        >
+          管理後台
+        </Button>
         <Button
             variant="outlined"
             fullWidth

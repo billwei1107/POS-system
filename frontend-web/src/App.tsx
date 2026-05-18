@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { CssBaseline, ThemeProvider } from '@mui/material';
 import { posTheme } from './shared/theme';
 import { ProtectedRoute } from './shared/auth';
@@ -52,6 +52,11 @@ import PayMethodSettingsPage from './features/pos-payment/pages/PayMethodSetting
 import GatewayConfigPage from './features/pos-payment/pages/GatewayConfigPage';
 import MemberPage from './features/pos-crm/pages/MemberPage';
 import PromotionRulePage from './features/pos-promotion/pages/PromotionRulePage';
+
+const LegacyStockTakeRedirect = () => {
+  const { stockTakeId } = useParams();
+  return <Navigate to={`/admin/inventory/stock-takes/${stockTakeId ?? ''}`} replace />;
+};
 
 function App() {
   return (
@@ -137,21 +142,29 @@ function App() {
           {/* POS 登入畫面 */}
           <Route path="/pos/login" element={<PosLoginPage />} />
 
+          {/* 舊 POS 前台管理路由轉址：管理工作不需 POS PIN，統一進後台 */}
+          <Route path="/pos/products" element={<Navigate to="/admin/pos/products" replace />} />
+          <Route path="/pos/categories" element={<Navigate to="/admin/pos/categories" replace />} />
+          <Route path="/pos/members" element={<Navigate to="/admin/pos/members" replace />} />
+          <Route path="/pos/inventory" element={<Navigate to="/admin/inventory/overview" replace />} />
+          <Route path="/pos/inventory/receiving" element={<Navigate to="/admin/inventory/receiving" replace />} />
+          <Route path="/pos/inventory/stock-takes" element={<Navigate to="/admin/inventory/stock-takes" replace />} />
+          <Route path="/pos/inventory/stock-takes/:stockTakeId" element={<LegacyStockTakeRedirect />} />
+          <Route path="/pos/invoices" element={<Navigate to="/admin/operations/invoices" replace />} />
+          <Route path="/pos/invoice-tracks" element={<Navigate to="/admin/operations/invoice-tracks" replace />} />
+          <Route path="/pos/tax-classes" element={<Navigate to="/admin/operations/tax-classes" replace />} />
+          <Route path="/pos/shifts" element={<Navigate to="/admin/operations/shifts" replace />} />
+          <Route path="/pos/z-reports" element={<Navigate to="/admin/operations/z-reports" replace />} />
+          <Route path="/pos/reconciliation" element={<Navigate to="/admin/operations/reconciliation" replace />} />
+          <Route path="/pos/pay-methods" element={<Navigate to="/admin/operations/pay-methods" replace />} />
+          <Route path="/pos/gateways" element={<Navigate to="/admin/operations/gateways" replace />} />
+          <Route path="/pos/promotions" element={<Navigate to="/admin/pos/promotions" replace />} />
+
           <Route path="/pos" element={<ProtectedRoute redirectTo="/pos/login"><PosSessionRoute><PosLayout /></PosSessionRoute></ProtectedRoute>}>
               <Route path="register" element={<RegisterPage />} />
               <Route path="orders" element={<OrderListPage />} />
               <Route path="refunds" element={<RefundPage />} />
-              <Route path="members" element={<MemberPage />} />
-              <Route path="products" element={<ProductListPage />} />
-              <Route path="categories" element={<CategoryListPage />} />
               <Route path="checkout" element={<CheckoutPage />} />
-              <Route path="inventory" element={<StockOverviewPage />} />
-              <Route path="inventory/receiving" element={<ReceivingPage />} />
-              <Route path="inventory/stock-takes" element={<StockTakePage />} />
-              <Route path="inventory/stock-takes/:stockTakeId" element={<StockTakePage />} />
-              <Route path="invoices" element={<InvoicePage />} />
-              <Route path="shifts" element={<ShiftPage />} />
-              <Route path="reconciliation" element={<ReconciliationPage />} />
               <Route path="*" element={<Navigate to="/pos/register" replace />} />
           </Route>
 

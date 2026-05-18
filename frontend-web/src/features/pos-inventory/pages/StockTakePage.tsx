@@ -310,7 +310,7 @@ const StockTakePage: React.FC = () => {
       await loadData();
       setSuccess('新的盤點單已建立，請依現場實數逐項登記');
       if (res.data?.id) {
-        navigate(`/pos/inventory/stock-takes/${res.data.id}`);
+        navigate(`/admin/inventory/stock-takes/${res.data.id}`);
       }
     } catch (err) {
       await loadData();
@@ -320,7 +320,7 @@ const StockTakePage: React.FC = () => {
 
   const handleOpenTake = (take: StockTake) => {
     if (take.status === 'IN_PROGRESS') {
-      navigate(`/pos/inventory/stock-takes/${take.id}`);
+      navigate(`/admin/inventory/stock-takes/${take.id}`);
       return;
     }
     setSelectedTakeId(prev => prev === take.id ? null : take.id);
@@ -371,7 +371,7 @@ const StockTakePage: React.FC = () => {
       await stockTakeApi.complete(take.id);
       await loadData();
       setSuccess('盤點單已完成，庫存已依實盤差異校正');
-      navigate('/pos/inventory/stock-takes');
+      navigate('/admin/inventory/stock-takes');
     } catch {
       setError('完成盤點失敗');
     } finally {
@@ -385,7 +385,7 @@ const StockTakePage: React.FC = () => {
       await stockTakeApi.cancel(takeId);
       await loadData();
       setSuccess('盤點單已取消');
-      navigate('/pos/inventory/stock-takes');
+      navigate('/admin/inventory/stock-takes');
     } catch {
       setError('取消盤點單失敗');
     }
@@ -556,7 +556,7 @@ const StockTakePage: React.FC = () => {
           <Button
             variant="outlined"
             startIcon={<ArrowBack />}
-            onClick={() => navigate('/pos/inventory/stock-takes')}
+            onClick={() => navigate('/admin/inventory/stock-takes')}
             sx={{ minHeight: 56, px: 3, alignSelf: { xs: 'stretch', md: 'center' } }}
           >
             返回盤點列表
@@ -566,7 +566,7 @@ const StockTakePage: React.FC = () => {
             variant="contained"
             color="secondary"
             startIcon={inProgress ? <ChevronRight /> : <AssignmentTurnedIn />}
-            onClick={inProgress ? () => navigate(`/pos/inventory/stock-takes/${inProgress.id}`) : handleStart}
+            onClick={inProgress ? () => navigate(`/admin/inventory/stock-takes/${inProgress.id}`) : handleStart}
             sx={{ minHeight: 56, px: 3, alignSelf: { xs: 'stretch', md: 'center' } }}
           >
             {inProgress ? '繼續進行中盤點' : '建立盤點單'}
@@ -583,7 +583,7 @@ const StockTakePage: React.FC = () => {
             <AssignmentTurnedIn sx={{ fontSize: 52, color: 'text.secondary', mb: 1 }} />
             <Typography variant="h5" fontWeight={900}>找不到這張盤點單</Typography>
             <Typography color="text.secondary" sx={{ mt: 1, mb: 2 }}>可能已被取消、刪除，或目前門店沒有這筆盤點資料。</Typography>
-            <Button variant="contained" onClick={() => navigate('/pos/inventory/stock-takes')}>返回盤點列表</Button>
+            <Button variant="contained" onClick={() => navigate('/admin/inventory/stock-takes')}>返回盤點列表</Button>
           </Paper>
         )
       ) : sortedTakes.length === 0 ? (

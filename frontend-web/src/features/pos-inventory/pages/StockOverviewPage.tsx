@@ -195,7 +195,7 @@ const StockOverviewPage: React.FC = () => {
             variant="contained"
             color="secondary"
             startIcon={<LocalShipping />}
-            onClick={() => navigate('/pos/inventory/receiving')}
+            onClick={() => navigate('/admin/inventory/receiving')}
             sx={{ minHeight: 56, flex: { xs: 1, sm: 'initial' } }}
           >
             進貨驗收
@@ -203,7 +203,7 @@ const StockOverviewPage: React.FC = () => {
           <Button
             variant="outlined"
             startIcon={<AssignmentTurnedIn />}
-            onClick={() => navigate('/pos/inventory/stock-takes')}
+            onClick={() => navigate('/admin/inventory/stock-takes')}
             sx={{ minHeight: 56, flex: { xs: 1, sm: 'initial' } }}
           >
             盤點單

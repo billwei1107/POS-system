@@ -143,8 +143,8 @@ const issuedInvoice: Invoice = {
   voidReason: null,
 };
 
-const renderOrderList = () => render(
-  <MemoryRouter>
+const renderOrderList = (initialEntries = ['/pos/orders']) => render(
+  <MemoryRouter initialEntries={initialEntries}>
     <OrderListPage />
   </MemoryRouter>
 );
@@ -259,5 +259,17 @@ describe('OrderListPage order details', () => {
     await user.click(screen.getByRole('button', { name: '新增訂單' }));
 
     expect(navigateMock).toHaveBeenCalledWith('/pos/register');
+  });
+
+  it('keeps refund navigation inside the admin route when rendered in management', async () => {
+    const user = userEvent.setup();
+    renderOrderList(['/admin/pos/orders']);
+
+    await waitFor(() => expect(screen.getAllByText(promotionOrder.orderNo).length).toBeGreaterThan(0));
+    await user.click(screen.getAllByRole('button', { name: '退款' })[0]);
+
+    expect(navigateMock).toHaveBeenCalledWith(
+      `/admin/pos/refunds?orderId=${promotionOrder.id}&amount=${promotionOrder.grandTotal}&orderNo=${encodeURIComponent(promotionOrder.orderNo)}`
+    );
   });
 });
