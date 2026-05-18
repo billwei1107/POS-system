@@ -47,6 +47,7 @@ describe('PosLayout', () => {
     const user = userEvent.setup();
     renderPosLayout();
 
+    expect(screen.getByRole('button', { name: '進入後台' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '收銀台' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '訂單' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '商品' })).not.toBeInTheDocument();
@@ -56,6 +57,15 @@ describe('PosLayout', () => {
     expect(screen.queryByRole('button', { name: '對帳' })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: '管理後台' }));
+
+    expect(await screen.findByText('Admin dashboard outlet')).toBeInTheDocument();
+  });
+
+  it('opens the admin dashboard from the foreground top bar', async () => {
+    const user = userEvent.setup();
+    renderPosLayout();
+
+    await user.click(screen.getByRole('button', { name: '進入後台' }));
 
     expect(await screen.findByText('Admin dashboard outlet')).toBeInTheDocument();
   });
