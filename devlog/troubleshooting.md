@@ -1612,3 +1612,32 @@ services:
 - `npm test -- --run`：通過，16 files / 39 tests。
 - `npm run build`：通過，保留既有 Vite chunk size warning。
 - Browser 驗證 `http://localhost:38182/pos/orders`：右滑後操作欄完整在容器內，訂單編號欄改為欄內捲動。
+
+---
+
+# 2026-05-19 POS order status chip is truncated
+
+## Issue
+
+- 場景：Web POS 淺色模式訂單列表，桌面表格顯示已完成訂單。
+- 異常行為：狀態欄 chip 顯示為 `已...`，無法一眼辨識完整狀態。
+
+## Root Cause
+
+- 前一輪為了壓縮表格總寬，狀態欄只有 `90px`。
+- MUI Chip label 在寬度接近邊界時會使用 overflow / ellipsis，導致中文狀態字樣被省略。
+
+## Solution
+
+- 將訂單編號欄由 `224px` 進一步收斂至 `190px`。
+- 將狀態欄加寬至 `124px`。
+- 為狀態 chip 新增專用樣式，讓 label 使用 `overflow: visible`、`text-overflow: clip`、`white-space: nowrap`。
+
+## Verification
+
+- `npm test -- --run test/pos-orders/OrderListPage.test.tsx`：通過，6 tests。
+- `npx tsc -b`：通過。
+- `npm run lint`：通過。
+- `npm test -- --run`：通過，16 files / 39 tests。
+- `npm run build`：通過，保留既有 Vite chunk size warning。
+- Browser DOM 幾何驗證：狀態 label text 為 `已完成`，`scrollWidth <= clientWidth`，未被省略。

@@ -76,9 +76,9 @@ const INVOICE_STATUS_COLOR: Record<InvoiceStatusSummary, 'default' | 'success' |
 };
 
 const ORDER_TABLE_MIN_WIDTH = 1180;
-const ORDER_NO_COLUMN_WIDTH = 224;
+const ORDER_NO_COLUMN_WIDTH = 190;
 const ORDER_TABLE_COLUMN_WIDTHS = {
-  status: 90,
+  status: 124,
   orderType: 94,
   itemCount: 60,
   payment: 100,
@@ -136,6 +136,16 @@ const scrollableOrderNoSx = {
   '&::-webkit-scrollbar-thumb': {
     bgcolor: 'rgba(112,72,232,0.35)',
     borderRadius: 999,
+  },
+} as const;
+
+const statusChipSx = {
+  minWidth: 78,
+  justifyContent: 'center',
+  '& .MuiChip-label': {
+    overflow: 'visible',
+    textOverflow: 'clip',
+    whiteSpace: 'nowrap',
   },
 } as const;
 
@@ -645,7 +655,7 @@ const OrderListPage: React.FC = () => {
                   </Box>
                 </TableCell>
                 <TableCell sx={tableBodyCellSx}>
-                  <Chip label={ORDER_STATUS_LABEL[order.status]} color={STATUS_COLOR[order.status]} size="small" />
+                  <Chip label={ORDER_STATUS_LABEL[order.status]} color={STATUS_COLOR[order.status]} size="small" sx={statusChipSx} />
                 </TableCell>
                 <TableCell sx={tableBodyCellSx}>{order.orderType}</TableCell>
                 <TableCell sx={tableBodyCellSx}>{order.items?.length ?? 0}</TableCell>
