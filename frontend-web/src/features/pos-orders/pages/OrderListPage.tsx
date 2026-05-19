@@ -76,16 +76,16 @@ const INVOICE_STATUS_COLOR: Record<InvoiceStatusSummary, 'default' | 'success' |
 };
 
 const ORDER_TABLE_MIN_WIDTH = 1180;
-const ORDER_NO_COLUMN_WIDTH = 280;
+const ORDER_NO_COLUMN_WIDTH = 224;
 const ORDER_TABLE_COLUMN_WIDTHS = {
-  status: 84,
-  orderType: 86,
-  itemCount: 56,
-  payment: 92,
-  invoice: 92,
-  discount: 132,
-  total: 78,
-  createdAt: 136,
+  status: 90,
+  orderType: 94,
+  itemCount: 60,
+  payment: 100,
+  invoice: 100,
+  discount: 142,
+  total: 84,
+  createdAt: 142,
   actions: 144,
 } as const;
 
