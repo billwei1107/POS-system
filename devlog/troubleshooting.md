@@ -1582,3 +1582,33 @@ services:
 - `flutter test`：通過，24 tests。
 - `flutter analyze`：通過。
 - `flutter build apk --debug`：通過。
+
+---
+
+# 2026-05-19 POS order number overlaps table columns after horizontal scroll
+
+## Issue
+
+- 場景：Web POS 淺色模式進入訂單列表後，桌面表格往右水平滑動。
+- 異常行為：長訂單編號會在視覺上壓到狀態與類型欄，右側操作欄需要較大水平滑動才看得到。
+
+## Root Cause
+
+- 訂單編號欄雖然是 sticky left，但長字串只設為 `white-space: nowrap`，缺少固定欄寬內的裁切與欄內捲動。
+- 桌面表格使用欄位自然寬度與較大的 `minWidth`，折扣、建立時間與操作欄會把整體表格撐寬。
+
+## Solution
+
+- 將桌面表格改為 `tableLayout: fixed`，並使用 `colgroup` 明確定義欄寬。
+- 訂單編號欄固定為 `280px`，cell 加上 `overflow: hidden`，內層 wrapper 加上 `overflow-x: auto`。
+- 表格最小寬度收斂至 `1180px`，降低水平滑動距離。
+- 折扣 Chip 加上 `maxWidth: 100%` 與 ellipsis，避免窄欄位撐開 layout。
+
+## Verification
+
+- `npm test -- --run test/pos-orders/OrderListPage.test.tsx`：通過，6 tests。
+- `npx tsc -b`：通過。
+- `npm run lint`：通過。
+- `npm test -- --run`：通過，16 files / 39 tests。
+- `npm run build`：通過，保留既有 Vite chunk size warning。
+- Browser 驗證 `http://localhost:38182/pos/orders`：右滑後操作欄完整在容器內，訂單編號欄改為欄內捲動。

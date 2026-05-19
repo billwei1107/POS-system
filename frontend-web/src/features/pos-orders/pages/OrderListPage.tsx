@@ -75,7 +75,19 @@ const INVOICE_STATUS_COLOR: Record<InvoiceStatusSummary, 'default' | 'success' |
   MISSING: 'default',
 };
 
-const ORDER_TABLE_MIN_WIDTH = 1280;
+const ORDER_TABLE_MIN_WIDTH = 1180;
+const ORDER_NO_COLUMN_WIDTH = 280;
+const ORDER_TABLE_COLUMN_WIDTHS = {
+  status: 84,
+  orderType: 86,
+  itemCount: 56,
+  payment: 92,
+  invoice: 92,
+  discount: 132,
+  total: 78,
+  createdAt: 136,
+  actions: 144,
+} as const;
 
 const tableHeaderSx = {
   whiteSpace: 'nowrap',
@@ -93,8 +105,10 @@ const stickyOrderCellSx = {
   position: 'sticky',
   left: 0,
   zIndex: 2,
-  minWidth: 260,
-  maxWidth: 260,
+  width: ORDER_NO_COLUMN_WIDTH,
+  minWidth: ORDER_NO_COLUMN_WIDTH,
+  maxWidth: ORDER_NO_COLUMN_WIDTH,
+  overflow: 'hidden',
   bgcolor: 'background.paper',
   borderRight: '1px solid rgba(255,255,255,0.08)',
 } as const;
@@ -104,9 +118,25 @@ const stickyOrderHeadSx = {
   position: 'sticky',
   left: 0,
   zIndex: 3,
-  minWidth: 260,
-  maxWidth: 260,
+  width: ORDER_NO_COLUMN_WIDTH,
+  minWidth: ORDER_NO_COLUMN_WIDTH,
+  maxWidth: ORDER_NO_COLUMN_WIDTH,
+  overflow: 'hidden',
   borderRight: '1px solid rgba(255,255,255,0.08)',
+} as const;
+
+const scrollableOrderNoSx = {
+  display: 'block',
+  maxWidth: ORDER_NO_COLUMN_WIDTH - 32,
+  overflowX: 'auto',
+  overflowY: 'hidden',
+  whiteSpace: 'nowrap',
+  WebkitOverflowScrolling: 'touch',
+  '&::-webkit-scrollbar': { height: 4 },
+  '&::-webkit-scrollbar-thumb': {
+    bgcolor: 'rgba(112,72,232,0.35)',
+    borderRadius: 999,
+  },
 } as const;
 
 const DISCOUNT_SOURCE_LABEL: Record<NonNullable<Order['discountSource']>, string> = {
@@ -330,6 +360,13 @@ const OrderListPage: React.FC = () => {
         label={`${label} -${formatMoney(order.discountTotal)}`}
         color={order.discountSource === 'PROMOTION' ? 'success' : 'warning'}
         size="small"
+        sx={{
+          maxWidth: '100%',
+          '& .MuiChip-label': {
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          },
+        }}
       />
     );
   };
@@ -530,7 +567,19 @@ const OrderListPage: React.FC = () => {
         data-testid="orders-desktop-table-container"
         sx={{ display: { xs: 'none', md: 'block' }, flexGrow: 1, bgcolor: 'background.paper', borderRadius: 3, border: '1px solid rgba(255,255,255,0.06)', boxShadow: 'none', overflowX: 'auto' }}
       >
-        <Table stickyHeader data-testid="orders-desktop-table" sx={{ minWidth: ORDER_TABLE_MIN_WIDTH }}>
+        <Table stickyHeader data-testid="orders-desktop-table" sx={{ minWidth: ORDER_TABLE_MIN_WIDTH, tableLayout: 'fixed' }}>
+          <colgroup>
+            <col style={{ width: ORDER_NO_COLUMN_WIDTH }} />
+            <col style={{ width: ORDER_TABLE_COLUMN_WIDTHS.status }} />
+            <col style={{ width: ORDER_TABLE_COLUMN_WIDTHS.orderType }} />
+            <col style={{ width: ORDER_TABLE_COLUMN_WIDTHS.itemCount }} />
+            <col style={{ width: ORDER_TABLE_COLUMN_WIDTHS.payment }} />
+            <col style={{ width: ORDER_TABLE_COLUMN_WIDTHS.invoice }} />
+            <col style={{ width: ORDER_TABLE_COLUMN_WIDTHS.discount }} />
+            <col style={{ width: ORDER_TABLE_COLUMN_WIDTHS.total }} />
+            <col style={{ width: ORDER_TABLE_COLUMN_WIDTHS.createdAt }} />
+            <col style={{ width: ORDER_TABLE_COLUMN_WIDTHS.actions }} />
+          </colgroup>
           <TableHead>
             <TableRow>
               <TableCell sx={stickyOrderHeadSx}>訂單編號</TableCell>
@@ -539,10 +588,10 @@ const OrderListPage: React.FC = () => {
               <TableCell sx={tableHeaderSx}>品項</TableCell>
               <TableCell sx={tableHeaderSx}>付款狀態</TableCell>
               <TableCell sx={tableHeaderSx}>發票狀態</TableCell>
-              <TableCell sx={{ ...tableHeaderSx, minWidth: 190 }}>折扣</TableCell>
+              <TableCell sx={tableHeaderSx}>折扣</TableCell>
               <TableCell align="right" sx={tableHeaderSx}>合計</TableCell>
-              <TableCell sx={{ ...tableHeaderSx, minWidth: 180 }}>建立時間</TableCell>
-              <TableCell sx={{ ...tableHeaderSx, minWidth: 180 }}>操作</TableCell>
+              <TableCell sx={tableHeaderSx}>建立時間</TableCell>
+              <TableCell sx={tableHeaderSx}>操作</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -584,9 +633,16 @@ const OrderListPage: React.FC = () => {
                 }}
               >
                 <TableCell sx={stickyOrderCellSx}>
-                  <Typography variant="body2" fontFamily="monospace" sx={{ whiteSpace: 'nowrap' }}>
-                    {order.orderNo}
-                  </Typography>
+                  <Box sx={scrollableOrderNoSx} tabIndex={0} onClick={stopRowClick}>
+                    <Typography
+                      data-testid="desktop-order-number"
+                      variant="body2"
+                      fontFamily="monospace"
+                      sx={{ display: 'inline-block', whiteSpace: 'nowrap', pr: 1 }}
+                    >
+                      {order.orderNo}
+                    </Typography>
+                  </Box>
                 </TableCell>
                 <TableCell sx={tableBodyCellSx}>
                   <Chip label={ORDER_STATUS_LABEL[order.status]} color={STATUS_COLOR[order.status]} size="small" />
@@ -615,10 +671,10 @@ const OrderListPage: React.FC = () => {
                     <Typography variant="caption" color="text.secondary">-</Typography>
                   )}
                 </TableCell>
-                <TableCell sx={{ ...tableBodyCellSx, minWidth: 190 }}>{renderDiscountChip(order)}</TableCell>
+                <TableCell sx={tableBodyCellSx}>{renderDiscountChip(order)}</TableCell>
                 <TableCell align="right" sx={tableBodyCellSx}>{formatMoney(order.grandTotal)}</TableCell>
-                <TableCell sx={{ ...tableBodyCellSx, minWidth: 180 }}>{formatDateTime(order.createdAt)}</TableCell>
-                <TableCell sx={{ ...tableBodyCellSx, minWidth: 180 }}>
+                <TableCell sx={tableBodyCellSx}>{formatDateTime(order.createdAt)}</TableCell>
+                <TableCell sx={tableBodyCellSx}>
                   {renderOrderActions(order)}
                 </TableCell>
               </TableRow>

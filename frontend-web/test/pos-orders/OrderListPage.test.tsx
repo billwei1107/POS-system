@@ -221,17 +221,20 @@ describe('OrderListPage order details', () => {
     expect(await screen.findByRole('dialog', { name: `訂單詳情 ${promotionOrder.orderNo}` })).toBeInTheDocument();
   });
 
-  it('keeps the desktop order table on a single horizontal scroll surface', async () => {
+  it('keeps the desktop order table compact with a scrollable order number cell', async () => {
     renderOrderList();
 
     await waitFor(() => expect(screen.getAllByText(promotionOrder.orderNo).length).toBeGreaterThan(0));
 
     const desktopTable = screen.getByTestId('orders-desktop-table');
+    const orderNumberText = within(desktopTable).getByText(promotionOrder.orderNo, { selector: 'p' });
+    const orderNumberScroller = orderNumberText.closest('div');
 
     expect(screen.getByTestId('orders-desktop-table-container')).toHaveStyle({ overflowX: 'auto' });
-    expect(desktopTable).toHaveStyle({ minWidth: '1280px' });
+    expect(desktopTable).toHaveStyle({ minWidth: '1180px', tableLayout: 'fixed' });
     expect(within(desktopTable).getByText('訂單編號', { selector: 'th' })).toHaveStyle({ whiteSpace: 'nowrap' });
-    expect(within(desktopTable).getByText(promotionOrder.orderNo, { selector: 'p' })).toHaveStyle({ whiteSpace: 'nowrap' });
+    expect(orderNumberScroller).toHaveStyle({ overflowX: 'auto', whiteSpace: 'nowrap' });
+    expect(orderNumberText).toHaveStyle({ whiteSpace: 'nowrap' });
   });
 
   it('filters the visible order list by order number keyword', async () => {
