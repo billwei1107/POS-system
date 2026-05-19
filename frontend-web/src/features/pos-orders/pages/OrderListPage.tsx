@@ -715,8 +715,64 @@ const OrderListPage: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={Boolean(detailTarget)} onClose={() => setDetailTarget(null)} maxWidth="lg" fullWidth>
-        <DialogTitle>訂單詳情 {detailTarget?.orderNo}</DialogTitle>
+      <Dialog
+        open={Boolean(detailTarget)}
+        onClose={() => setDetailTarget(null)}
+        aria-labelledby="order-detail-dialog-title"
+        maxWidth="lg"
+        fullWidth
+        slotProps={{
+          paper: {
+            sx: {
+              bgcolor: 'background.paper',
+              backgroundImage: 'none',
+              color: 'text.primary',
+            },
+          },
+        }}
+      >
+        <DialogTitle
+          id="order-detail-dialog-title"
+          sx={{
+            position: 'relative',
+            px: 3,
+            pt: 2.75,
+            pb: 1.25,
+            color: 'text.primary',
+          }}
+        >
+          <Box aria-hidden="true" sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, minWidth: 0 }}>
+            <Typography component="span" variant="h6" fontWeight={900} color="text.primary">
+              訂單詳情
+            </Typography>
+            <Typography
+              component="span"
+              variant="body2"
+              fontFamily="monospace"
+              fontWeight={800}
+              color="text.secondary"
+              sx={{ overflowWrap: 'anywhere' }}
+            >
+              {detailTarget?.orderNo}
+            </Typography>
+          </Box>
+          <Box
+            component="span"
+            sx={{
+              position: 'absolute',
+              width: 1,
+              height: 1,
+              p: 0,
+              m: -1,
+              overflow: 'hidden',
+              clip: 'rect(0 0 0 0)',
+              whiteSpace: 'nowrap',
+              border: 0,
+            }}
+          >
+            訂單詳情 {detailTarget?.orderNo}
+          </Box>
+        </DialogTitle>
         <DialogContent>
           {detailTarget && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>

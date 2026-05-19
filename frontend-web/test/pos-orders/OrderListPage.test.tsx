@@ -195,9 +195,11 @@ describe('OrderListPage order details', () => {
     await waitFor(() => expect(screen.getAllByText(promotionOrder.orderNo).length).toBeGreaterThan(0));
     await user.click(screen.getAllByRole('button', { name: '詳情' })[0]);
 
-    const dialog = await screen.findByRole('dialog', { name: `訂單詳情 ${promotionOrder.orderNo}` });
+    const dialog = await screen.findByRole('dialog');
     const scopedDialog = within(dialog);
 
+    expect(scopedDialog.getByText('訂單詳情', { selector: 'span' })).toBeInTheDocument();
+    expect(scopedDialog.getByText(promotionOrder.orderNo, { selector: 'span' })).toBeInTheDocument();
     expect(scopedDialog.getByText('折扣稽核')).toBeInTheDocument();
     expect(scopedDialog.getByText('促銷折扣')).toBeInTheDocument();
     expect(scopedDialog.getByText('咖啡滿百 9 折')).toBeInTheDocument();
@@ -218,7 +220,10 @@ describe('OrderListPage order details', () => {
     expect(orderRow).not.toBeNull();
     await user.click(orderRow!);
 
-    expect(await screen.findByRole('dialog', { name: `訂單詳情 ${promotionOrder.orderNo}` })).toBeInTheDocument();
+    const dialog = await screen.findByRole('dialog');
+
+    expect(within(dialog).getByText('訂單詳情', { selector: 'span' })).toBeInTheDocument();
+    expect(within(dialog).getByText(promotionOrder.orderNo, { selector: 'span' })).toBeInTheDocument();
   });
 
   it('keeps the desktop order table compact with a scrollable order number cell', async () => {

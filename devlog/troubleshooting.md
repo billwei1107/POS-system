@@ -1641,3 +1641,32 @@ services:
 - `npm test -- --run`：通過，16 files / 39 tests。
 - `npm run build`：通過，保留既有 Vite chunk size warning。
 - Browser DOM 幾何驗證：狀態 label text 為 `已完成`，`scrollWidth <= clientWidth`，未被省略。
+
+---
+
+# 2026-05-19 POS order detail title low contrast in light mode
+
+## Issue
+
+- 場景：Web POS 淺色模式，從訂單列表打開「詳情」彈窗。
+- 異常行為：左上角 `訂單詳情 + 訂單編號` 幾乎呈現白色，與白色 Dialog 背景對比不足。
+
+## Root Cause
+
+- Dialog 標題使用預設結構，未在淺色模式下明確指定前景色。
+- 長訂單編號與主標混在同一行，也讓標題辨識與層級不清楚。
+
+## Solution
+
+- 訂單詳情 Dialog paper 明確指定 `background.paper` 與 `text.primary`。
+- 標題拆成主標與訂單編號兩行，主標使用 `text.primary` 與粗體，訂單編號使用 `text.secondary` 與 monospace。
+- 保留隱藏輔助文字，讓測試與輔助工具仍能辨識完整彈窗標題。
+
+## Verification
+
+- `npm test -- --run test/pos-orders/OrderListPage.test.tsx`：通過，6 tests。
+- `npx tsc -b`：通過。
+- `npm run lint`：通過。
+- `npm test -- --run`：通過，16 files / 39 tests。
+- `npm run build`：通過，保留既有 Vite chunk size warning。
+- Browser DOM style 驗證：Dialog 背景為白色，標題為 `rgb(17, 24, 39)`，訂單編號為 `rgb(95, 102, 117)`。
