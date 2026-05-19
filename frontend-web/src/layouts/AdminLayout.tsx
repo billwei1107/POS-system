@@ -127,6 +127,9 @@ const AdminNavItem = ({
   const theme = useTheme();
   const selected = location.pathname === path;
   const isLightMode = theme.palette.mode === 'light';
+  const selectedColor = isLightMode ? '#7C2D12' : '#FFFFFF';
+  const selectedBg = isLightMode ? 'rgba(255, 109, 0, 0.16)' : 'rgba(255, 109, 0, 0.22)';
+  const selectedHoverBg = isLightMode ? 'rgba(255, 109, 0, 0.22)' : 'rgba(255, 109, 0, 0.28)';
 
   return (
     <ListItemButton
@@ -137,17 +140,17 @@ const AdminNavItem = ({
         borderRadius: 1,
         minHeight: 44,
         mb: 0.5,
-        color: selected ? '#FFFFFF' : 'text.secondary',
+        color: selected ? selectedColor : 'text.secondary',
         '&.Mui-selected': {
-          bgcolor: 'rgba(255, 109, 0, 0.18)',
-          color: '#FFFFFF',
+          bgcolor: selectedBg,
+          color: selectedColor,
           border: '1px solid rgba(255, 109, 0, 0.52)',
         },
         '&.Mui-selected:hover': {
-          bgcolor: 'rgba(255, 109, 0, 0.24)',
+          bgcolor: selectedHoverBg,
         },
         '&:hover': {
-          bgcolor: selected ? 'rgba(255, 109, 0, 0.24)' : (isLightMode ? 'rgba(112,72,232,0.06)' : 'rgba(255,255,255,0.05)'),
+          bgcolor: selected ? selectedHoverBg : (isLightMode ? 'rgba(112,72,232,0.06)' : 'rgba(255,255,255,0.05)'),
         },
       }}
     >

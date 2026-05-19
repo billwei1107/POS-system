@@ -1670,3 +1670,33 @@ services:
 - `npm test -- --run`：通過，16 files / 39 tests。
 - `npm run build`：通過，保留既有 Vite chunk size warning。
 - Browser DOM style 驗證：Dialog 背景為白色，標題為 `rgb(17, 24, 39)`，訂單編號為 `rgb(95, 102, 117)`。
+
+---
+
+# 2026-05-19 Admin selected nav text is low contrast in light mode
+
+## Issue
+
+- 場景：Web POS 淺色模式，進入管理後台並選取 `商品管理` 等側邊欄項目。
+- 異常行為：選取項目背景為淡橘色，但文字與圖示為白色，辨識度不足。
+
+## Root Cause
+
+- `AdminLayout` 的 selected nav item 將文字色寫死為 `#FFFFFF`。
+- 淺色模式 selected 背景是低飽和淡橘，白字在此背景下對比不足。
+
+## Solution
+
+- 依照主題模式分離 selected item 配色。
+- 淺色模式 selected 文字與圖示改為深橘 `#7C2D12`。
+- 深色模式 selected 仍維持白字。
+- 新增 `AdminLayout` 測試，覆蓋淺色模式 active nav item 文字色。
+
+## Verification
+
+- `npm test -- --run test/layouts/AdminLayout.test.tsx`：通過，1 test。
+- `npx tsc -b`：通過。
+- `npm run lint`：通過。
+- `npm test -- --run`：通過，17 files / 40 tests。
+- `npm run build`：通過，保留既有 Vite chunk size warning。
+- Browser DOM style 驗證：active `商品管理` 文字與圖示皆為 `rgb(124, 45, 18)`。
