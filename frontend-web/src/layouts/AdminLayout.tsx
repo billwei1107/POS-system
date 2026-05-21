@@ -23,13 +23,12 @@ import ApartmentIcon from '@mui/icons-material/Apartment';
 import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
 import BadgeIcon from '@mui/icons-material/Badge';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import Inventory2Icon from '@mui/icons-material/Inventory2';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import LogoutIcon from '@mui/icons-material/Logout';
+import MenuIcon from '@mui/icons-material/Menu';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import ManageSearchIcon from '@mui/icons-material/ManageSearch';
 import PaymentsIcon from '@mui/icons-material/Payments';
@@ -253,7 +252,7 @@ const AdminSidebar = ({
                 },
               }}
             >
-              {collapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+              <MenuIcon data-testid="admin-sidebar-menu-toggle-icon" />
             </IconButton>
           </Tooltip>
         )}

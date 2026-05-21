@@ -40,13 +40,17 @@ describe('AdminLayout', () => {
     const user = userEvent.setup();
     renderAdminLayout();
 
+    expect(screen.getByTestId('admin-sidebar-menu-toggle-icon')).toBeInTheDocument();
+
     await user.click(screen.getByRole('button', { name: '收合側邊欄' }));
 
     expect(screen.getByRole('button', { name: '展開側邊欄' })).toBeInTheDocument();
+    expect(screen.getByTestId('admin-sidebar-menu-toggle-icon')).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: '商品管理' }).length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole('button', { name: '展開側邊欄' }));
 
     expect(screen.getByRole('button', { name: '收合側邊欄' })).toBeInTheDocument();
+    expect(screen.getByTestId('admin-sidebar-menu-toggle-icon')).toBeInTheDocument();
   });
 });
