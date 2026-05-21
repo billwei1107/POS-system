@@ -1700,3 +1700,38 @@ services:
 - `npm test -- --run`：通過，17 files / 40 tests。
 - `npm run build`：通過，保留既有 Vite chunk size warning。
 - Browser DOM style 驗證：active `商品管理` 文字與圖示皆為 `rgb(124, 45, 18)`。
+
+---
+
+# 2026-05-21 Shared login page still shows template brand
+
+## Issue
+
+- 場景：使用者進入 `http://localhost:38182/login?redirect=%2Fadmin%2Fdashboard`。
+- 異常行為：畫面顯示 `HIVE.ERP`、`企業模塊化組件系統` 與 `Enterprise Inc.`，看起來像前端設定又跑回模板。
+
+## Root Cause
+
+- `38182` 的 `pos-frontend` 容器與端口設定正常，並非跑到其他專案。
+- 問題來源是後台共用登入頁 `/login` 仍保留母體模板 `LoginPage` 的預設品牌文案。
+- POS PIN 登入頁 `/pos/login` 已是 POS 專案畫面，但後台路由未登入時會 redirect 到 `/login`，因此模板品牌被顯示出來。
+- 修正測試時也發現標題拆成 `Titanium` 與上色 span 後，accessible name 會被計算成 `TitaniumPOS`，需要補明確 `aria-label`。
+
+## Solution
+
+- 新增 `frontend-web/src/shared/config/appBrand.ts` 集中管理 POS 品牌與登入表單文案。
+- 將 `LoginPage` 的 `HIVE.ERP`、`企業模塊化組件系統` 與 `Enterprise Inc.` 改為 `Titanium POS` 專案品牌。
+- 將 `LoginForm` 的 label、submit 文案與登入按鈕品牌色改從共用常數讀取。
+- 在 h1 補上 `aria-label="Titanium POS"`，讓視覺與輔助工具名稱一致。
+- 新增 `test/auth/LoginPage.test.tsx` 覆蓋 `/login` 品牌文案，防止模板品牌回歸。
+
+## Verification
+
+- `npm test -- --run test/auth/LoginPage.test.tsx`：通過，1 test。
+- `npx tsc -b`：通過。
+- `npm run lint`：通過。
+- `npm test -- --run`：通過，18 files / 42 tests。
+- `npm run build`：通過，保留既有 Vite chunk size warning。
+- `docker compose --env-file env/local/.env -f docker/local/docker-compose.yml build frontend`：通過。
+- `docker compose --env-file env/local/.env -f docker/local/docker-compose.yml up -d --no-deps frontend`：通過。
+- Browser DOM 驗證 `/login?redirect=%2Fadmin%2Fdashboard` 顯示 `Titanium POS`，且 `HIVE` / `ERP` 不存在。
