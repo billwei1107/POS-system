@@ -1,6 +1,7 @@
 import { Box, Paper, Typography } from '@mui/material';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@shared/store/authStore';
+import { APP_BRAND } from '@shared/config/appBrand';
 import { LoginForm } from '../components/LoginForm';
 
 const DEFAULT_REDIRECT_PATH = '/pos/register';
@@ -49,17 +50,27 @@ export const LoginPage = () => {
                     backdropFilter: 'blur(10px)'
                 }}
             >
-                <Typography variant="h3" component="h1" gutterBottom align="center" sx={{ fontWeight: 800, color: '#1e293b', letterSpacing: -1 }}>
-                    HIVE<span style={{ color: '#0d9488' }}>.ERP</span>
+                <Typography
+                    variant="h3"
+                    component="h1"
+                    gutterBottom
+                    align="center"
+                    aria-label={APP_BRAND.productName}
+                    sx={{ fontWeight: 800, color: '#1e293b', letterSpacing: 0 }}
+                >
+                    {APP_BRAND.productNameParts.primary}
+                    <Box component="span" sx={{ color: APP_BRAND.colors.accent }}>
+                        {APP_BRAND.productNameParts.accent}
+                    </Box>
                 </Typography>
                 <Typography variant="subtitle1" align="center" color="text.secondary" sx={{ mb: 3 }}>
-                    企業模塊化組件系統
+                    {APP_BRAND.subtitle}
                 </Typography>
 
                 <LoginForm />
 
                 <Typography variant="body2" align="center" color="text.disabled" sx={{ mt: 4 }}>
-                    © 2026 Enterprise Inc. All rights reserved.
+                    {APP_BRAND.copyright}
                 </Typography>
             </Paper>
         </Box>

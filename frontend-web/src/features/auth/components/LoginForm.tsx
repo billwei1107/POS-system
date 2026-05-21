@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Box, TextField, Button, CircularProgress, Alert } from '@mui/material';
+import { APP_BRAND, LOGIN_COPY } from '@shared/config/appBrand';
 import { useLogin } from '../hooks/useLogin';
 
 /**
@@ -23,7 +24,7 @@ export const LoginForm = () => {
             {error && <Alert severity="error">{error}</Alert>}
 
             <TextField
-                label="使用者帳號"
+                label={LOGIN_COPY.usernameLabel}
                 variant="outlined"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -32,7 +33,7 @@ export const LoginForm = () => {
             />
 
             <TextField
-                label="登入密碼"
+                label={LOGIN_COPY.passwordLabel}
                 type="password"
                 variant="outlined"
                 value={password}
@@ -51,16 +52,16 @@ export const LoginForm = () => {
                     height: 50,
                     fontSize: '1.1rem',
                     fontWeight: 'bold',
-                    backgroundColor: '#0d9488',
+                    backgroundColor: APP_BRAND.colors.accent,
                     transition: 'all 0.2s',
                     '&:hover': {
-                        backgroundColor: '#0f766e',
+                        backgroundColor: APP_BRAND.colors.accentHover,
                         transform: 'translateY(-2px)',
                         boxShadow: 4
                     }
                 }}
             >
-                {loading ? <CircularProgress size={24} color="inherit" /> : '登入系統'}
+                {loading ? <CircularProgress size={24} color="inherit" /> : LOGIN_COPY.submitLabel}
             </Button>
         </Box>
     );
