@@ -25,6 +25,11 @@ const renderAdminLayout = () => render(
 );
 
 describe('AdminLayout', () => {
+  const getPrimarySidebarIconId = (label: string) => {
+    const [navLink] = screen.getAllByRole('link', { name: label });
+    return navLink.querySelector('svg')?.getAttribute('data-testid') ?? '';
+  };
+
   it('uses dark selected navigation text in light mode', () => {
     renderAdminLayout();
 
@@ -52,5 +57,41 @@ describe('AdminLayout', () => {
 
     expect(screen.getByRole('button', { name: '收合側邊欄' })).toBeInTheDocument();
     expect(screen.getByTestId('admin-sidebar-menu-toggle-icon')).toBeInTheDocument();
+  });
+
+  it('uses distinct icons for neighboring collapsed sidebar destinations', async () => {
+    const user = userEvent.setup();
+    renderAdminLayout();
+
+    await user.click(screen.getByRole('button', { name: '收合側邊欄' }));
+
+    const posManagementIcons = [
+      '商品管理',
+      '分類管理',
+      '訂單列表',
+      '退款處理',
+      '會員管理',
+      '促銷規則',
+    ].map(getPrimarySidebarIconId);
+    const inventoryIcons = [
+      '庫存總覽',
+      '進貨驗收',
+      '盤點單',
+      '調撥管理',
+    ].map(getPrimarySidebarIconId);
+    const operationsIcons = [
+      '發票作業',
+      '發票字軌',
+      '稅別設定',
+      '班次管理',
+      'Z 報表',
+      '對帳',
+      '支付方式',
+      '金流設定',
+    ].map(getPrimarySidebarIconId);
+
+    expect(new Set(posManagementIcons).size).toBe(posManagementIcons.length);
+    expect(new Set(inventoryIcons).size).toBe(inventoryIcons.length);
+    expect(new Set(operationsIcons).size).toBe(operationsIcons.length);
   });
 });
