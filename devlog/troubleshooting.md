@@ -1735,3 +1735,32 @@ services:
 - `docker compose --env-file env/local/.env -f docker/local/docker-compose.yml build frontend`：通過。
 - `docker compose --env-file env/local/.env -f docker/local/docker-compose.yml up -d --no-deps frontend`：通過。
 - Browser DOM 驗證 `/login?redirect=%2Fadmin%2Fdashboard` 顯示 `Titanium POS`，且 `HIVE` / `ERP` 不存在。
+
+---
+
+# 2026-05-22 POS foreground sidebar collapse keeps 240px width
+
+## Issue
+
+- 場景：Web POS 收銀台桌面版新增側邊欄收合功能。
+- 異常行為：點擊 `收合側邊欄` 後，品牌文字已隱藏且狀態變成 `data-collapsed="true"`，但側邊欄幾何寬度仍停在 `240px`，主畫面沒有取得收合後的空間。
+
+## Root Cause
+
+- 第一版使用 MUI permanent `Drawer` 作為桌面側欄，Drawer paper 與外層 flex shell 的寬度同步不穩定。
+- 改成一般 `aside` 後仍被 flex item 預設 `min-width: auto` 撐回內容最小寬度，導致即使 inline `width: 88px`，computed width 仍為 `240px`。
+
+## Solution
+
+- 桌面版前台側邊欄改用一般 `aside` flex 容器，手機版 temporary Drawer 保持不變。
+- 在桌面 shell 與 sidebar content 同步設定 `width`、`minWidth`、`maxWidth`。
+- 收合狀態維持 icon-only 導覽、tooltip 與可及性名稱，避免收合後入口不可辨識。
+
+## Verification
+
+- `npm test -- --run test/layouts/PosLayout.test.tsx`：通過，4 tests。
+- `npx tsc -b`：通過。
+- `npm run lint`：通過。
+- `npm test -- --run`：通過，18 files / 44 tests。
+- `npm run build`：通過，保留既有 Vite chunk size warning。
+- Browser DOM 幾何驗證：展開 `240px`，收合 `88px`，再展開回 `240px`。
