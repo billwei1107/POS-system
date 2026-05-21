@@ -8,7 +8,8 @@ import React, { useMemo, useState } from 'react';
 import {
   Box, Collapse, Drawer, List, ListItem, ListItemIcon, ListItemText, IconButton,
   useTheme, useMediaQuery, Typography, Avatar, Divider, ListItemButton,
-  Paper, Button, BottomNavigation, BottomNavigationAction, Badge as MuiBadge
+  Paper, Button, BottomNavigation, BottomNavigationAction, Badge as MuiBadge,
+  Tooltip
 } from '@mui/material';
 import {
   PointOfSale, Receipt, Settings, Replay, LockOutlined, Menu as MenuIcon,
@@ -21,6 +22,7 @@ import { readPosSession } from '@features/pos-orders/posSession';
 import { useCartStore } from '@features/pos-orders/store/cartStore';
 
 const SIDEBAR_EXPANDED_WIDTH = 240;
+const SIDEBAR_COLLAPSED_WIDTH = 88;
 const CART_WIDTH = 340;
 const DESKTOP_STATUS_BAR_HEIGHT = 96;
 
@@ -50,7 +52,9 @@ const PosLayout: React.FC = () => {
   
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const desktopSidebarWidth = sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH;
   const navigate = useNavigate();
   const location = useLocation();
   const logout = useAuthStore((state) => state.logout);
@@ -71,6 +75,10 @@ const PosLayout: React.FC = () => {
 
   const handleCartToggle = () => {
     setCartOpen(!cartOpen);
+  };
+
+  const handleSidebarCollapseToggle = () => {
+    setSidebarCollapsed((current) => !current);
   };
 
   const handleOpenAdmin = () => {
@@ -112,82 +120,151 @@ const PosLayout: React.FC = () => {
     if (isMobile) setMobileOpen(false);
   };
 
-  const sidebarContent = (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: 'background.paper' }}>
-      <Box sx={{ p: 2.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        <Avatar sx={{ bgcolor: 'rgba(112,72,232,0.18)', color: '#B2C6FF', width: 40, height: 40 }} variant="rounded">
-          <PointOfSale />
-        </Avatar>
-        <Box>
-          <Typography variant="h6" color="text.primary" fontWeight={900} sx={{ lineHeight: 1.1 }}>
-            Titanium POS
-          </Typography>
-          <Typography variant="caption" color="text.secondary" fontWeight={700}>
-            咖啡門市收銀台
-          </Typography>
-        </Box>
-      </Box>
-      <Box sx={{
-        mx: 2,
-        p: 2,
+  const renderSidebarContent = (collapsed = false, allowCollapseToggle = false) => (
+    <Box
+      data-testid="pos-sidebar"
+      data-collapsed={collapsed ? 'true' : 'false'}
+      style={{
+        width: collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH,
+        minWidth: collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH,
+        maxWidth: collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH,
+      }}
+      sx={{
+        height: '100%',
+        width: collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH,
+        minWidth: collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH,
+        maxWidth: collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH,
         display: 'flex',
-        alignItems: 'center',
-        gap: 2,
-        mb: 2,
-        borderRadius: 3,
-        bgcolor: isLightMode ? 'rgba(112,72,232,0.06)' : 'rgba(255,255,255,0.04)',
-        border: isLightMode ? '1px solid rgba(112,72,232,0.12)' : '1px solid rgba(255,255,255,0.05)'
-      }}>
-        <Box>
-          <Typography variant="subtitle1" fontWeight={900}>{terminalLabel}</Typography>
-          <Typography variant="body2" color="text.secondary">{roleLabel} · {operatorName}</Typography>
-        </Box>
+        flexDirection: 'column',
+        bgcolor: 'background.paper',
+        overflowX: 'hidden',
+        overflowY: 'auto',
+        transition: theme.transitions.create('width', {
+          duration: theme.transitions.duration.shorter,
+        }),
+      }}
+    >
+      <Box
+        sx={{
+          p: collapsed ? 1.5 : 2.5,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: collapsed ? 'center' : 'space-between',
+          gap: 1.5,
+        }}
+      >
+        {!collapsed && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+            <Avatar sx={{ bgcolor: 'rgba(112,72,232,0.18)', color: '#B2C6FF', width: 40, height: 40 }} variant="rounded">
+              <PointOfSale />
+            </Avatar>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="h6" color="text.primary" fontWeight={900} sx={{ lineHeight: 1.1 }} noWrap>
+                Titanium POS
+              </Typography>
+              <Typography variant="caption" color="text.secondary" fontWeight={700} noWrap>
+                咖啡門市收銀台
+              </Typography>
+            </Box>
+          </Box>
+        )}
+        {allowCollapseToggle && (
+          <Tooltip title={collapsed ? '展開側邊欄' : '收合側邊欄'} placement="right" arrow>
+            <IconButton
+              aria-label={collapsed ? '展開側邊欄' : '收合側邊欄'}
+              onClick={handleSidebarCollapseToggle}
+              sx={{
+                width: 44,
+                height: 44,
+                border: isLightMode ? '1px solid rgba(17,24,39,0.12)' : '1px solid rgba(255,255,255,0.12)',
+                bgcolor: isLightMode ? 'rgba(17,24,39,0.04)' : 'rgba(255,255,255,0.04)',
+                color: 'text.secondary',
+                '&:hover': {
+                  bgcolor: isLightMode ? 'rgba(112,72,232,0.08)' : 'rgba(178,198,255,0.1)',
+                },
+              }}
+            >
+              <MenuIcon data-testid="pos-sidebar-menu-toggle-icon" />
+            </IconButton>
+          </Tooltip>
+        )}
       </Box>
-      <List sx={{ flexGrow: 1, px: 2 }}>
+      {!collapsed && (
+        <Box sx={{
+          mx: 2,
+          p: 2,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          mb: 2,
+          borderRadius: 3,
+          bgcolor: isLightMode ? 'rgba(112,72,232,0.06)' : 'rgba(255,255,255,0.04)',
+          border: isLightMode ? '1px solid rgba(112,72,232,0.12)' : '1px solid rgba(255,255,255,0.05)'
+        }}>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="subtitle1" fontWeight={900} noWrap>{terminalLabel}</Typography>
+            <Typography variant="body2" color="text.secondary" noWrap>{roleLabel} · {operatorName}</Typography>
+          </Box>
+        </Box>
+      )}
+      <List sx={{ flexGrow: 1, px: collapsed ? 1.25 : 2 }}>
         {menuItems.map((item) => {
           const isActive = isItemActive(item);
           const isExpanded = Boolean(item.children && (expandedGroups[item.text] ?? isActive));
+          const navButton = (
+            <ListItemButton
+              aria-label={item.text}
+              onClick={() => handleMenuNavigate(item, isExpanded)}
+              selected={isActive}
+              sx={{
+                borderRadius: 2,
+                minHeight: 56,
+                px: collapsed ? 1 : 2,
+                justifyContent: collapsed ? 'center' : 'flex-start',
+                bgcolor: isActive ? 'primary.main' : 'transparent',
+                background: isActive ? 'linear-gradient(90deg, #7048E8 0%, #4D329A 100%)' : 'transparent',
+                '&:hover': {
+                  bgcolor: isActive ? 'primary.dark' : (isLightMode ? 'rgba(112,72,232,0.06)' : 'rgba(255,255,255,0.05)'),
+                },
+                '&.Mui-selected': {
+                   bgcolor: 'primary.main',
+                   color: 'white',
+                   '&:hover': {
+                      bgcolor: 'primary.dark',
+                   }
+                }
+              }}
+            >
+              <ListItemIcon sx={{ color: isActive ? 'white' : 'text.secondary', minWidth: collapsed ? 0 : 40, justifyContent: 'center' }}>
+                {item.icon}
+              </ListItemIcon>
+              {!collapsed && (
+                <ListItemText
+                  primary={item.text}
+                  primaryTypographyProps={{
+                    fontWeight: isActive ? 700 : 500,
+                    color: isActive ? 'white' : 'text.secondary'
+                  }}
+                />
+              )}
+              {!collapsed && item.children && (
+                isExpanded
+                  ? <KeyboardArrowDown fontSize="small" />
+                  : <KeyboardArrowRight fontSize="small" />
+              )}
+            </ListItemButton>
+          );
+
           return (
             <Box key={item.text} sx={{ mb: 1 }}>
               <ListItem disablePadding>
-                <ListItemButton
-                  onClick={() => handleMenuNavigate(item, isExpanded)}
-                  selected={isActive}
-                  sx={{
-                    borderRadius: 2,
-                    minHeight: 56,
-                    bgcolor: isActive ? 'primary.main' : 'transparent',
-                    background: isActive ? 'linear-gradient(90deg, #7048E8 0%, #4D329A 100%)' : 'transparent',
-                    '&:hover': {
-                      bgcolor: isActive ? 'primary.dark' : (isLightMode ? 'rgba(112,72,232,0.06)' : 'rgba(255,255,255,0.05)'),
-                    },
-                    '&.Mui-selected': {
-                       bgcolor: 'primary.main',
-                       color: 'white',
-                       '&:hover': {
-                          bgcolor: 'primary.dark',
-                       }
-                    }
-                  }}
-                >
-                  <ListItemIcon sx={{ color: isActive ? 'white' : 'text.secondary', minWidth: 40 }}>
-                    {item.icon}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={item.text}
-                    primaryTypographyProps={{
-                      fontWeight: isActive ? 700 : 500,
-                      color: isActive ? 'white' : 'text.secondary'
-                    }}
-                  />
-                  {item.children && (
-                    isExpanded
-                      ? <KeyboardArrowDown fontSize="small" />
-                      : <KeyboardArrowRight fontSize="small" />
-                  )}
-                </ListItemButton>
+                {collapsed ? (
+                  <Tooltip title={item.text} placement="right" arrow>
+                    {navButton}
+                  </Tooltip>
+                ) : navButton}
               </ListItem>
-              {item.children && (
+              {!collapsed && item.children && (
                 <Collapse in={isExpanded} timeout="auto" unmountOnExit>
                   <List disablePadding sx={{ pt: 0.75 }}>
                     {item.children.map((child) => {
@@ -230,45 +307,65 @@ const PosLayout: React.FC = () => {
         })}
       </List>
       <Divider sx={{ borderColor: isLightMode ? 'rgba(17,24,39,0.1)' : 'rgba(255,255,255,0.1)' }} />
-      <Box sx={{ p: 2 }}>
+      <Box sx={{ p: collapsed ? 1.25 : 2 }}>
         <ListItem disablePadding>
-           <ListItemButton sx={{ borderRadius: 2, minHeight: 56 }}>
-             <ListItemIcon sx={{ minWidth: 40, color: 'text.secondary' }}><Settings /></ListItemIcon>
-             <ListItemText primary="支援" sx={{ color: 'text.secondary' }} />
-           </ListItemButton>
+          <Tooltip title={collapsed ? '支援' : ''} placement="right" arrow disableHoverListener={!collapsed}>
+            <ListItemButton
+              aria-label="支援"
+              sx={{
+                borderRadius: 2,
+                minHeight: 56,
+                px: collapsed ? 1 : 2,
+                justifyContent: collapsed ? 'center' : 'flex-start',
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: collapsed ? 0 : 40, color: 'text.secondary', justifyContent: 'center' }}><Settings /></ListItemIcon>
+              {!collapsed && <ListItemText primary="支援" sx={{ color: 'text.secondary' }} />}
+            </ListItemButton>
+          </Tooltip>
         </ListItem>
-        <Button
+        <Tooltip title={collapsed ? '管理後台' : ''} placement="right" arrow disableHoverListener={!collapsed}>
+          <Button
+            aria-label="管理後台"
             variant="outlined"
             fullWidth
-            startIcon={<Settings />}
+            startIcon={collapsed ? undefined : <Settings />}
             onClick={handleOpenAdmin}
             sx={{
                 mt: 1.5,
                 minHeight: 52,
+                minWidth: 0,
+                px: collapsed ? 0 : 2,
                 color: 'text.primary',
                 borderColor: 'rgba(178,198,255,0.32)',
                 bgcolor: isLightMode ? 'rgba(112,72,232,0.06)' : 'rgba(178,198,255,0.08)',
                 '&:hover': { bgcolor: isLightMode ? 'rgba(112,72,232,0.1)' : 'rgba(178,198,255,0.14)', borderColor: 'rgba(178,198,255,0.48)' }
             }}
-        >
-          管理後台
-        </Button>
-        <Button
+          >
+            {collapsed ? <Settings /> : '管理後台'}
+          </Button>
+        </Tooltip>
+        <Tooltip title={collapsed ? '鎖定終端' : ''} placement="right" arrow disableHoverListener={!collapsed}>
+          <Button
+            aria-label="鎖定終端"
             variant="outlined"
             fullWidth
-            startIcon={<LockOutlined />}
+            startIcon={collapsed ? undefined : <LockOutlined />}
             onClick={handleLockTerminal}
             sx={{ 
                 mt: 2, 
                 minHeight: 56,
+                minWidth: 0,
+                px: collapsed ? 0 : 2,
                 color: 'text.secondary', 
                 borderColor: 'rgba(255,255,255,0.2)',
                 bgcolor: isLightMode ? 'rgba(17,24,39,0.03)' : 'rgba(0,0,0,0.2)',
                 '&:hover': { bgcolor: isLightMode ? 'rgba(17,24,39,0.07)' : 'rgba(0,0,0,0.4)', borderColor: 'rgba(255,255,255,0.3)' }
             }}
-        >
-          鎖定終端
-        </Button>
+          >
+            {collapsed ? <LockOutlined /> : '鎖定終端'}
+          </Button>
+        </Tooltip>
       </Box>
     </Box>
   );
@@ -344,21 +441,29 @@ const PosLayout: React.FC = () => {
 
       {/* 側邊導覽 / Sidebar navigation */}
       {!isSmallScreen ? (
-        <Box sx={{ width: SIDEBAR_EXPANDED_WIDTH, flexShrink: 0 }}>
-          <Drawer
-            variant="permanent"
-            sx={{
-              '& .MuiDrawer-paper': { 
-                boxSizing: 'border-box', 
-                width: SIDEBAR_EXPANDED_WIDTH,
-                borderRight: '1px solid rgba(255,255,255,0.05)',
-                bgcolor: 'background.paper',
-                overflowX: 'hidden'
-              },
-            }}
-          >
-            {sidebarContent}
-          </Drawer>
+        <Box
+          component="aside"
+          data-testid="pos-desktop-sidebar-shell"
+          style={{
+            width: desktopSidebarWidth,
+            minWidth: desktopSidebarWidth,
+            maxWidth: desktopSidebarWidth,
+          }}
+          sx={{
+            width: desktopSidebarWidth,
+            minWidth: desktopSidebarWidth,
+            maxWidth: desktopSidebarWidth,
+            flexShrink: 0,
+            height: '100vh',
+            bgcolor: 'background.paper',
+            borderRight: isLightMode ? '1px solid rgba(17,24,39,0.08)' : '1px solid rgba(255,255,255,0.05)',
+            overflow: 'hidden',
+            transition: theme.transitions.create('width', {
+              duration: theme.transitions.duration.shorter,
+            }),
+          }}
+        >
+          {renderSidebarContent(sidebarCollapsed, true)}
         </Box>
       ) : isMobile && (
          <Drawer
@@ -375,7 +480,7 @@ const PosLayout: React.FC = () => {
                },
             }}
          >
-            {sidebarContent}
+            {renderSidebarContent(false, false)}
          </Drawer>
       )}
 

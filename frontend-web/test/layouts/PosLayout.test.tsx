@@ -69,4 +69,24 @@ describe('PosLayout', () => {
 
     expect(await screen.findByText('Admin dashboard outlet')).toBeInTheDocument();
   });
+
+  it('collapses and expands the foreground desktop sidebar', async () => {
+    const user = userEvent.setup();
+    renderPosLayout();
+
+    expect(screen.getByTestId('pos-sidebar')).toHaveAttribute('data-collapsed', 'false');
+    expect(screen.getByTestId('pos-sidebar-menu-toggle-icon')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '收合側邊欄' }));
+
+    expect(screen.getByTestId('pos-sidebar')).toHaveAttribute('data-collapsed', 'true');
+    expect(screen.getByRole('button', { name: '展開側邊欄' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '收銀台' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '管理後台' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '展開側邊欄' }));
+
+    expect(screen.getByTestId('pos-sidebar')).toHaveAttribute('data-collapsed', 'false');
+    expect(screen.getByRole('button', { name: '收合側邊欄' })).toBeInTheDocument();
+  });
 });
