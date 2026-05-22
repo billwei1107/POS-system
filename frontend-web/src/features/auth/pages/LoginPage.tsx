@@ -1,6 +1,7 @@
-import { Box, Paper, Typography } from '@mui/material';
+import { useEffect } from 'react';
+import { Alert, Box, Paper, Typography } from '@mui/material';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuthStore } from '@shared/store/authStore';
+import { getTokenRole, useAuthStore } from '@shared/store/authStore';
 import { APP_BRAND } from '@shared/config/appBrand';
 import { LoginForm } from '../components/LoginForm';
 
@@ -22,8 +23,25 @@ export const LoginPage = () => {
     const location = useLocation();
     const hasHydrated = useAuthStore((state) => state.hasHydrated);
     const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+    const authUser = useAuthStore((state) => state.user);
+    const token = useAuthStore((state) => state.token);
+    const logout = useAuthStore((state) => state.logout);
+    const reason = new URLSearchParams(location.search).get('reason');
+    const requiresAdminLogin = reason === 'admin-permission';
+    const currentRole = authUser?.role ?? getTokenRole(token);
+    const shouldClearForAdminLogin = requiresAdminLogin && isAuthenticated && currentRole !== 'SUPER_ADMIN';
+
+    useEffect(() => {
+        if (hasHydrated && shouldClearForAdminLogin) {
+            logout();
+        }
+    }, [hasHydrated, logout, shouldClearForAdminLogin]);
 
     if (!hasHydrated) {
+        return null;
+    }
+
+    if (shouldClearForAdminLogin) {
         return null;
     }
 
@@ -66,6 +84,11 @@ export const LoginPage = () => {
                 <Typography variant="subtitle1" align="center" color="text.secondary" sx={{ mb: 3 }}>
                     {APP_BRAND.subtitle}
                 </Typography>
+                {requiresAdminLogin && (
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                        此功能需要系統管理員帳號，請重新登入後台。
+                    </Alert>
+                )}
 
                 <LoginForm />
 

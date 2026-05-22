@@ -1825,3 +1825,33 @@ where username = 'admin';
 - 復原前：`admin failed_attempts = 5`，`locked_until = 2026-05-22 04:05:18.191891`。
 - 復原後：`admin failed_attempts = 0`，`locked_until = null`。
 - Browser 驗證 `/admin/access/users` 可載入帳號管理頁。
+
+---
+
+# 2026-05-22 Account management shows role load failure for cashier session
+
+## Issue
+
+- 場景：使用 POS `cashier` / 店長 session 進入 `/admin/access/users`。
+- 異常行為：畫面停在帳號管理主畫面，顯示「載入角色資料失敗，請稍後再試。」與空表格，看起來像帳號管理功能壞掉。
+
+## Root Cause
+
+- `cashier` 帳號角色為 `CASHIER, STORE_MANAGER`，不具備帳號管理需要的 `system:user:manage`。
+- 帳號管理頁含建立帳號、角色指派、停用與重設密碼等敏感操作，後端只允許 `SUPER_ADMIN` 完整操作。
+- 前端原本只有一般登入守衛，未對 `帳號管理` / `角色權限` 做角色層級守衛，導致無權限 POS session 進入頁面後才被 API 403 擋下。
+- 初版修正將 `reason=admin-permission` 導到登入頁，但登入頁看到同一個 reason 時也會清掉剛登入成功的 admin session，造成 admin 登入後又回登入頁。
+
+## Solution
+
+- 後端登入回應補 `role`，讓前端保存登入者主角色。
+- 前端 `authStore` 新增 JWT role 解析，支援既有 session。
+- `ProtectedRoute` 增加 `allowedRoles`，將 `/admin/access/roles` 與 `/admin/access/users` 限定為 `SUPER_ADMIN`。
+- `LoginPage` 只在 `reason=admin-permission` 且當前身分不是 `SUPER_ADMIN` 時清除舊 session，避免清掉新登入的 admin。
+- `AdminLayout` 對非 `SUPER_ADMIN` 隱藏 `角色權限` 與 `帳號管理` 導覽入口。
+
+## Verification
+
+- Backend：`mvn -pl module-auth -am test -Dtest=AuthServiceImplTest,UserServiceImplTest,RbacControllerSecurityTest -Dsurefire.failIfNoSpecifiedTests=false` 通過，17 tests。
+- Frontend：`npx tsc -b`、`npm run lint`、`npm test -- --run`、`npm run build` 通過。
+- Browser：真實 `cashier / 123456` 會被導回含系統管理員提示的登入頁；`admin / 123456` 登入後可正常載入帳號管理資料，`roles/users` API 皆 200。

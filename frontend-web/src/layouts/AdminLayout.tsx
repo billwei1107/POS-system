@@ -57,13 +57,26 @@ import WorkIcon from '@mui/icons-material/Work';
 import { useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { NotificationBell } from '@features/notification/components/NotificationBell';
-import { useAuthStore } from '@shared/store/authStore';
+import { getTokenRole, useAuthStore } from '@shared/store/authStore';
 import { ThemeModeToggle } from '@shared/components';
 
 const drawerWidth = 272;
 const drawerCollapsedWidth = 88;
+const systemAdminRoles = ['SUPER_ADMIN'];
 
-const navGroups = [
+interface AdminNavItemConfig {
+  label: string;
+  path: string;
+  icon: React.ReactNode;
+  allowedRoles?: string[];
+}
+
+interface AdminNavGroupConfig {
+  title: string;
+  items: AdminNavItemConfig[];
+}
+
+const navGroups: AdminNavGroupConfig[] = [
   {
     title: '總覽',
     items: [
@@ -116,8 +129,8 @@ const navGroups = [
   {
     title: '權限與流程',
     items: [
-      { label: '角色權限', path: '/admin/access/roles', icon: <AdminPanelSettingsIcon /> },
-      { label: '帳號管理', path: '/admin/access/users', icon: <ManageAccountsIcon /> },
+      { label: '角色權限', path: '/admin/access/roles', icon: <AdminPanelSettingsIcon />, allowedRoles: systemAdminRoles },
+      { label: '帳號管理', path: '/admin/access/users', icon: <ManageAccountsIcon />, allowedRoles: systemAdminRoles },
       { label: '稽核紀錄', path: '/admin/access/audit-logs', icon: <HistoryIcon /> },
       { label: '流程定義', path: '/admin/workflow/definitions', icon: <SchemaIcon /> },
       { label: '我的待辦', path: '/admin/workflow/tasks', icon: <AssignmentTurnedInIcon /> },
@@ -211,13 +224,21 @@ const AdminNavItem = ({
 const AdminSidebar = ({
   collapsed = false,
   onToggle,
+  currentRole,
 }: {
   collapsed?: boolean;
   onToggle?: () => void;
+  currentRole?: string | null;
 }) => {
   const theme = useTheme();
   const isLightMode = theme.palette.mode === 'light';
   const sidebarWidth = collapsed ? drawerCollapsedWidth : drawerWidth;
+  const visibleGroups = navGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !item.allowedRoles || Boolean(currentRole && item.allowedRoles.includes(currentRole))),
+    }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <Box
@@ -276,7 +297,7 @@ const AdminSidebar = ({
         )}
       </Box>
 
-      {navGroups.map((group) => (
+      {visibleGroups.map((group) => (
         <Box key={group.title} sx={{ mb: collapsed ? 1.25 : 2.5 }}>
           {!collapsed && (
             <Typography
@@ -307,10 +328,13 @@ const AdminSidebar = ({
  */
 export default function AdminLayout() {
   const logout = useAuthStore((state) => state.logout);
+  const authUser = useAuthStore((state) => state.user);
+  const token = useAuthStore((state) => state.token);
   const theme = useTheme();
   const isLightMode = theme.palette.mode === 'light';
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const currentDrawerWidth = sidebarCollapsed ? drawerCollapsedWidth : drawerWidth;
+  const currentRole = authUser?.role ?? getTokenRole(token);
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', bgcolor: 'background.default' }}>
@@ -336,6 +360,7 @@ export default function AdminLayout() {
         <AdminSidebar
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed((current) => !current)}
+          currentRole={currentRole}
         />
       </Drawer>
 
@@ -374,7 +399,7 @@ export default function AdminLayout() {
 
         <Box component="main" sx={{ p: { xs: 2, md: 4 }, maxWidth: 1440 }}>
           <Box sx={{ display: { xs: 'block', md: 'none' }, mb: 2 }}>
-            <AdminSidebar />
+            <AdminSidebar currentRole={currentRole} />
           </Box>
           <Outlet />
         </Box>

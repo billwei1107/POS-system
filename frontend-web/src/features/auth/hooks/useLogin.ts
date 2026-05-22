@@ -27,7 +27,7 @@ export const useLogin = () => {
         setError(null);
         try {
             const response = await loginApi(data);
-            setAuth({ id: response.userId, username: response.username }, response.token);
+            setAuth({ id: response.userId, username: response.username, role: response.role }, response.token);
             navigate(resolveRedirectPath(location.search), { replace: true });
         } catch (err: unknown) {
             const message = isAxiosError<{ message?: string }>(err)

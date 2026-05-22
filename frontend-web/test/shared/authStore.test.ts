@@ -5,7 +5,7 @@
  * @description_zh 驗證認證狀態持久化與 POS session 清理
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { isTokenExpired, useAuthStore, type User } from '../../src/shared/store/authStore';
+import { getTokenRole, isTokenExpired, useAuthStore, type User } from '../../src/shared/store/authStore';
 
 const user: User = {
   id: 'employee-demo',
@@ -81,5 +81,10 @@ describe('useAuthStore persistence', () => {
     expect(state.token).toBeNull();
     expect(state.isAuthenticated).toBe(false);
     expect(window.localStorage.getItem('pos-session')).toBeNull();
+  });
+
+  it('reads role claims from JWT payloads', () => {
+    expect(getTokenRole(createJwt({ role: 'SUPER_ADMIN', exp: 4_000_000_000 }))).toBe('SUPER_ADMIN');
+    expect(getTokenRole(createJwt({ exp: 4_000_000_000 }))).toBeNull();
   });
 });

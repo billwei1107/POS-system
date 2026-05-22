@@ -89,8 +89,8 @@ function App() {
             <Route path="operations/reconciliation" element={<ReconciliationPage />} />
             <Route path="operations/pay-methods" element={<PayMethodSettingsPage />} />
             <Route path="operations/gateways" element={<GatewayConfigPage />} />
-            <Route path="access/roles" element={<RoleListPage />} />
-            <Route path="access/users" element={<UserListPage />} />
+            <Route path="access/roles" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']}><RoleListPage /></ProtectedRoute>} />
+            <Route path="access/users" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']}><UserListPage /></ProtectedRoute>} />
             <Route path="access/audit-logs" element={<AuditLogPage />} />
             <Route path="organization/company" element={<CompanyPage />} />
             <Route path="organization/departments" element={<DepartmentPage />} />

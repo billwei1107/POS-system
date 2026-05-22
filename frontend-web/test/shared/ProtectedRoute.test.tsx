@@ -7,7 +7,7 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { ProtectedRoute } from '../../src/shared/auth';
 import { useAuthStore, type User } from '../../src/shared/store/authStore';
 
@@ -46,6 +46,27 @@ const renderProtectedPosRoute = () => render(
   </MemoryRouter>
 );
 
+const renderProtectedAdminRoute = () => render(
+  <MemoryRouter initialEntries={['/admin/access/users']}>
+    <Routes>
+      <Route
+        path="/admin/access/users"
+        element={(
+          <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+            <div>Account management</div>
+          </ProtectedRoute>
+        )}
+      />
+      <Route path="/login" element={<LoginRouteProbe />} />
+    </Routes>
+  </MemoryRouter>
+);
+
+const LoginRouteProbe = () => {
+  const location = useLocation();
+  return <div>Admin login page {location.search}</div>;
+};
+
 beforeEach(() => {
   window.localStorage.clear();
   useAuthStore.setState({
@@ -73,5 +94,19 @@ describe('ProtectedRoute', () => {
       expect(useAuthStore.getState().isAuthenticated).toBe(false);
     });
     expect(window.localStorage.getItem('pos-session')).toBeNull();
+  });
+
+  it('requires a system admin role for protected admin-only pages', async () => {
+    window.localStorage.setItem('pos-session', JSON.stringify({ employeeId: user.id }));
+    useAuthStore.setState({
+      user: { ...user, role: 'STORE_MANAGER' },
+      token: createJwt({ role: 'STORE_MANAGER', exp: 4_000_000_000 }),
+      isAuthenticated: true,
+      hasHydrated: true,
+    });
+
+    renderProtectedAdminRoute();
+
+    expect(await screen.findByText(/Admin login page/)).toHaveTextContent('reason=admin-permission');
   });
 });

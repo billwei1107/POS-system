@@ -6,12 +6,13 @@
  */
 import { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { isTokenExpired, useAuthStore } from '@shared/store/authStore';
+import { getTokenRole, isTokenExpired, useAuthStore } from '@shared/store/authStore';
 import type { ReactNode } from 'react';
 
 interface ProtectedRouteProps {
   children: ReactNode;
   requiredRole?: string;
+  allowedRoles?: string[];
   redirectTo?: string;
 }
 
@@ -21,9 +22,16 @@ const buildRedirectTarget = (redirectTo: string, location: ReturnType<typeof use
   return `${redirectTo}${separator}redirect=${encodeURIComponent(currentPath)}`;
 };
 
+const buildPermissionRedirectTarget = (redirectTo: string, location: ReturnType<typeof useLocation>) => {
+  const baseTarget = buildRedirectTarget(redirectTo, location);
+  const separator = baseTarget.includes('?') ? '&' : '?';
+  return `${baseTarget}${separator}reason=admin-permission`;
+};
+
 export function ProtectedRoute({
   children,
   requiredRole,
+  allowedRoles,
   redirectTo = '/login',
 }: ProtectedRouteProps) {
   const { hasHydrated, isAuthenticated, logout, token, user } = useAuthStore();
@@ -44,8 +52,10 @@ export function ProtectedRoute({
     return <Navigate to={buildRedirectTarget(redirectTo, location)} state={{ from: location }} replace />;
   }
 
-  if (requiredRole && user?.role !== requiredRole) {
-    return <Navigate to="/403" replace />;
+  const effectiveRole = user?.role ?? getTokenRole(token);
+  const roleAllowList = allowedRoles ?? (requiredRole ? [requiredRole] : []);
+  if (roleAllowList.length > 0 && (!effectiveRole || !roleAllowList.includes(effectiveRole))) {
+    return <Navigate to={buildPermissionRedirectTarget(redirectTo, location)} state={{ from: location }} replace />;
   }
 
   return <>{children}</>;

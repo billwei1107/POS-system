@@ -26,6 +26,7 @@ const clearPosSession = () => {
 
 interface JwtPayload {
     exp?: number;
+    role?: string;
 }
 
 // ========================================
@@ -53,6 +54,23 @@ export const getTokenExpirationMs = (token: string | null) => {
         const payload = JSON.parse(decodedPayload) as JwtPayload;
         const expirationSeconds = Number(payload.exp);
         return Number.isFinite(expirationSeconds) ? expirationSeconds * 1000 : null;
+    } catch {
+        return null;
+    }
+};
+
+export const getTokenRole = (token: string | null) => {
+    if (!token) return null;
+
+    const [, payloadSegment] = token.split('.');
+    if (!payloadSegment) return null;
+
+    try {
+        const decodedPayload = decodeBase64Url(payloadSegment);
+        if (!decodedPayload) return null;
+
+        const payload = JSON.parse(decodedPayload) as JwtPayload;
+        return typeof payload.role === 'string' && payload.role.trim() ? payload.role : null;
     } catch {
         return null;
     }

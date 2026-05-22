@@ -71,6 +71,7 @@ class AuthServiceImplTest {
 
         assertNotNull(response);
         assertEquals("dummy-token", response.getToken());
+        assertEquals("SUPER_ADMIN", response.getRole());
         verify(userService).handleLoginSuccess(testUser);
     }
 

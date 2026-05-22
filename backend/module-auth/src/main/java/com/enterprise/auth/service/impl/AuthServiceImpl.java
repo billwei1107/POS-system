@@ -61,6 +61,7 @@ public class AuthServiceImpl implements AuthService {
                 .refreshToken(token)
                 .userId(user.getId().toString())
                 .username(user.getUsername())
+                .role(role)
                 .build();
     }
 
@@ -89,6 +90,7 @@ public class AuthServiceImpl implements AuthService {
                 .refreshToken(newToken)
                 .userId(user.getId().toString())
                 .username(user.getUsername())
+                .role(role)
                 .build();
     }
 
