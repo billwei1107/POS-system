@@ -308,22 +308,6 @@ const PosLayout: React.FC = () => {
       </List>
       <Divider sx={{ borderColor: isLightMode ? 'rgba(17,24,39,0.1)' : 'rgba(255,255,255,0.1)' }} />
       <Box sx={{ p: collapsed ? 1.25 : 2 }}>
-        <ListItem disablePadding>
-          <Tooltip title={collapsed ? '支援' : ''} placement="right" arrow disableHoverListener={!collapsed}>
-            <ListItemButton
-              aria-label="支援"
-              sx={{
-                borderRadius: 2,
-                minHeight: 56,
-                px: collapsed ? 1 : 2,
-                justifyContent: collapsed ? 'center' : 'flex-start',
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: collapsed ? 0 : 40, color: 'text.secondary', justifyContent: 'center' }}><Settings /></ListItemIcon>
-              {!collapsed && <ListItemText primary="支援" sx={{ color: 'text.secondary' }} />}
-            </ListItemButton>
-          </Tooltip>
-        </ListItem>
         <Tooltip title={collapsed ? '管理後台' : ''} placement="right" arrow disableHoverListener={!collapsed}>
           <Button
             aria-label="管理後台"

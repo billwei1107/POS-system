@@ -55,6 +55,7 @@ describe('PosLayout', () => {
     expect(screen.queryByRole('button', { name: '會員' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '班次' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '對帳' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '支援' })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: '管理後台' }));
 
@@ -83,6 +84,7 @@ describe('PosLayout', () => {
     expect(screen.getByRole('button', { name: '展開側邊欄' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '收銀台' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '管理後台' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '支援' })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: '展開側邊欄' }));
 
