@@ -3,6 +3,33 @@ import { Box, TextField, Button, CircularProgress, Alert } from '@mui/material';
 import { APP_BRAND, LOGIN_COPY } from '@shared/config/appBrand';
 import { useLogin } from '../hooks/useLogin';
 
+const loginTextFieldSx = {
+    '& .MuiInputLabel-root': {
+        color: '#64748b',
+        fontWeight: 700,
+    },
+    '& .MuiInputLabel-root.Mui-focused': {
+        color: APP_BRAND.colors.accent,
+    },
+    '& .MuiOutlinedInput-root': {
+        color: '#1e293b',
+        backgroundColor: '#ffffff',
+        '& fieldset': {
+            borderColor: '#cbd5e1',
+        },
+        '&:hover fieldset': {
+            borderColor: '#94a3b8',
+        },
+        '&.Mui-focused fieldset': {
+            borderColor: APP_BRAND.colors.accent,
+        },
+    },
+    '& .MuiOutlinedInput-input': {
+        color: '#1e293b',
+        WebkitTextFillColor: '#1e293b',
+    },
+};
+
 /**
  * @file LoginForm.tsx
  * @description 登入表單組件 / Login form component
@@ -30,6 +57,7 @@ export const LoginForm = () => {
                 onChange={(e) => setUsername(e.target.value)}
                 fullWidth
                 required
+                sx={loginTextFieldSx}
             />
 
             <TextField
@@ -40,6 +68,7 @@ export const LoginForm = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 fullWidth
                 required
+                sx={loginTextFieldSx}
             />
 
             <Button

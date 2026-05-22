@@ -1855,3 +1855,31 @@ where username = 'admin';
 - Backend：`mvn -pl module-auth -am test -Dtest=AuthServiceImplTest,UserServiceImplTest,RbacControllerSecurityTest -Dsurefire.failIfNoSpecifiedTests=false` 通過，17 tests。
 - Frontend：`npx tsc -b`、`npm run lint`、`npm test -- --run`、`npm run build` 通過。
 - Browser：真實 `cashier / 123456` 會被導回含系統管理員提示的登入頁；`admin / 123456` 登入後可正常載入帳號管理資料，`roles/users` API 皆 200。
+
+---
+
+# 2026-05-22 Dark mode login form text is unreadable on light card
+
+## Issue
+
+- 場景：後台登入頁在深色模式下顯示。
+- 異常行為：登入卡片維持淺色背景，但輸入框 label、輸入文字與頁尾文字過白或過淡，導致畫面看起來像文字消失。
+
+## Root Cause
+
+- 登入頁卡片使用固定淺色背景，但 `LoginForm` 內的 MUI `TextField` 仍繼承全域深色主題的輸入框文字與 label 色彩。
+- 頁尾與副標題使用 `text.secondary/text.disabled`，在固定淺色卡片內沒有足夠對比。
+
+## Solution
+
+- 在 `LoginPage` 對登入卡片、副標題與頁尾使用適合淺色卡片的固定 slate 色階。
+- 在 `LoginForm` 新增登入頁專用 `TextField` 樣式，固定 label、輸入文字、WebKit text fill、外框與 focus 色彩。
+
+## Verification
+
+- `npm test -- --run test/auth/LoginPage.test.tsx`：通過，2 tests。
+- `npx tsc -b`：通過。
+- `npm run lint`：通過。
+- `npm test -- --run`：通過，19 files / 52 tests。
+- `npm run build`：通過。
+- Browser：登入頁實測卡片文字 `rgb(30, 41, 59)`，label `rgb(100, 116, 139)`，輸入文字與 WebKit fill `rgb(30, 41, 59)`，深色模式下可讀。

@@ -65,7 +65,8 @@ export const LoginPage = () => {
                     maxWidth: 420,
                     borderRadius: 3,
                     background: 'rgba(255, 255, 255, 0.95)',
-                    backdropFilter: 'blur(10px)'
+                    backdropFilter: 'blur(10px)',
+                    color: '#1e293b',
                 }}
             >
                 <Typography
@@ -81,7 +82,7 @@ export const LoginPage = () => {
                         {APP_BRAND.productNameParts.accent}
                     </Box>
                 </Typography>
-                <Typography variant="subtitle1" align="center" color="text.secondary" sx={{ mb: 3 }}>
+                <Typography variant="subtitle1" align="center" sx={{ mb: 3, color: '#64748b' }}>
                     {APP_BRAND.subtitle}
                 </Typography>
                 {requiresAdminLogin && (
@@ -92,7 +93,7 @@ export const LoginPage = () => {
 
                 <LoginForm />
 
-                <Typography variant="body2" align="center" color="text.disabled" sx={{ mt: 4 }}>
+                <Typography variant="body2" align="center" sx={{ mt: 4, color: '#94a3b8' }}>
                     {APP_BRAND.copyright}
                 </Typography>
             </Paper>
