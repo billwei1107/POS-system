@@ -281,7 +281,20 @@ public class UserServiceImpl implements UserService {
         if (!StringUtils.hasText(status)) {
             return null;
         }
-        return (root, query, cb) -> cb.equal(root.get("status"), status.trim().toUpperCase());
+        String normalizedStatus = status.trim().toUpperCase();
+        if ("LOCKED".equals(normalizedStatus)) {
+            return (root, query, cb) -> cb.greaterThan(root.get("lockedUntil"), LocalDateTime.now());
+        }
+        if ("ACTIVE".equals(normalizedStatus)) {
+            return (root, query, cb) -> cb.and(
+                    cb.equal(root.get("status"), normalizedStatus),
+                    cb.or(
+                            cb.isNull(root.get("lockedUntil")),
+                            cb.lessThanOrEqualTo(root.get("lockedUntil"), LocalDateTime.now())
+                    )
+            );
+        }
+        return (root, query, cb) -> cb.equal(root.get("status"), normalizedStatus);
     }
 
     private Specification<User> roleFilter(UUID roleId) {

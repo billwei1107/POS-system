@@ -28,7 +28,9 @@ import {
     Tooltip,
     Typography,
     IconButton,
+    useTheme,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
 import ClearIcon from '@mui/icons-material/Clear';
 import EditIcon from '@mui/icons-material/Edit';
@@ -36,8 +38,9 @@ import LockResetIcon from '@mui/icons-material/LockReset';
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
 import SaveIcon from '@mui/icons-material/Save';
 import SearchIcon from '@mui/icons-material/Search';
+import { ConfirmDialog } from '@shared/components';
 import { roleApi, userApi } from '../api/authApi';
-import type { Role, UserRoleSummary } from '../types';
+import type { Role, User, UserRoleSummary } from '../types';
 
 /**
  * @file UserTable.tsx
@@ -53,7 +56,16 @@ const statusLabels: Record<string, string> = {
 
 const roleLabel = (role: Role) => `${role.name} | ${role.code}`;
 
+const getEffectiveUserStatus = (user: User) => {
+    if (user.lockedUntil && new Date(user.lockedUntil).getTime() > Date.now()) {
+        return 'LOCKED';
+    }
+    return user.status;
+};
+
 export const UserTable = () => {
+    const theme = useTheme();
+    const isLightMode = theme.palette.mode === 'light';
     const [users, setUsers] = useState<UserRoleSummary[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
     const [loading, setLoading] = useState(true);
@@ -63,6 +75,7 @@ export const UserTable = () => {
     const [editingUser, setEditingUser] = useState<UserRoleSummary | null>(null);
     const [creatingUser, setCreatingUser] = useState(false);
     const [resettingUser, setResettingUser] = useState<UserRoleSummary | null>(null);
+    const [statusActionUser, setStatusActionUser] = useState<UserRoleSummary | null>(null);
     const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([]);
     const [newPassword, setNewPassword] = useState('');
     const [createForm, setCreateForm] = useState({
@@ -81,6 +94,23 @@ export const UserTable = () => {
     const [totalPages, setTotalPages] = useState(0);
 
     const roleIds = useMemo(() => new Set(selectedRoleIds), [selectedRoleIds]);
+    const borderColor = alpha(theme.palette.text.primary, isLightMode ? 0.1 : 0.12);
+    const mutedBorderColor = alpha(theme.palette.text.primary, isLightMode ? 0.18 : 0.16);
+    const subtleBg = alpha(theme.palette.text.primary, isLightMode ? 0.035 : 0.045);
+    const hoverBg = alpha(theme.palette.text.primary, isLightMode ? 0.05 : 0.07);
+    const roleSelectedBg = alpha(theme.palette.secondary.main, isLightMode ? 0.14 : 0.18);
+    const roleUnselectedBg = alpha(theme.palette.text.primary, isLightMode ? 0.03 : 0.04);
+    const dialogPaperSx = {
+        bgcolor: 'background.paper',
+        color: 'text.primary',
+        borderRadius: 2,
+        border: `1px solid ${borderColor}`,
+    };
+    const canCreateUser = createForm.username.trim().length > 0 && createForm.password.trim().length > 0;
+    const canResetPassword = newPassword.trim().length > 0;
+    const statusAction = statusActionUser ? getEffectiveUserStatus(statusActionUser.user) : null;
+    const statusActionNext = statusAction === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    const statusActionLabel = statusAction === 'LOCKED' ? '解除鎖定' : statusActionNext === 'ACTIVE' ? '啟用' : '停用';
 
     const fetchUsers = useCallback(async () => {
         setLoading(true);
@@ -186,13 +216,23 @@ export const UserTable = () => {
         }
     };
 
-    const toggleStatus = async (item: UserRoleSummary) => {
-        const nextStatus = item.user.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    const requestStatusToggle = (item: UserRoleSummary) => {
+        setStatusActionUser(item);
+        setSuccessMessage(null);
+        setError(null);
+    };
+
+    const toggleStatus = async () => {
+        if (!statusActionUser) {
+            return;
+        }
+        const nextStatus = getEffectiveUserStatus(statusActionUser.user) === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
         setSaving(true);
         setError(null);
         try {
-            const updated = await userApi.updateStatus(item.user.id, { status: nextStatus });
+            const updated = await userApi.updateStatus(statusActionUser.user.id, { status: nextStatus });
             setSuccessMessage(`已${nextStatus === 'ACTIVE' ? '啟用' : '停用'} ${updated.user.username}。`);
+            setStatusActionUser(null);
             await fetchUsers();
         } catch (err) {
             console.error('Failed to update user status', err);
@@ -239,17 +279,17 @@ export const UserTable = () => {
                             checked={roleIds.has(role.id)}
                             onChange={() => toggleRole(role.id)}
                             sx={{
-                                color: '#AEB4C4',
-                                '&.Mui-checked': { color: '#FF6D00' },
+                                color: 'text.secondary',
+                                '&.Mui-checked': { color: 'secondary.main' },
                             }}
                         />
                     }
                     label={
                         <Box>
-                            <Typography sx={{ color: '#FFFFFF', fontWeight: 900 }}>
+                            <Typography sx={{ color: 'text.primary', fontWeight: 900 }}>
                                 {roleLabel(role)}
                             </Typography>
-                            <Typography sx={{ color: '#AEB4C4', fontSize: 13, fontWeight: 700 }}>
+                            <Typography sx={{ color: 'text.secondary', fontSize: 13, fontWeight: 700 }}>
                                 {role.description || '未填寫描述'}
                             </Typography>
                         </Box>
@@ -259,10 +299,10 @@ export const UserTable = () => {
                         px: 1.5,
                         py: 1,
                         borderRadius: 1.5,
-                        bgcolor: roleIds.has(role.id) ? 'rgba(255, 109, 0, 0.18)' : 'rgba(255,255,255,0.04)',
+                        bgcolor: roleIds.has(role.id) ? roleSelectedBg : roleUnselectedBg,
                         border: roleIds.has(role.id)
-                            ? '1px solid rgba(255, 109, 0, 0.7)'
-                            : '1px solid rgba(255,255,255,0.08)',
+                            ? `1px solid ${alpha(theme.palette.secondary.main, 0.7)}`
+                            : `1px solid ${borderColor}`,
                     }}
                 />
             ))}
@@ -338,7 +378,7 @@ export const UserTable = () => {
                         variant="outlined"
                         startIcon={<SearchIcon />}
                         onClick={applySearch}
-                        sx={{ borderColor: 'rgba(255,109,0,0.7)', color: '#FFB15C', fontWeight: 900 }}
+                        sx={{ borderColor: alpha(theme.palette.secondary.main, 0.7), color: 'secondary.main', fontWeight: 900 }}
                     >
                         搜尋
                     </Button>
@@ -347,7 +387,7 @@ export const UserTable = () => {
                         startIcon={<ClearIcon />}
                         onClick={clearFilters}
                         disabled={!hasActiveFilters && !searchDraft}
-                        sx={{ borderColor: 'rgba(174,180,196,0.45)', color: '#FFFFFF', fontWeight: 900 }}
+                        sx={{ borderColor: mutedBorderColor, color: 'text.primary', fontWeight: 900 }}
                     >
                         清除
                     </Button>
@@ -356,7 +396,7 @@ export const UserTable = () => {
                     variant="contained"
                     startIcon={<AddIcon />}
                     onClick={openCreateDialog}
-                    sx={{ bgcolor: '#FF6D00', color: '#FFFFFF', fontWeight: 900, minWidth: 132 }}
+                    sx={{ bgcolor: 'secondary.main', color: 'secondary.contrastText', fontWeight: 900, minWidth: 132 }}
                 >
                     新增帳號
                 </Button>
@@ -371,8 +411,8 @@ export const UserTable = () => {
             sx={{
                 borderRadius: 2,
                 overflow: 'hidden',
-                bgcolor: '#222532',
-                border: '1px solid rgba(255,255,255,0.1)',
+                bgcolor: 'background.paper',
+                border: `1px solid ${borderColor}`,
             }}
         >
             {loading ? (
@@ -381,13 +421,13 @@ export const UserTable = () => {
                 </Box>
             ) : (
                 <Table sx={{ tableLayout: 'fixed' }}>
-                    <TableHead sx={{ backgroundColor: 'rgba(255,255,255,0.04)' }}>
+                    <TableHead sx={{ backgroundColor: subtleBg }}>
                         <TableRow>
-                            <TableCell sx={{ width: '24%' }}><Typography fontWeight="bold" color="#FFFFFF">使用者名稱</Typography></TableCell>
-                            <TableCell sx={{ width: '25%' }}><Typography fontWeight="bold" color="#FFFFFF">聯絡方式</Typography></TableCell>
-                            <TableCell sx={{ width: 92 }}><Typography fontWeight="bold" color="#FFFFFF">狀態</Typography></TableCell>
-                            <TableCell><Typography fontWeight="bold" color="#FFFFFF">角色</Typography></TableCell>
-                            <TableCell align="right" sx={{ width: 168 }}><Typography fontWeight="bold" color="#FFFFFF">操作</Typography></TableCell>
+                            <TableCell sx={{ width: '24%' }}><Typography fontWeight="bold" color="text.primary">使用者名稱</Typography></TableCell>
+                            <TableCell sx={{ width: '25%' }}><Typography fontWeight="bold" color="text.primary">聯絡方式</Typography></TableCell>
+                            <TableCell sx={{ width: 112 }}><Typography fontWeight="bold" color="text.primary">狀態</Typography></TableCell>
+                            <TableCell><Typography fontWeight="bold" color="text.primary">角色</Typography></TableCell>
+                            <TableCell align="right" sx={{ width: 168 }}><Typography fontWeight="bold" color="text.primary">操作</Typography></TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -396,33 +436,40 @@ export const UserTable = () => {
                                 key={item.user.id}
                                 hover
                                 sx={{
-                                    '& td': { borderColor: 'rgba(255,255,255,0.08)' },
-                                    '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' },
+                                    '& td': { borderColor },
+                                    '&:hover': { bgcolor: hoverBg },
                                 }}
                             >
                                 <TableCell>
-                                    <Typography sx={{ color: '#FFFFFF', fontWeight: 900 }}>
+                                    <Typography sx={{ color: 'text.primary', fontWeight: 900 }}>
                                         {item.user.username}
                                     </Typography>
-                                    <Typography sx={{ color: '#AEB4C4', fontWeight: 700, fontSize: 13, wordBreak: 'break-all' }}>
+                                    <Typography sx={{ color: 'text.secondary', fontWeight: 700, fontSize: 13, wordBreak: 'break-all' }}>
                                         ID {item.user.id.slice(0, 8)}...{item.user.id.slice(-6)}
                                     </Typography>
                                 </TableCell>
-                                <TableCell sx={{ color: '#D4D6E2', fontWeight: 700 }}>
+                                <TableCell sx={{ color: 'text.secondary', fontWeight: 700 }}>
                                     <Stack spacing={0.5}>
                                         <span>{item.user.email || '-'}</span>
                                         <span>{item.user.phone || '-'}</span>
                                     </Stack>
                                 </TableCell>
                                 <TableCell>
-                                    <Chip
-                                        label={statusLabels[item.user.status] ?? item.user.status}
-                                        sx={{
-                                            bgcolor: item.user.status === 'ACTIVE' ? '#D7FBE5' : '#FFE4E6',
-                                            color: item.user.status === 'ACTIVE' ? '#0F5132' : '#8B1020',
-                                            fontWeight: 900,
-                                        }}
-                                    />
+                                    <Stack spacing={0.75} alignItems="flex-start">
+                                        <Chip
+                                            label={statusLabels[getEffectiveUserStatus(item.user)] ?? item.user.status}
+                                            sx={{
+                                                bgcolor: getEffectiveUserStatus(item.user) === 'ACTIVE' ? '#D7FBE5' : '#FFE4E6',
+                                                color: getEffectiveUserStatus(item.user) === 'ACTIVE' ? '#0F5132' : '#8B1020',
+                                                fontWeight: 900,
+                                            }}
+                                        />
+                                        {item.user.failedAttempts ? (
+                                            <Typography sx={{ color: 'text.secondary', fontSize: 12, fontWeight: 700 }}>
+                                                失敗 {item.user.failedAttempts} 次
+                                            </Typography>
+                                        ) : null}
+                                    </Stack>
                                 </TableCell>
                                 <TableCell>
                                     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
@@ -430,11 +477,11 @@ export const UserTable = () => {
                                             <Chip
                                                 key={role.id}
                                                 label={roleLabel(role)}
-                                                sx={{ bgcolor: '#FFF3E6', color: '#7A3500', fontWeight: 900 }}
+                                                sx={{ bgcolor: isLightMode ? '#FFF3E6' : alpha(theme.palette.secondary.main, 0.16), color: isLightMode ? '#7A3500' : '#FFD9B0', fontWeight: 900 }}
                                             />
                                         ))}
                                         {item.roles.length === 0 && (
-                                            <Typography sx={{ color: '#AEB4C4', fontWeight: 700 }}>尚未指派</Typography>
+                                            <Typography sx={{ color: 'text.secondary', fontWeight: 700 }}>尚未指派</Typography>
                                         )}
                                     </Stack>
                                 </TableCell>
@@ -447,10 +494,10 @@ export const UserTable = () => {
                                                 sx={{
                                                     width: 44,
                                                     height: 44,
-                                                    border: '1px solid rgba(255, 109, 0, 0.7)',
-                                                    color: '#FFB15C',
-                                                    bgcolor: 'rgba(255, 109, 0, 0.08)',
-                                                    '&:hover': { bgcolor: 'rgba(255, 109, 0, 0.18)' },
+                                                    border: `1px solid ${alpha(theme.palette.secondary.main, 0.7)}`,
+                                                    color: 'secondary.main',
+                                                    bgcolor: alpha(theme.palette.secondary.main, 0.08),
+                                                    '&:hover': { bgcolor: alpha(theme.palette.secondary.main, 0.18) },
                                                 }}
                                             >
                                                 <EditIcon fontSize="small" />
@@ -463,33 +510,33 @@ export const UserTable = () => {
                                                 sx={{
                                                     width: 44,
                                                     height: 44,
-                                                    border: '1px solid rgba(174,180,196,0.55)',
-                                                    color: '#FFFFFF',
-                                                    bgcolor: 'rgba(255,255,255,0.04)',
-                                                    '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' },
+                                                    border: `1px solid ${mutedBorderColor}`,
+                                                    color: 'text.primary',
+                                                    bgcolor: roleUnselectedBg,
+                                                    '&:hover': { bgcolor: hoverBg },
                                                 }}
                                             >
                                                 <LockResetIcon fontSize="small" />
                                             </IconButton>
                                         </Tooltip>
-                                        <Tooltip title={`${item.user.status === 'ACTIVE' ? '停用' : '啟用'} ${item.user.username}`}>
+                                        <Tooltip title={`${getEffectiveUserStatus(item.user) === 'LOCKED' ? '解除鎖定' : getEffectiveUserStatus(item.user) === 'ACTIVE' ? '停用' : '啟用'} ${item.user.username}`}>
                                             <span>
                                                 <IconButton
-                                                    aria-label={`${item.user.status === 'ACTIVE' ? '停用' : '啟用'} ${item.user.username}`}
+                                                    aria-label={`${getEffectiveUserStatus(item.user) === 'LOCKED' ? '解除鎖定' : getEffectiveUserStatus(item.user) === 'ACTIVE' ? '停用' : '啟用'} ${item.user.username}`}
                                                     disabled={saving}
-                                                    onClick={() => toggleStatus(item)}
+                                                    onClick={() => requestStatusToggle(item)}
                                                     sx={{
                                                         width: 44,
                                                         height: 44,
-                                                        border: item.user.status === 'ACTIVE' ? '1px solid rgba(255, 120, 120, 0.75)' : '1px solid rgba(91, 255, 159, 0.75)',
-                                                        color: item.user.status === 'ACTIVE' ? '#FF9A9A' : '#9BFFC4',
-                                                        bgcolor: item.user.status === 'ACTIVE' ? 'rgba(255, 120, 120, 0.08)' : 'rgba(91, 255, 159, 0.08)',
+                                                        border: getEffectiveUserStatus(item.user) === 'ACTIVE' ? '1px solid rgba(220, 38, 38, 0.55)' : '1px solid rgba(22, 163, 74, 0.55)',
+                                                        color: getEffectiveUserStatus(item.user) === 'ACTIVE' ? '#DC2626' : '#15803D',
+                                                        bgcolor: getEffectiveUserStatus(item.user) === 'ACTIVE' ? 'rgba(220, 38, 38, 0.08)' : 'rgba(22, 163, 74, 0.1)',
                                                         '&:hover': {
-                                                            bgcolor: item.user.status === 'ACTIVE' ? 'rgba(255, 120, 120, 0.16)' : 'rgba(91, 255, 159, 0.16)',
+                                                            bgcolor: getEffectiveUserStatus(item.user) === 'ACTIVE' ? 'rgba(220, 38, 38, 0.14)' : 'rgba(22, 163, 74, 0.18)',
                                                         },
                                                         '&.Mui-disabled': {
-                                                            color: 'rgba(255,255,255,0.28)',
-                                                            borderColor: 'rgba(255,255,255,0.14)',
+                                                            color: alpha(theme.palette.text.primary, 0.28),
+                                                            borderColor: borderColor,
                                                         },
                                                     }}
                                                 >
@@ -503,7 +550,7 @@ export const UserTable = () => {
                         ))}
                         {users.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={5} align="center" sx={{ py: 4, color: '#AEB4C4' }}>暫無資料</TableCell>
+                                <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>暫無資料</TableCell>
                             </TableRow>
                         )}
                     </TableBody>
@@ -517,7 +564,7 @@ export const UserTable = () => {
                 alignItems={{ xs: 'stretch', sm: 'center' }}
                 sx={{ mt: 2 }}
             >
-                <Typography sx={{ color: '#D4D6E2', fontWeight: 800 }}>
+                <Typography sx={{ color: 'text.secondary', fontWeight: 800 }}>
                     共 {totalElements} 筆帳號
                 </Typography>
                 <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="flex-end">
@@ -543,12 +590,12 @@ export const UserTable = () => {
                         shape="rounded"
                         sx={{
                             '& .MuiPaginationItem-root': {
-                                color: '#D4D6E2',
-                                borderColor: 'rgba(255,255,255,0.16)',
+                                color: 'text.secondary',
+                                borderColor: mutedBorderColor,
                             },
                             '& .Mui-selected': {
-                                bgcolor: '#FF6D00 !important',
-                                color: '#FFFFFF',
+                                bgcolor: `${theme.palette.secondary.main} !important`,
+                                color: theme.palette.secondary.contrastText,
                             },
                         }}
                     />
@@ -560,25 +607,20 @@ export const UserTable = () => {
                 maxWidth="sm"
                 fullWidth
                 PaperProps={{
-                    sx: {
-                        bgcolor: '#2A2E3D',
-                        color: '#FFFFFF',
-                        borderRadius: 2,
-                        border: '1px solid rgba(255,255,255,0.12)',
-                    },
+                    sx: dialogPaperSx,
                 }}
             >
                 <DialogTitle sx={{ fontWeight: 900 }}>
                     編輯角色：{editingUser?.user.username}
                 </DialogTitle>
                 <DialogContent>
-                    <Typography sx={{ color: '#D4D6E2', mb: 2, fontWeight: 700 }}>
+                    <Typography sx={{ color: 'text.secondary', mb: 2, fontWeight: 700 }}>
                         儲存後會覆蓋此帳號的完整角色清單。
                     </Typography>
                     {roleCheckboxes}
                 </DialogContent>
                 <DialogActions sx={{ px: 3, pb: 3 }}>
-                    <Button onClick={() => setEditingUser(null)} disabled={saving} sx={{ color: '#D4D6E2', fontWeight: 900 }}>
+                    <Button onClick={() => setEditingUser(null)} disabled={saving} sx={{ color: 'text.secondary', fontWeight: 900 }}>
                         取消
                     </Button>
                     <Button
@@ -586,7 +628,7 @@ export const UserTable = () => {
                         startIcon={saving ? <CircularProgress size={18} color="inherit" /> : <SaveIcon />}
                         onClick={saveRoles}
                         disabled={saving}
-                        sx={{ bgcolor: '#FF6D00', color: '#FFFFFF', fontWeight: 900 }}
+                        sx={{ bgcolor: 'secondary.main', color: 'secondary.contrastText', fontWeight: 900 }}
                     >
                         儲存角色
                     </Button>
@@ -598,12 +640,7 @@ export const UserTable = () => {
                 maxWidth="sm"
                 fullWidth
                 PaperProps={{
-                    sx: {
-                        bgcolor: '#2A2E3D',
-                        color: '#FFFFFF',
-                        borderRadius: 2,
-                        border: '1px solid rgba(255,255,255,0.12)',
-                    },
+                    sx: dialogPaperSx,
                 }}
             >
                 <DialogTitle sx={{ fontWeight: 900 }}>新增帳號</DialogTitle>
@@ -636,20 +673,20 @@ export const UserTable = () => {
                             onChange={(event) => setCreateForm((current) => ({ ...current, phone: event.target.value }))}
                             fullWidth
                         />
-                        <Typography sx={{ color: '#D4D6E2', fontWeight: 900 }}>初始角色</Typography>
+                        <Typography sx={{ color: 'text.primary', fontWeight: 900 }}>初始角色</Typography>
                         {roleCheckboxes}
                     </Stack>
                 </DialogContent>
                 <DialogActions sx={{ px: 3, pb: 3 }}>
-                    <Button onClick={() => setCreatingUser(false)} disabled={saving} sx={{ color: '#D4D6E2', fontWeight: 900 }}>
+                    <Button onClick={() => setCreatingUser(false)} disabled={saving} sx={{ color: 'text.secondary', fontWeight: 900 }}>
                         取消
                     </Button>
                     <Button
                         variant="contained"
                         startIcon={saving ? <CircularProgress size={18} color="inherit" /> : <AddIcon />}
                         onClick={createUser}
-                        disabled={saving}
-                        sx={{ bgcolor: '#FF6D00', color: '#FFFFFF', fontWeight: 900 }}
+                        disabled={saving || !canCreateUser}
+                        sx={{ bgcolor: 'secondary.main', color: 'secondary.contrastText', fontWeight: 900 }}
                     >
                         建立帳號
                     </Button>
@@ -661,12 +698,7 @@ export const UserTable = () => {
                 maxWidth="xs"
                 fullWidth
                 PaperProps={{
-                    sx: {
-                        bgcolor: '#2A2E3D',
-                        color: '#FFFFFF',
-                        borderRadius: 2,
-                        border: '1px solid rgba(255,255,255,0.12)',
-                    },
+                    sx: dialogPaperSx,
                 }}
             >
                 <DialogTitle sx={{ fontWeight: 900 }}>
@@ -684,20 +716,30 @@ export const UserTable = () => {
                     />
                 </DialogContent>
                 <DialogActions sx={{ px: 3, pb: 3 }}>
-                    <Button onClick={() => setResettingUser(null)} disabled={saving} sx={{ color: '#D4D6E2', fontWeight: 900 }}>
+                    <Button onClick={() => setResettingUser(null)} disabled={saving} sx={{ color: 'text.secondary', fontWeight: 900 }}>
                         取消
                     </Button>
                     <Button
                         variant="contained"
                         startIcon={saving ? <CircularProgress size={18} color="inherit" /> : <LockResetIcon />}
                         onClick={resetPassword}
-                        disabled={saving}
-                        sx={{ bgcolor: '#FF6D00', color: '#FFFFFF', fontWeight: 900 }}
+                        disabled={saving || !canResetPassword}
+                        sx={{ bgcolor: 'secondary.main', color: 'secondary.contrastText', fontWeight: 900 }}
                     >
                         重設密碼
                     </Button>
                 </DialogActions>
             </Dialog>
+            <ConfirmDialog
+                open={Boolean(statusActionUser)}
+                title={`${statusActionLabel}帳號`}
+                message={`確定要${statusActionLabel} ${statusActionUser?.user.username ?? ''}？${statusActionLabel === '停用' ? '停用後此帳號將無法登入後台。' : ''}`}
+                confirmLabel={statusActionLabel}
+                cancelLabel="取消"
+                severity={statusActionLabel === '停用' ? 'warning' : 'info'}
+                onConfirm={toggleStatus}
+                onCancel={() => !saving && setStatusActionUser(null)}
+            />
         </Box>
     );
 };

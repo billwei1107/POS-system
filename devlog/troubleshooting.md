@@ -1764,3 +1764,64 @@ services:
 - `npm test -- --run`：通過，18 files / 44 tests。
 - `npm run build`：通過，保留既有 Vite chunk size warning。
 - Browser DOM 幾何驗證：展開 `240px`，收合 `88px`，再展開回 `240px`。
+
+---
+
+# 2026-05-22 Module-auth targeted Maven test uses stale common dependency
+
+## Issue
+
+- 場景：帳號管理打磨後，要跑 `module-auth` 的 `UserServiceImplTest`。
+- 指令：`mvn -pl module-auth test -Dtest=UserServiceImplTest`。
+- 異常行為：編譯失敗，`AuditAspect` 與 `PermissionGuardService` 找不到 `SecurityUtils.getCurrentRole()`。
+
+## Root Cause
+
+- `SecurityUtils.getCurrentRole()` 已存在於 `backend/module-common/src/main/java/com/enterprise/common/security/SecurityUtils.java`。
+- 單獨指定 `-pl module-auth` 時，Maven 沒一起重建 reactor 內相依的 `module-common`，導致 `module-auth` 吃到舊的 common 編譯產物。
+- 改用 `-am` 後，common / organization / auth 會一起建置；但上游模組沒有 `UserServiceImplTest`，需要允許未匹配指定測試。
+
+## Solution
+
+- 改用：
+
+```bash
+mvn -pl module-auth -am test -Dtest=UserServiceImplTest -Dsurefire.failIfNoSpecifiedTests=false
+```
+
+## Verification
+
+- `mvn -pl module-auth -am test -Dtest=UserServiceImplTest -Dsurefire.failIfNoSpecifiedTests=false`：通過，11 tests。
+
+---
+
+# 2026-05-22 Local admin account locked during browser credential probing
+
+## Issue
+
+- 場景：準備瀏覽器驗證帳號管理頁時，嘗試用常見密碼登入本地 `admin` 帳號。
+- 異常行為：多次失敗後，`admin` 進入鎖定狀態，後端回傳 `User account is locked. Please try again later.`。
+
+## Root Cause
+
+- 本地 `module-auth` 具有登入失敗鎖定機制。
+- 未先確認測試帳密就用真實本地帳號做多次登入嘗試，觸發 `failed_attempts >= 5`。
+
+## Solution
+
+- 僅針對本地開發資料庫復原 AI 測試造成的副作用：
+
+```sql
+update auth_users
+set failed_attempts = 0,
+    locked_until = null
+where username = 'admin';
+```
+
+- 後續瀏覽器驗證改用已知本地 `JWT_SECRET` 簽發短效測試 JWT，直接寫入瀏覽器 localStorage，不再猜密碼。
+
+## Verification
+
+- 復原前：`admin failed_attempts = 5`，`locked_until = 2026-05-22 04:05:18.191891`。
+- 復原後：`admin failed_attempts = 0`，`locked_until = null`。
+- Browser 驗證 `/admin/access/users` 可載入帳號管理頁。

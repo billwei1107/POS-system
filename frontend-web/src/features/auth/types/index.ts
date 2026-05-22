@@ -16,7 +16,11 @@ export interface User {
     email: string;
     phone: string;
     status: string;
+    failedAttempts?: number | null;
+    lockedUntil?: string | null;
+    mfaEnabled?: boolean | null;
     createdAt: string;
+    updatedAt?: string | null;
 }
 
 export interface Role {

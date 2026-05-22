@@ -153,6 +153,23 @@ class UserServiceImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void searchUserRoleSummariesAcceptsLockedStatusFilter() {
+        testUser.setStatus("ACTIVE");
+        testUser.setLockedUntil(LocalDateTime.now().plusMinutes(20));
+        when(roleRepository.findAll()).thenReturn(List.of(cashierRole));
+        when(userRepository.findAll(any(Specification.class), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(testUser), PageRequest.of(0, 10), 1));
+        when(userRoleRepository.findAllByUserId(testUser.getId())).thenReturn(List.of());
+
+        var response = userService.searchUserRoleSummaries("", "LOCKED", null, PageRequest.of(0, 10));
+
+        assertEquals(1, response.getTotalElements());
+        assertEquals(testUser.getLockedUntil(), response.getContent().getFirst().user().lockedUntil());
+        verify(userRepository).findAll(any(Specification.class), any(PageRequest.class));
+    }
+
+    @Test
     void updateUserRolesRejectsMissingRoleAndDoesNotDeleteMappings() {
         when(userRepository.findById(testUser.getId())).thenReturn(Optional.of(testUser));
         when(roleRepository.findAllById(any())).thenReturn(List.of(cashierRole));
