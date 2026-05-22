@@ -92,6 +92,15 @@ beforeEach(() => {
 });
 
 describe('RegisterPage barcode search mode', () => {
+  it('does not render unused header quick action placeholders', async () => {
+    renderRegisterPage();
+
+    expect(await screen.findByText('美式咖啡 12oz')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '折扣' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '急單' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '格狀' })).not.toBeInTheDocument();
+  });
+
   it('submits typed keyword through the touch search button', async () => {
     const user = userEvent.setup();
     renderRegisterPage();

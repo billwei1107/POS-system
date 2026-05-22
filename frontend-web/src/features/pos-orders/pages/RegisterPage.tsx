@@ -9,7 +9,7 @@ import {
     Alert, Box, TextField, InputAdornment, Button, Card, CardContent,
     Typography, Chip, Tooltip, CircularProgress
 } from '@mui/material';
-import { AddShoppingCart, Bolt, GridView, LocalOffer, QrCodeScanner, Search } from '@mui/icons-material';
+import { AddShoppingCart, QrCodeScanner, Search } from '@mui/icons-material';
 import { createPortal } from 'react-dom';
 import Cart from '../components/Cart';
 import { productApi } from '../../pos-products/api/productApi';
@@ -17,12 +17,6 @@ import type { Category, ProductItem } from '../../pos-products/types';
 import { useCartStore } from '../store/cartStore';
 import { formatMoney } from '@shared/utils';
 import { useAuthStore } from '@shared/store/authStore';
-
-const QUICK_ACTIONS = [
-    { label: '折扣', icon: <LocalOffer fontSize="small" /> },
-    { label: '急單', icon: <Bolt fontSize="small" /> },
-    { label: '格狀', icon: <GridView fontSize="small" /> },
-];
 
 const FEATURED_CATEGORY_NAMES = ['咖啡飲品', '烘焙點心'];
 const GENERATED_TEST_TEXT_PATTERNS = [/^Smoke Test/i, /^API Debug/i, /^api-debug/i, /測試/, /退款測試/, /瀏覽器測試/];
@@ -191,7 +185,7 @@ const RegisterPage: React.FC = () => {
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             <Box sx={{
                 display: 'grid',
-                gridTemplateColumns: { xs: '1fr', md: '1fr auto' },
+                gridTemplateColumns: '1fr',
                 gap: 2,
                 mb: 3,
                 alignItems: 'start'
@@ -203,23 +197,6 @@ const RegisterPage: React.FC = () => {
                     <Typography variant="body2" color="text.secondary">
                         快速查找商品、觸控式點單，並即時掌握結帳狀態。
                     </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: { xs: 'flex-start', md: 'flex-end' }, alignSelf: { md: 'center' } }}>
-                    {QUICK_ACTIONS.map(action => (
-                        <Button
-                            key={action.label}
-                            variant="outlined"
-                            startIcon={action.icon}
-                            sx={{
-                                minHeight: 52,
-                                color: 'text.primary',
-                                borderColor: 'rgba(255,255,255,0.12)',
-                                bgcolor: 'rgba(255,255,255,0.04)'
-                            }}
-                        >
-                            {action.label}
-                        </Button>
-                    ))}
                 </Box>
             </Box>
 
