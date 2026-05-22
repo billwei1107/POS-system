@@ -77,6 +77,15 @@ beforeEach(() => {
 });
 
 describe('Cart promotion evaluation', () => {
+  it('does not render unused quick cash amount placeholders below checkout', () => {
+    renderCart();
+
+    expect(screen.getByRole('button', { name: /立即結帳/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '$10' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '$20' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '$50' })).not.toBeInTheDocument();
+  });
+
   it('automatically applies the best promotion discount', async () => {
     renderCart();
 

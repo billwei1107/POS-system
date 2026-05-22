@@ -524,12 +524,6 @@ const Cart: React.FC = () => {
                 <Typography variant="h6" fontWeight="bold">{formatMoney(totals.total)}</Typography>
             </Button>
 
-            <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button variant="outlined" fullWidth sx={{ minHeight: 56, color: 'text.primary', borderColor: 'rgba(255,255,255,0.1)', bgcolor: 'rgba(255,255,255,0.02)' }}>$10</Button>
-                <Button variant="outlined" fullWidth sx={{ minHeight: 56, color: 'text.primary', borderColor: 'rgba(255,255,255,0.1)', bgcolor: 'rgba(255,255,255,0.02)' }}>$20</Button>
-                <Button variant="outlined" fullWidth sx={{ minHeight: 56, color: 'text.primary', borderColor: 'rgba(255,255,255,0.1)', bgcolor: 'rgba(255,255,255,0.02)' }}>$50</Button>
-            </Box>
-
             <Dialog
                 open={discountOpen}
                 onClose={() => setDiscountOpen(false)}
