@@ -7,6 +7,7 @@
 package com.enterprise.auth.controller;
 
 import com.enterprise.auth.dto.UpdateRolePermissionsRequest;
+import com.enterprise.auth.dto.CreateRoleRequest;
 import com.enterprise.common.annotation.Auditable;
 import com.enterprise.common.annotation.RequirePermission;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,8 @@ class RbacControllerSecurityTest {
         assertPermission(RoleController.class.getDeclaredMethod("getAllRoles"), "system:rbac:read");
         assertPermission(RoleController.class.getDeclaredMethod("getRolePermissionSummaries"), "system:rbac:read");
         assertPermission(RoleController.class.getDeclaredMethod("getRole", UUID.class), "system:rbac:read");
+        assertMutation(RoleController.class.getDeclaredMethod("createRole", CreateRoleRequest.class),
+                "system:rbac:manage", "system-rbac", "create-role");
         assertMutation(RoleController.class.getDeclaredMethod(
                         "updateRolePermissions", UUID.class, UpdateRolePermissionsRequest.class),
                 "system:rbac:manage", "system-rbac", "update-role-permissions");

@@ -4,6 +4,7 @@ import type {
     LoginRequest,
     LoginResponse,
     Permission,
+    CreateRoleRequest,
     CreateUserRequest,
     ResetUserPasswordRequest,
     Role,
@@ -37,6 +38,10 @@ export const roleApi = {
     getPermissions: async (): Promise<Permission[]> => {
         const response = await axiosInstance.get<unknown, ApiResponse<Permission[]>>('/v1/permissions');
         return response.data ?? [];
+    },
+    create: async (data: CreateRoleRequest): Promise<RolePermissionSummary> => {
+        const response = await axiosInstance.post<unknown, ApiResponse<RolePermissionSummary>, CreateRoleRequest>('/v1/roles', data);
+        return response.data;
     },
     updatePermissions: async (roleId: string, data: UpdateRolePermissionsRequest): Promise<RolePermissionSummary> => {
         const response = await axiosInstance.put<unknown, ApiResponse<RolePermissionSummary>, UpdateRolePermissionsRequest>(

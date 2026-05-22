@@ -14,8 +14,10 @@ import {
     FormControlLabel,
     Paper,
     Stack,
+    TextField,
     Typography,
 } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import EditIcon from '@mui/icons-material/Edit';
 import GroupsIcon from '@mui/icons-material/Groups';
@@ -315,6 +317,7 @@ const RolePermissionDialog = ({
                                             <Checkbox
                                                 checked={selectedPermissionIds.has(permission.id)}
                                                 onChange={() => onToggle(permission.id)}
+                                                inputProps={{ 'aria-label': `${permission.name} ${permission.code}` }}
                                                 sx={{
                                                     color: '#AEB4C4',
                                                     '&.Mui-checked': { color: '#FF8A2A' },
@@ -376,6 +379,225 @@ const RolePermissionDialog = ({
     );
 };
 
+const normalizeRoleCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9_]/g, '');
+
+const roleDialogTextFieldSx = {
+    '& .MuiInputLabel-root': {
+        color: '#C7CBD6',
+        fontWeight: 800,
+    },
+    '& .MuiInputLabel-root.Mui-focused': {
+        color: '#FF8A2A',
+    },
+    '& .MuiOutlinedInput-root': {
+        color: '#FFFFFF',
+        '& fieldset': {
+            borderColor: 'rgba(255,255,255,0.22)',
+        },
+        '&:hover fieldset': {
+            borderColor: 'rgba(255,255,255,0.42)',
+        },
+        '&.Mui-focused fieldset': {
+            borderColor: '#7C4DFF',
+        },
+    },
+    '& .MuiInputBase-input, & .MuiInputBase-inputMultiline': {
+        color: '#FFFFFF',
+        WebkitTextFillColor: '#FFFFFF',
+    },
+    '& .MuiFormHelperText-root': {
+        color: '#C7CBD6',
+        fontWeight: 700,
+    },
+};
+
+const RoleCreateDialog = ({
+    open,
+    permissions,
+    selectedPermissionIds,
+    saving,
+    roleName,
+    roleCode,
+    roleDescription,
+    onClose,
+    onNameChange,
+    onCodeChange,
+    onDescriptionChange,
+    onTogglePermission,
+    onSave,
+}: {
+    open: boolean;
+    permissions: Permission[];
+    selectedPermissionIds: Set<string>;
+    saving: boolean;
+    roleName: string;
+    roleCode: string;
+    roleDescription: string;
+    onClose: () => void;
+    onNameChange: (value: string) => void;
+    onCodeChange: (value: string) => void;
+    onDescriptionChange: (value: string) => void;
+    onTogglePermission: (permissionId: string) => void;
+    onSave: () => void;
+}) => {
+    const permissionGroups = useMemo(() => groupPermissionsByType(permissions), [permissions]);
+    const groupEntries = Object.entries(permissionGroups).sort(([left], [right]) => left.localeCompare(right));
+    const canSave = Boolean(roleName.trim() && roleCode.trim()) && !saving;
+
+    return (
+        <Dialog
+            open={open}
+            onClose={saving ? undefined : onClose}
+            maxWidth="md"
+            fullWidth
+            PaperProps={{
+                sx: {
+                    bgcolor: '#232633',
+                    color: '#FFFFFF',
+                    borderRadius: 3,
+                    border: '1px solid rgba(255,255,255,0.12)',
+                },
+            }}
+        >
+            <DialogTitle sx={{ pb: 1 }}>
+                <Typography sx={{ fontWeight: 900, fontSize: 26 }}>
+                    新增角色
+                </Typography>
+                <Typography sx={{ mt: 0.5, color: '#C7CBD6', fontWeight: 700 }}>
+                    建立後可立即指派給帳號，也能在此先勾選初始權限。
+                </Typography>
+            </DialogTitle>
+            <DialogContent sx={{ pt: 1 }}>
+                <Stack spacing={2.25}>
+                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                        <TextField
+                            label="角色名稱"
+                            required
+                            value={roleName}
+                            onChange={(event) => onNameChange(event.target.value)}
+                            fullWidth
+                            InputLabelProps={{ shrink: true }}
+                            inputProps={{ maxLength: 50 }}
+                            sx={roleDialogTextFieldSx}
+                        />
+                        <TextField
+                            label="角色代碼"
+                            required
+                            value={roleCode}
+                            onChange={(event) => onCodeChange(normalizeRoleCode(event.target.value))}
+                            fullWidth
+                            helperText="使用英文大寫、數字與底線，例如 SHIFT_MANAGER"
+                            InputLabelProps={{ shrink: true }}
+                            inputProps={{ maxLength: 50 }}
+                            sx={roleDialogTextFieldSx}
+                        />
+                    </Stack>
+                    <TextField
+                        label="角色描述"
+                        value={roleDescription}
+                        onChange={(event) => onDescriptionChange(event.target.value)}
+                        fullWidth
+                        multiline
+                        minRows={2}
+                        InputLabelProps={{ shrink: true }}
+                        inputProps={{ maxLength: 255 }}
+                        sx={roleDialogTextFieldSx}
+                    />
+                    <Alert severity="info" sx={{ bgcolor: 'rgba(3, 169, 244, 0.12)', color: '#DDF5FF' }}>
+                        沒勾權限也可以先建立角色，後續再用「編輯權限」補上。
+                    </Alert>
+                    <Stack spacing={2}>
+                        {groupEntries.map(([type, groupPermissions]) => (
+                            <Paper
+                                key={type}
+                                elevation={0}
+                                sx={{
+                                    p: 2,
+                                    borderRadius: 2,
+                                    bgcolor: 'rgba(255,255,255,0.04)',
+                                    border: '1px solid rgba(255,255,255,0.1)',
+                                }}
+                            >
+                                <Typography sx={{ mb: 1.25, color: '#FFFFFF', fontWeight: 900 }}>
+                                    {getPermissionTypeLabel(type)}
+                                </Typography>
+                                <Box
+                                    sx={{
+                                        display: 'grid',
+                                        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' },
+                                        gap: 1,
+                                    }}
+                                >
+                                    {groupPermissions.map((permission) => (
+                                        <FormControlLabel
+                                            key={permission.id}
+                                            control={
+                                                <Checkbox
+                                                    checked={selectedPermissionIds.has(permission.id)}
+                                                    onChange={() => onTogglePermission(permission.id)}
+                                                    inputProps={{ 'aria-label': `${permission.name} ${permission.code}` }}
+                                                    sx={{
+                                                        color: '#AEB4C4',
+                                                        '&.Mui-checked': { color: '#FF8A2A' },
+                                                    }}
+                                                />
+                                            }
+                                            label={
+                                                <Box sx={{ minWidth: 0 }}>
+                                                    <Typography sx={{ color: '#FFFFFF', fontWeight: 800, lineHeight: 1.25 }}>
+                                                        {permission.name}
+                                                    </Typography>
+                                                    <Typography sx={{ color: '#B8BDCA', fontWeight: 700, fontSize: 13, lineHeight: 1.25 }}>
+                                                        {permission.code}
+                                                    </Typography>
+                                                </Box>
+                                            }
+                                            sx={{
+                                                m: 0,
+                                                minHeight: 58,
+                                                px: 1,
+                                                py: 0.5,
+                                                borderRadius: 2,
+                                                border: selectedPermissionIds.has(permission.id)
+                                                    ? '1px solid rgba(255, 138, 42, 0.62)'
+                                                    : '1px solid rgba(255,255,255,0.08)',
+                                                bgcolor: selectedPermissionIds.has(permission.id)
+                                                    ? 'rgba(255, 109, 0, 0.14)'
+                                                    : 'rgba(255,255,255,0.02)',
+                                            }}
+                                        />
+                                    ))}
+                                </Box>
+                            </Paper>
+                        ))}
+                    </Stack>
+                </Stack>
+            </DialogContent>
+            <DialogActions sx={{ px: 3, pb: 3 }}>
+                <Button onClick={onClose} disabled={saving} sx={{ color: '#D4D6E2', fontWeight: 900 }}>
+                    取消
+                </Button>
+                <Button
+                    variant="contained"
+                    startIcon={saving ? <CircularProgress size={18} color="inherit" /> : <AddIcon />}
+                    onClick={onSave}
+                    disabled={!canSave}
+                    sx={{
+                        minHeight: 44,
+                        borderRadius: 2,
+                        bgcolor: '#FF6D00',
+                        color: '#FFFFFF',
+                        fontWeight: 900,
+                        '&:hover': { bgcolor: '#FF8A2A' },
+                    }}
+                >
+                    建立角色
+                </Button>
+            </DialogActions>
+        </Dialog>
+    );
+};
+
 export const RolePermissionTree = () => {
     const [roles, setRoles] = useState<RolePermissionSummary[]>([]);
     const [permissions, setPermissions] = useState<Permission[]>([]);
@@ -385,6 +607,11 @@ export const RolePermissionTree = () => {
     const [successMessage, setSuccessMessage] = useState('');
     const [editingRole, setEditingRole] = useState<RolePermissionSummary | null>(null);
     const [selectedPermissionIds, setSelectedPermissionIds] = useState<Set<string>>(new Set());
+    const [createDialogOpen, setCreateDialogOpen] = useState(false);
+    const [newRoleName, setNewRoleName] = useState('');
+    const [newRoleCode, setNewRoleCode] = useState('');
+    const [newRoleDescription, setNewRoleDescription] = useState('');
+    const [newRolePermissionIds, setNewRolePermissionIds] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         const fetchRoles = async () => {
@@ -423,6 +650,50 @@ export const RolePermissionTree = () => {
             }
             return next;
         });
+    };
+
+    const toggleNewRolePermission = (permissionId: string) => {
+        setNewRolePermissionIds((current) => {
+            const next = new Set(current);
+            if (next.has(permissionId)) {
+                next.delete(permissionId);
+            } else {
+                next.add(permissionId);
+            }
+            return next;
+        });
+    };
+
+    const resetCreateDialog = () => {
+        setCreateDialogOpen(false);
+        setNewRoleName('');
+        setNewRoleCode('');
+        setNewRoleDescription('');
+        setNewRolePermissionIds(new Set());
+    };
+
+    const createRole = async () => {
+        if (!newRoleName.trim() || !newRoleCode.trim()) {
+            return;
+        }
+        setSaving(true);
+        try {
+            const createdRole = await roleApi.create({
+                name: newRoleName.trim(),
+                code: newRoleCode.trim(),
+                description: newRoleDescription.trim() || undefined,
+                permissionIds: Array.from(newRolePermissionIds),
+            });
+            setRoles((current) => [...current, createdRole].sort((left, right) => left.code.localeCompare(right.code)));
+            resetCreateDialog();
+            setErrorMessage('');
+            setSuccessMessage(`已建立 ${createdRole.name} 角色。`);
+        } catch (error) {
+            console.error(error);
+            setErrorMessage('建立角色失敗，請確認角色代碼沒有重複且帳號具備管理角色權限。');
+        } finally {
+            setSaving(false);
+        }
     };
 
     const savePermissionChanges = async () => {
@@ -500,9 +771,29 @@ export const RolePermissionTree = () => {
                             現有角色權限架構
                         </Typography>
                         <Typography sx={{ mt: 0.5, color: '#AEB4C4', fontWeight: 700 }}>
-                            檢視各角色目前繫結的操作權限，後續可擴充為編輯與審批流程。
+                            檢視各角色目前繫結的操作權限，也可新增門市自訂角色。
                         </Typography>
                     </Box>
+                    <Button
+                        variant="contained"
+                        startIcon={<AddIcon />}
+                        onClick={() => {
+                            setCreateDialogOpen(true);
+                            setErrorMessage('');
+                            setSuccessMessage('');
+                        }}
+                        sx={{
+                            minHeight: 44,
+                            borderRadius: 2,
+                            bgcolor: '#FF6D00',
+                            color: '#FFFFFF',
+                            fontWeight: 900,
+                            alignSelf: { xs: 'stretch', md: 'flex-start' },
+                            '&:hover': { bgcolor: '#FF8A2A' },
+                        }}
+                    >
+                        新增角色
+                    </Button>
                 </Stack>
 
                 <Stack spacing={1.5}>
@@ -533,6 +824,21 @@ export const RolePermissionTree = () => {
                 }}
                 onToggle={togglePermission}
                 onSave={savePermissionChanges}
+            />
+            <RoleCreateDialog
+                open={createDialogOpen}
+                permissions={permissions}
+                selectedPermissionIds={newRolePermissionIds}
+                saving={saving}
+                roleName={newRoleName}
+                roleCode={newRoleCode}
+                roleDescription={newRoleDescription}
+                onClose={resetCreateDialog}
+                onNameChange={setNewRoleName}
+                onCodeChange={setNewRoleCode}
+                onDescriptionChange={setNewRoleDescription}
+                onTogglePermission={toggleNewRolePermission}
+                onSave={createRole}
             />
         </Stack>
     );

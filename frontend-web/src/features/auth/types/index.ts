@@ -44,6 +44,13 @@ export interface RolePermissionSummary extends Role {
     permissions: Permission[];
 }
 
+export interface CreateRoleRequest {
+    name: string;
+    code: string;
+    description?: string;
+    permissionIds: string[];
+}
+
 export interface UpdateRolePermissionsRequest {
     permissionIds: string[];
 }

@@ -1,5 +1,6 @@
 package com.enterprise.auth.service.impl;
 
+import com.enterprise.auth.dto.CreateRoleRequest;
 import com.enterprise.auth.dto.RolePermissionSummaryResponse;
 import com.enterprise.auth.dto.UpdateRolePermissionsRequest;
 import com.enterprise.auth.entity.Permission;
@@ -21,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -40,6 +42,54 @@ class RoleServiceImplTest {
             permissionRepository,
             rolePermissionRepository
     );
+
+    @Test
+    void createRoleNormalizesCodeAssignsPermissionsAndReturnsSummary() {
+        UUID roleId = UUID.randomUUID();
+        UUID permissionId = UUID.randomUUID();
+        Permission refund = permission(permissionId, "pos:order:refund");
+
+        when(roleRepository.findByCode("SHIFT_MANAGER")).thenReturn(Optional.empty());
+        when(permissionRepository.findAllById(any())).thenReturn(List.of(refund));
+        when(permissionRepository.findAll()).thenReturn(List.of(refund));
+        when(rolePermissionRepository.findAllByRoleId(roleId))
+                .thenReturn(List.of(rolePermission(roleId, permissionId)));
+        when(roleRepository.save(any(Role.class))).thenAnswer(invocation -> {
+            Role saved = invocation.getArgument(0);
+            saved.setId(roleId);
+            return saved;
+        });
+
+        RolePermissionSummaryResponse summary = roleService.createRole(new CreateRoleRequest(
+                " 班長 ",
+                "shift_manager",
+                " 門市班長 ",
+                List.of(permissionId)
+        ));
+
+        ArgumentCaptor<Role> roleCaptor = ArgumentCaptor.forClass(Role.class);
+        verify(roleRepository).save(roleCaptor.capture());
+        assertEquals("班長", roleCaptor.getValue().getName());
+        assertEquals("SHIFT_MANAGER", roleCaptor.getValue().getCode());
+        assertEquals("門市班長", roleCaptor.getValue().getDescription());
+        verify(rolePermissionRepository).deleteAllByRoleId(roleId);
+        verify(rolePermissionRepository).save(any(RolePermission.class));
+        assertEquals("SHIFT_MANAGER", summary.code());
+        assertEquals(1, summary.permissions().size());
+    }
+
+    @Test
+    void createRoleRejectsDuplicateCode() {
+        when(roleRepository.findByCode("SHIFT_MANAGER")).thenReturn(Optional.of(role(UUID.randomUUID(), "SHIFT_MANAGER")));
+
+        assertThrows(BusinessException.class, () -> roleService.createRole(new CreateRoleRequest(
+                "班長",
+                "SHIFT_MANAGER",
+                "",
+                List.of()
+        )));
+        verify(roleRepository, never()).save(any());
+    }
 
     @Test
     void updateRolePermissionsReplacesAssignmentsAndReturnsSummary() {
@@ -64,7 +114,7 @@ class RoleServiceImplTest {
 
         verify(rolePermissionRepository).deleteAllByRoleId(roleId);
         ArgumentCaptor<RolePermission> captor = ArgumentCaptor.forClass(RolePermission.class);
-        verify(rolePermissionRepository, org.mockito.Mockito.times(2)).save(captor.capture());
+        verify(rolePermissionRepository, times(2)).save(captor.capture());
         assertEquals(2, summary.permissions().size());
         assertEquals("SHIFT_MANAGER", summary.code());
         assertEquals("pos:inventory:stock-take", summary.permissions().get(0).code());

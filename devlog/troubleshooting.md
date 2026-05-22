@@ -1883,3 +1883,28 @@ where username = 'admin';
 - `npm test -- --run`：通過，19 files / 52 tests。
 - `npm run build`：通過。
 - Browser：登入頁實測卡片文字 `rgb(30, 41, 59)`，label `rgb(100, 116, 139)`，輸入文字與 WebKit fill `rgb(30, 41, 59)`，深色模式下可讀。
+
+---
+
+# 2026-05-22 Role creation dialog input label overlaps value
+
+## Issue
+
+- 場景：角色權限頁新增「新增角色」對話框後，用瀏覽器填入角色名稱與角色代碼。
+- 異常行為：深色對話框中的 MUI TextField label 沒有穩定縮到欄位上緣，角色代碼 label 會壓到輸入值，視覺上不清楚。
+
+## Root Cause
+
+- 角色新增對話框使用固定深色背景，但 TextField 沒有局部指定深色對話框需要的 label、input、helper text 與外框樣式。
+- TextField 在對話框轉場與填值後的 label shrink 狀態不夠穩定，造成 label 與值短暫或持續重疊。
+
+## Solution
+
+- 新增 `roleDialogTextFieldSx`，固定深色對話框內 TextField 的 label、input、helper text 與外框顏色。
+- 對角色名稱、角色代碼、角色描述欄位設定 `InputLabelProps={{ shrink: true }}`，讓 label 永遠停在欄位上緣。
+
+## Verification
+
+- `npm test -- --run test/auth/RolePermissionTree.test.tsx`：通過，1 test。
+- `npx tsc -b`：通過。
+- Browser：新增角色對話框填入 `test_shift_manager` 後顯示 `TEST_SHIFT_MANAGER`，label 位於輸入框上緣，Paper 背景 `rgb(35, 38, 51)`、opacity `1`。

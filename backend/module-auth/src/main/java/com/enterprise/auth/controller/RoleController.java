@@ -1,5 +1,6 @@
 package com.enterprise.auth.controller;
 
+import com.enterprise.auth.dto.CreateRoleRequest;
 import com.enterprise.auth.dto.RolePermissionSummaryResponse;
 import com.enterprise.auth.dto.UpdateRolePermissionsRequest;
 import com.enterprise.auth.entity.Role;
@@ -7,6 +8,7 @@ import com.enterprise.auth.service.RoleService;
 import com.enterprise.common.annotation.Auditable;
 import com.enterprise.common.annotation.RequirePermission;
 import com.enterprise.common.dto.ApiResponse;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -31,6 +33,13 @@ public class RoleController {
     @RequirePermission("system:rbac:read")
     public ApiResponse<List<RolePermissionSummaryResponse>> getRolePermissionSummaries() {
         return ApiResponse.success(roleService.getRolePermissionSummaries());
+    }
+
+    @PostMapping
+    @RequirePermission("system:rbac:manage")
+    @Auditable(module = "system-rbac", action = "create-role")
+    public ApiResponse<RolePermissionSummaryResponse> createRole(@Valid @RequestBody CreateRoleRequest request) {
+        return ApiResponse.success(roleService.createRole(request));
     }
 
     @PutMapping("/{id}/permissions")
